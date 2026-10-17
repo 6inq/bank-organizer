@@ -1,0 +1,15 @@
+{
+  "name": "Bank Organizer",
+  "version": "1.0.0",
+  "author": "6ing",
+  "repo": "https://github.com/6inq/bank-organizer",
+  "contactEmailAddress": "im6ing@gmail.com",
+  "hasRibbonIcon": true,
+  "hasSettingsIcon": true,
+  "requiredDependencies": {
+    "prettyui": 6398181
+  },
+  "optionalDependencies": {},
+  "requiredPermissions": [],
+  "optionalPermissions": []
+}
