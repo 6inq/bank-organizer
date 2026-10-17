@@ -56,7 +56,7 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <p>Bank Organizer works on whatever your bank is showing. Open a tab to organize just that tab, or open <em>All items</em> to organize everything. (Tip: ordering in All items can move items between tabs, so organize tab by tab to keep your tabs intact.)</p>
 
 <h3>Customizable</h3>
-<p>Every option lives in the settings panel: sort order, overlays, category filter, opacity, category colours and right-click tagging. You can reset all your tags at any time.</p>
+<p>Every option lives in the settings panel: sort order, overlays, category filter, opacity and right-click tagging. Every colour is yours to change: each category, the MOVE highlight, the drop target, the filter dim and the untagged outline. You can reset all your tags at any time.</p>
 
 <h2>How to use</h2>
 <ol>
@@ -115,5 +115,5 @@ This listing has two parts:
 
 - [ ] Confirm `contactEmailAddress` in `plugin.json` (set to im6ing@gmail.com).
 - [ ] Test in the live client, then fix anything the reverse-engineered API got wrong.
-- [ ] Upload `dist/bank-organizer-1.0.0.zip` as the plugin file.
+- [ ] Upload `dist/bank-organizer-1.1.0.zip` as the plugin file.
 - [ ] Upload your listing image.

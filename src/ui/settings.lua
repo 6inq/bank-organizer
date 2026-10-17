@@ -1,5 +1,6 @@
 -- Settings panel: every option lives here and is locked while organizing.
 local Categories = require("src/core/categories")
+local Store = require("src/core/store")
 
 local Settings = {}
 
@@ -59,6 +60,35 @@ local function addOverlays(target, store, app)
   }))
 end
 
+-- Untagged has no stored default; its picker starts from white.
+local function addColour(target, store, app, key, label)
+  target:AddText(label)
+  track(target:AddColourPicker({
+    value = store:colour(key) or 0xFFFFFFFF,
+    onChange = function(_, colour) store:setColour(key, colour); app:invalidate() end,
+  }))
+end
+
+local HIGHLIGHTS = {
+  { "move", "Item to move (MOVE)" },
+  { "target", "Drop target (INSERT BEFORE)" },
+  { "dim", "Dimmed slots when filtering" },
+  { Store.UNTAGGED, "Untagged item outline" },
+}
+
+local function addHighlights(target, parent, store, app)
+  target:AddTitle("Highlight colours")
+  for _, highlight in ipairs(HIGHLIGHTS) do addColour(target, store, app, highlight[1], highlight[2]) end
+  track(target:AddSimpleButton("Reset all colours", function()
+    prettyui.Confirm.new(parent, {
+      title = "RESET COLOURS",
+      body = "Put every category and highlight colour back to its default?",
+      confirmLabel = "RESET",
+      onConfirm = function() store:resetColours(); app:invalidate() end,
+    })
+  end))
+end
+
 local function addTagging(target, parent, store, app)
   target:AddTitle("Categories")
   track(target:AddCheckboxButton({
@@ -67,11 +97,7 @@ local function addTagging(target, parent, store, app)
     onChange = function(_, _, changed, selected) store:set(changed, selected) end,
   }))
   for _, category in ipairs(Categories.list) do
-    target:AddText(category.label .. " colour")
-    track(target:AddColourPicker({
-      value = store:colour(category.key),
-      onChange = function(_, colour) store:setColour(category.key, colour); app:invalidate() end,
-    }))
+    addColour(target, store, app, category.key, category.label .. " colour")
   end
   track(target:AddSimpleButton("Reset all tags", function()
     prettyui.Confirm.new(parent, {
@@ -95,6 +121,7 @@ local function mount(parent, store, app)
   addOrganizing(view, store, app)
   addOverlays(view, store, app)
   addTagging(view, parent, store, app)
+  addHighlights(view, parent, store, app)
   app:onChange(LISTENER, function(state) applyLock(state, lockLabel) end)
 end
 

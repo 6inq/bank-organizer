@@ -1,6 +1,6 @@
 # Bank Organizer
 
-An RS3 plugin for the official Plugin Hub. Created by **6ing**. Version **1.0.0**.
+An RS3 plugin for the official Plugin Hub. Created by **6ing**. Version **1.1.0**.
 
 It colour-codes your bank by category and guides you through sorting it, one move at a time. It works on a single tab, or on your whole bank from the *All items* view.
 
@@ -22,7 +22,8 @@ Want to change something? Click **Stop Organizing**, the Start button turns into
   - It shows "Insert X before Y" with green and yellow slot highlights.
   - The planner keeps the longest already-sorted run in place, so it always uses the **fewest possible moves**.
   - It rescans after every move you make.
-- **Settings**: sort order (item ID or name), overlays, category filter, opacity, per-category colours, right-click tagging, and a reset for all tags.
+- **Settings**: sort order (item ID or name), overlays, category filter, opacity, right-click tagging, and a reset for all tags.
+- **Every colour is yours**: each category, the MOVE highlight, the drop target, the filter dim and the untagged outline all have their own colour picker, plus a reset back to defaults.
 
 ## Fair play
 The plugin never moves, withdraws or clicks anything for you. It only reads what your bank is already showing and draws highlights. It needs no permissions: no HTTP, no chat, no tracking.
@@ -50,7 +51,7 @@ Then run the suite:
 python tests/run.py
 ```
 
-The suite has 92 tests:
+The suite has 96 tests:
 - the classifier, the planner, persistence, the bank scan and the overlays
 - the full user flow through `main.lua`: steps shown, Start turns into Stop, settings lock and unlock, tagging is locked while organizing
 - complete organizing sessions on banks of **10, 100, 500 and 1000 real RS3 items**. The ids and names come from the RuneScape Wiki GE table (`tests/fixtures/rs3_items.lua`).

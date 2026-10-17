@@ -172,4 +172,16 @@ function T.shutdown_is_idempotent_and_unsubscribes()
   end
 end
 
+function T.settings_offer_every_colour()
+  local ui = boot()
+  local pickers, labels = 0, texts(ui.settings)
+  for _, w in ipairs(ui.settings) do if w.method == "AddColourPicker" then pickers = pickers + 1 end end
+  A.eq(pickers, 12, "8 categories + move, target, dim, untagged")
+  for _, label in ipairs({ "Item to move (MOVE)", "Drop target (INSERT BEFORE)", "Dimmed slots when filtering", "Untagged item outline" }) do
+    A.truthy(labels:find(label, 1, true), label)
+  end
+  A.truthy(find(ui.settings, "AddSimpleButton", "Reset all colours"))
+  PluginShutdown()
+end
+
 return T

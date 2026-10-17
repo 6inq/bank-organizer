@@ -85,4 +85,21 @@ function T.settings_validate_and_persist()
   A.eq(reloaded:get("sortMode"), "name"); A.eq(reloaded:colour("food"), 0xABCDEF80)
 end
 
+function T.highlight_colours_default_set_and_reset()
+  local db = fakeDb()
+  local store = Store.new(db)
+  A.eq(store:colour("move"), Store.HIGHLIGHT_DEFAULTS.move); A.eq(store:colour("target"), Store.HIGHLIGHT_DEFAULTS.target)
+  A.eq(store:colour("dim"), Store.HIGHLIGHT_DEFAULTS.dim); A.eq(store:colour("untagged"), nil, "follows category colour")
+  for _, key in ipairs({ "move", "target", "dim", "untagged", "food" }) do
+    A.eq(store:setColour(key, 0x11223344), true, key)
+  end
+  local reloaded = Store.new(db)
+  for _, key in ipairs({ "move", "target", "dim", "untagged", "food" }) do A.eq(reloaded:colour(key), 0x11223344, key) end
+  A.eq(store:setColour("nope", 0x11223344), false)
+  reloaded:resetColours()
+  local reset = Store.new(db)
+  A.eq(reset:colour("move"), Store.HIGHLIGHT_DEFAULTS.move); A.eq(reset:colour("untagged"), nil)
+  A.eq(reset:colour("food"), Categories.byKey.food.colour)
+end
+
 return T

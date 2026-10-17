@@ -30,6 +30,15 @@ local function isColour(v)
   return type(v) == "number" and v == math.floor(v) and v >= 0 and v <= 0xFFFFFFFF
 end
 
+-- Highlight colours the player can change, alongside the category colours.
+Store.HIGHLIGHT_DEFAULTS = { move = 0x3CE03CFF, target = 0xF2C94CFF, dim = 0x000000AA }
+-- "untagged" has no default: the outline follows each item's category colour until set.
+Store.UNTAGGED = "untagged"
+
+local function isColourKey(key)
+  return Categories.isValid(key) or Store.HIGHLIGHT_DEFAULTS[key] ~= nil or key == Store.UNTAGGED
+end
+
 local function readTable(db, key)
   if db == nil then return {} end
   local ok, value = pcall(db.GetStructuredData, db, key)
@@ -54,7 +63,7 @@ local function sanitizeSettings(raw)
   end
   settings.colours = {}
   for key, colour in pairs(type(raw.colours) == "table" and raw.colours or {}) do
-    if Categories.isValid(key) and isColour(colour) then settings.colours[key] = math.floor(colour) end
+    if isColourKey(key) and isColour(colour) then settings.colours[key] = math.floor(colour) end
   end
   return settings
 end
@@ -107,15 +116,23 @@ function Store:set(name, value)
   return true
 end
 
+-- Custom colour, else the default. Returns nil only for an unset "untagged" outline.
 function Store:colour(key)
   local custom = self.settings.colours[key]
   if custom then return custom end
+  if key == Store.UNTAGGED then return nil end
+  if Store.HIGHLIGHT_DEFAULTS[key] then return Store.HIGHLIGHT_DEFAULTS[key] end
   local entry = Categories.byKey[key] or Categories.byKey[Categories.DEFAULT]
   return entry.colour
 end
 
+function Store:resetColours()
+  self.settings.colours = {}
+  self:_save(Store.SETTINGS_KEY, self.settings)
+end
+
 function Store:setColour(key, colour)
-  if not Categories.isValid(key) or not isColour(colour) then return false end
+  if not isColourKey(key) or not isColour(colour) then return false end
   self.settings.colours[key] = colour
   self:_save(Store.SETTINGS_KEY, self.settings)
   return true

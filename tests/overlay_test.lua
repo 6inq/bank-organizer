@@ -16,7 +16,11 @@ local function view(overrides)
   local v = {
     overlays = true, filter = "all", highlightUntagged = false, opacity = 0.5,
     categoryOf = function(objectID) return objectID == 1 and "food" or "combat" end,
-    colourOf = function() return 0xFF000000 + 0xFF end,
+    colourOf = function(key)
+      local highlights = { move = 0x3CE03CFF, target = 0xF2C94CFF, dim = 0x000000AA }
+      if key == "untagged" then return nil end
+      return highlights[key] or 0xFF0000FF
+    end,
     isTagged = function(objectID) return objectID == 1 end,
   }
   for k, val in pairs(overrides or {}) do v[k] = val end
@@ -93,6 +97,28 @@ function T.container_change_clears()
   local second = F.install()
   overlay:render(second, slots(), view())
   A.eq(F.count("rect"), 3)
+end
+
+function T.custom_highlight_colours_are_drawn()
+  local container = F.install()
+  local custom = { move = 0x0000FFFF, target = 0xFF00FFFF, dim = 0x22222280, untagged = 0x00FFFFFF }
+  local colourOf = function(key) return custom[key] or 0xFF0000FF end
+  Overlay.new():render(container, slots(), view({ colourOf = colourOf, filter = "food", highlightUntagged = true,
+    move = { move = 3, before = 1, remaining = 1 } }))
+  local seen = {}
+  for _, c in ipairs(F.created) do seen[c.rgba] = (seen[c.rgba] or 0) + 1 end
+  A.eq(seen[0x22222280], 2, "dim on the two non-food slots")
+  A.eq(seen[0x00FFFFFF], 2, "untagged outline on the two untagged slots")
+  A.eq(seen[0x0000FFFF], 2, "move outline + MOVE label")
+  A.eq(seen[0xFF00FFFF], 2, "target outline + label")
+end
+
+function T.colour_change_triggers_redraw()
+  local container = F.install()
+  local overlay = Overlay.new()
+  overlay:render(container, slots(), view())
+  local recolour = view({ colourOf = function(key) return key == "dim" and 0x12345678 or 0xFF0000FF end })
+  A.eq(overlay:render(container, slots(), recolour), true)
 end
 
 return T

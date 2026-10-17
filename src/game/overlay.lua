@@ -3,9 +3,6 @@
 local Overlay = {}
 Overlay.__index = Overlay
 
-local DIM = 0x000000AA
-local MOVE_COLOUR = 0x3CE03CFF
-local TARGET_COLOUR = 0xF2C94CFF
 local LABEL_HEIGHT = 14
 
 function Overlay.new()
@@ -46,6 +43,8 @@ local function signatureOf(slots, view)
   local parts = {
     tostring(view.overlays), view.filter, tostring(view.highlightUntagged), tostring(view.opacity),
     view.move and (view.move.move .. ">" .. tostring(view.move.before or view.move.after)) or "-",
+    tostring(view.colourOf("move")), tostring(view.colourOf("target")), tostring(view.colourOf("dim")),
+    tostring(view.colourOf("untagged")),
   }
   for _, slot in ipairs(slots) do
     local key = view.categoryOf(slot.objectID)
@@ -62,23 +61,24 @@ function Overlay:_drawCategories(slots, view)
     if matches then
       self:_rect(slot, withAlpha(view.colourOf(key), view.opacity))
     else
-      self:_rect(slot, DIM)
+      self:_rect(slot, view.colourOf("dim"))
     end
     if view.highlightUntagged and not view.isTagged(slot.objectID) then
-      self:_rect(slot, withAlpha(view.colourOf(key), 1), 2)
+      self:_rect(slot, view.colourOf("untagged") or withAlpha(view.colourOf(key), 1), 2)
     end
   end
 end
 
-function Overlay:_drawMove(slots, move)
+function Overlay:_drawMove(slots, move, view)
   local anchor = move.before or move.after
+  local moveColour, targetColour = view.colourOf("move"), view.colourOf("target")
   for _, slot in ipairs(slots) do
     if slot.objectID == move.move then
-      self:_rect(slot, MOVE_COLOUR, 3)
-      self:_label(slot, "MOVE", MOVE_COLOUR)
+      self:_rect(slot, moveColour, 3)
+      self:_label(slot, "MOVE", moveColour)
     elseif slot.objectID == anchor then
-      self:_rect(slot, TARGET_COLOUR, 3)
-      self:_label(slot, move.before and "INSERT BEFORE" or "AFTER", TARGET_COLOUR)
+      self:_rect(slot, targetColour, 3)
+      self:_label(slot, move.before and "INSERT BEFORE" or "AFTER", targetColour)
     end
   end
 end
@@ -93,7 +93,7 @@ function Overlay:render(container, slots, view)
   self:clear()
   self.container, self.signature = container, signature
   if view.overlays then self:_drawCategories(slots, view) end
-  if view.move then self:_drawMove(slots, view.move) end
+  if view.move then self:_drawMove(slots, view.move, view) end
   return true
 end
 
