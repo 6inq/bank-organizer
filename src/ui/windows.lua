@@ -1,6 +1,7 @@
 -- Floating windows: Blueprint, Tab Layout editor and the category picker (PrettyUI Window).
 local Tags = require("src/core/tags")
 local Tagging = require("src/game/tagging")
+local Combo = require("src/ui/combo")
 
 local Windows = {}
 
@@ -75,7 +76,7 @@ local function tagChoicesFor(layout, d)
   for _, tag in ipairs(Tags.LIST) do
     local current = layout:destinationOf(tag.key)
     if current ~= d then
-      list[#list + 1] = { label = tag.label .. "  (" .. Tags.destinationName(current) .. ")", id = tag.key }
+      list[#list + 1] = { label = tag.label .. "  (" .. Tags.destinationName(current) .. ")", key = tag.key }
     end
   end
   return list
@@ -99,14 +100,12 @@ function Windows.layout(app)
         window:AddSimpleButton("Down", function() if layout:shiftTag(key, 1) then changed() end end, { inline = true })
         window:AddSimpleButton("Remove", function() if layout:removeTag(key) then changed() end end, { inline = true })
       end
-      window:AddComboBox({
-        entries = { { label = "Add a tag here...", id = "none" }, table.unpack(tagChoicesFor(layout, d)) },
-        selectedID = "none",
-        onChange = function(_, entryID, _, eventType)
-          if eventType ~= nil and eventType ~= ui.SelectionChangeEvent.SELECTED then return end
-          if entryID and entryID ~= "none" and layout:moveTag(entryID, d) then changed() end
-        end,
-      })
+      window:AddComboBox(Combo.options(
+        { { label = "Add a tag here...", key = "none" }, table.unpack(tagChoicesFor(layout, d)) },
+        "none",
+        function(key)
+          if key ~= "none" and layout:moveTag(key, d) then changed() end
+        end))
     end
     window:AddSimpleButton("Reset to default", function() layout:reset(); changed() end)
   end)
@@ -120,15 +119,11 @@ function Windows.picker(app, itemID)
   return create("picker", { title = "Assign category", width = 360, height = 220, x = 200, y = 160 }, function(window)
     local current = app.store.corrections[itemID]
     window:AddText({ text = name .. (current and ("  (now: " .. Tags.label(current) .. ")") or "  (automatic)"), height = 40 })
-    window:AddComboBox({
-      entries = Tagging.choices(), selectedID = current or "auto",
-      onChange = function(_, entryID, _, eventType)
-        if eventType ~= nil and eventType ~= ui.SelectionChangeEvent.SELECTED then return end
-        if entryID == "auto" then app.store:clearCorrection(itemID) else app.store:correct(itemID, entryID) end
-        app:rebuild()
-        Windows.close("picker")
-      end,
-    })
+    window:AddComboBox(Combo.options(Tagging.choices(), current or "auto", function(key)
+      if key == "auto" then app.store:clearCorrection(itemID) else app.store:correct(itemID, key) end
+      app:rebuild()
+      Windows.close("picker")
+    end))
   end)
 end
 

@@ -3,6 +3,7 @@
 local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
 local Windows = require("src/ui/windows")
+local Combo = require("src/ui/combo")
 
 local Panel = {}
 
@@ -10,21 +11,13 @@ local EVENT_ID = "bank-organizer:content"
 local LISTENER = "panel"
 local parent, view
 
-local function onSelected(handler)
-  return function(_, entryID, _, eventType)
-    if eventType ~= nil and eventType ~= ui.SelectionChangeEvent.SELECTED then return end
-    if entryID ~= nil then handler(entryID) end
-  end
-end
-
 local function addPreset(app)
-  view:AddComboBox({
-    entries = { { label = Layout.PRESETS.main, id = "main" }, { label = Layout.PRESETS.ironman, id = "ironman" } },
-    selectedID = app.store.preset,
-    onChange = onSelected(function(preset)
+  view:AddComboBox(Combo.options(
+    { { label = Layout.PRESETS.main, key = "main" }, { label = Layout.PRESETS.ironman, key = "ironman" } },
+    app.store.preset,
+    function(preset)
       if preset ~= app.store.preset and app.store:setPreset(preset) then app:rebuild() end
-    end),
-  })
+    end))
 end
 
 local function addActions(app)

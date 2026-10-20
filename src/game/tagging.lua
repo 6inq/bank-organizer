@@ -29,10 +29,10 @@ end
 
 -- Entries for the picker: automatic first, then every tag grouped by category.
 function Tagging.choices()
-  local list = { { label = "Use automatic classification", id = "auto" } }
+  local list = { { label = "Use automatic classification", key = "auto" } }
   for _, tag in ipairs(Tags.LIST) do
     local category = Tags.categoryByKey[tag.category]
-    list[#list + 1] = { label = tag.label .. "  (" .. category.main .. ")", id = tag.key }
+    list[#list + 1] = { label = tag.label .. "  (" .. category.main .. ")", key = tag.key }
   end
   return list
 end

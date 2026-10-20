@@ -1,5 +1,6 @@
 -- Settings (gear icon): tinting, rearrange mode, every colour, and resets.
 local Tags = require("src/core/tags")
+local Combo = require("src/ui/combo")
 
 local Settings = {}
 
@@ -29,14 +30,10 @@ local function mount(parent, store, app)
     onChange = function(_, value) store:set("opacity", value / 100); app:rebuild() end,
   })
   view:AddText({ text = "Rearrange mode (used when the game does not report it)", height = 40 })
-  view:AddComboBox({
-    entries = { { label = "Insert (fewer moves)", id = "insert" }, { label = "Swap", id = "swap" } },
-    selectedID = store:get("mode"),
-    onChange = function(_, entryID, _, eventType)
-      if eventType ~= nil and eventType ~= ui.SelectionChangeEvent.SELECTED then return end
-      store:set("mode", entryID)
-    end,
-  })
+  view:AddComboBox(Combo.options(
+    { { label = "Insert (fewer moves)", key = "insert" }, { label = "Swap", key = "swap" } },
+    store:get("mode"),
+    function(key) store:set("mode", key) end))
   view:AddTitle("Tab colours")
   for d, category in ipairs(Tags.CATEGORIES) do
     addColour(store, app, category.key, Tags.destinationName(d - 1) .. " colour")

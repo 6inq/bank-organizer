@@ -114,6 +114,23 @@ local function find(calls, method, label)
 end
 local function tick(env) env.events["Tick:bank-organizer:tick"]() end
 
+-- Choose a dropdown entry the way the game does: by its integer position.
+local function pick(combo, key)
+  for _, entry in ipairs(combo.args[1].entries) do
+    if entry.key == key then return combo.args[1].onChange(nil, entry.id, entry.label, 1) end
+  end
+  error("no entry " .. tostring(key))
+end
+
+local function assertIntegerIds(calls)
+  for _, c in ipairs(calls) do
+    if c.method == "AddComboBox" then
+      for _, entry in ipairs(c.args[1].entries) do A.eq(math.type(entry.id), "integer", "combo ids must be integers") end
+      A.eq(math.type(c.args[1].selectedID), "integer", "selected id must be an integer")
+    end
+  end
+end
+
 function T.sidebar_has_the_bank_architect_controls()
   local env = boot()
   local p = panel(env)
@@ -161,7 +178,7 @@ function T.right_click_correction_moves_an_item()
   added[1].fn()
   local picker = env.windows[#env.windows]
   A.eq(picker.options.title, "Assign category")
-  find(picker, "AddComboBox").args[1].onChange(nil, "boss-loot", "x", 1)
+  pick(find(picker, "AddComboBox"), "boss-loot")
   A.eq(Store.new(PersistentDB).corrections[106], "boss-loot", "saved")
   find(panel(env), "AddSimpleButton", "Open Blueprint").args[2]()
   A.truthy(texts(env.windows[#env.windows]):find("Tab 7", 1, true), "Mystery thing now planned for Tab 7")
@@ -231,7 +248,7 @@ function T.tab_layout_editor_moves_tags_and_resets()
   local combos = {}
   for _, c in ipairs(w) do if c.method == "AddComboBox" then combos[#combos + 1] = c end end
   A.eq(#combos, 10, "one add-tag dropdown per destination")
-  combos[1].args[1].onChange(nil, "food", "x", 1) -- add Food & Drink to Main
+  pick(combos[1], "food") -- add Food & Drink to Main
   A.eq(Store.new(PersistentDB).layout:destinationOf("food"), 0, "saved")
   w = env.windows[#env.windows]
   find(w, "AddSimpleButton", "Reset to default").args[2]()
@@ -241,7 +258,7 @@ end
 
 function T.ironman_preset_renames_categories()
   local env = boot()
-  find(panel(env), "AddComboBox").args[1].onChange(nil, "ironman", "x", 1)
+  pick(find(panel(env), "AddComboBox"), "ironman")
   A.eq(Store.new(PersistentDB).preset, "ironman")
   PluginShutdown()
 end
@@ -260,6 +277,17 @@ function T.sections_split_container_order()
   A.list(s[1], { 1, 2 }); A.eq(s[2], nil); A.list(s[3], { 3 }); A.list(s[0], { 4, 5, 6 })
   s = Bank.sections(items, { 2, 1, 0, 0, 0, 0, 0, 0, 0 }, false)
   A.list(s[0], { 1, 2, 3 }); A.list(s[1], { 4, 5 }); A.list(s[2], { 6 })
+end
+
+function T.every_dropdown_uses_integer_ids()
+  local env = boot()
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  assertIntegerIds(panel(env))
+  find(panel(env), "AddSimpleButton", "Tab Layout").args[2]()
+  assertIntegerIds(env.windows[#env.windows])
+  env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
+  assertIntegerIds(env.settings[#env.settings])
+  PluginShutdown()
 end
 
 return T
