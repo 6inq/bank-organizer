@@ -20,7 +20,7 @@ Part of [6ing's RS3 plugins](https://github.com/6inq/rs3-plugins).
 
 ## Features
 - **Classification**: about 30 kinds of item (Runes, Summoning, MTX & XP Boosts, Skilling Outfits, Potions, Herbs and more). It uses the client's own item category first, then right-click options and name families. Anything it cannot place goes to Storage & Cleanup for review.
-- **Sort inside tabs**: Smart (gear by combat style, then slot, best first; outfits by set; runes and herbs in game order; potions by family and dose; resources by material and tier), Name, Item ID, or Keep my order (only move items between tabs).
+- **Sort inside tabs**: Smart (gear by combat style, then slot, best first; outfits by set; herblore by recipe chain, e.g. every overload ingredient together; runes in game order; potions by family and dose; resources by material and tier), Name, Item ID, or Keep my order (only move items between tabs).
 - **No tabs yet**: the guide starts each new tab by showing which item to drop on the + button.
 - **Corrections**: press **Assign Categories**, right-click any bank item and pick its kind. Your choice always wins.
 - **Tab Layout (Whole bank)**: add, delete, rename and reorder tabs, and choose the kinds of item each one holds and their order. **Copy my current tabs** builds a layout from the bank you already have.

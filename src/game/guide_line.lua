@@ -28,7 +28,26 @@ local function dropPoint(target, viewport)
   return x, y, { kind = "box", x = box.x - 1, y = box.y - 1, width = box.width + 2, height = box.height + 2 }
 end
 
+function GuideLine.inView(box, viewport)
+  local _, y = centre(box)
+  return y >= viewport.y and y <= viewport.y + viewport.height
+end
+
+function GuideLine.scrollHint(from, viewport)
+  local fx, fy = centre(from)
+  local x = clamp(fx, viewport.x + 12, viewport.x + viewport.width - 12)
+  local up = fy < viewport.y
+  local tip = up and viewport.y + 6 or viewport.y + viewport.height - 6
+  local tail = up and tip + 26 or tip - 26
+  local arrow = {}
+  for _, side in ipairs({ -1, 1 }) do
+    arrow[#arrow + 1] = { x, tip, x + side * 8, up and tip + 8 or tip - 8 }
+  end
+  return { start = { x, tail }, finish = { x, tip }, arrow = arrow, scroll = up and "up" or "down" }
+end
+
 function GuideLine.plan(from, target, viewport)
+  if viewport and not GuideLine.inView(from, viewport) then return GuideLine.scrollHint(from, viewport) end
   local fx, fy = centre(from)
   local tx, ty, marker = dropPoint(target, viewport)
   if viewport and target.kind ~= "tab" then

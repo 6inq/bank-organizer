@@ -69,4 +69,18 @@ function T.box_covers_both_directions()
   A.eq(invert, true)
 end
 
+function T.item_above_the_view_points_up()
+  local plan = GuideLine.plan(slot(200, -80), { kind = "swap", box = slot(40, 100) }, VIEW)
+  A.eq(plan.scroll, "up"); A.eq(plan.marker, nil)
+  near(plan.finish[2], 6, "tip at the top edge"); near(plan.start[2], 32)
+  near(plan.finish[1], 218, "in the item's column")
+end
+
+function T.item_below_the_view_points_down()
+  local plan = GuideLine.plan(slot(390, 500), { kind = "tab", box = slot(40, -40) }, VIEW)
+  A.eq(plan.scroll, "down")
+  near(plan.finish[2], 294); near(plan.finish[1], 388, "kept inside the view")
+  for _, leg in ipairs(plan.arrow) do A.truthy(leg[4] < plan.finish[2], "arrowhead opens upward from the tip") end
+end
+
 return T

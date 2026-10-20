@@ -109,4 +109,37 @@ function T.every_mode_is_offered_and_valid()
   A.eq(Sorting.isMode("bogus"), false)
 end
 
+function T.smart_groups_herblore_by_recipe_chain()
+  local rows = {
+    { "Super restore (4)", "potions" }, { "Clean irit", "clean-herbs" }, { "Extreme attack (3)", "potion-doses" },
+    { "Overload (4)", "potions" }, { "Grimy irit", "grimy-herbs" }, { "Super attack (4)", "potions" },
+    { "Irit potion (unf)", "unfinished-potions" }, { "Clean avantoe", "clean-herbs" }, { "Super attack (2)", "potion-doses" },
+    { "Ranarr potion (unf)", "unfinished-potions" }, { "Clean torstol", "clean-herbs" }, { "Grenwall spikes", "secondaries" },
+    { "Super ranging (4)", "potions" }, { "Prayer potion (4)", "potions" },
+  }
+  local items, tags = {}, {}
+  for slot, row in ipairs(rows) do
+    items[slot] = { slot = slot, id = slot, name = row[1], quantity = 1, info = { name = row[1], ops = {} } }
+    tags[slot] = row[2]
+  end
+  local layout = Layout.new("main")
+  for _, tag in ipairs({ "potions", "potion-doses", "clean-herbs", "grimy-herbs", "unfinished-potions", "secondaries" }) do layout:moveTag(tag, 3) end
+  local d = Blueprint.build(items, layout, function(item) return tags[item.slot] end, "smart")
+  local names = {}
+  for index, entry in ipairs(d[3]) do names[index] = entry.name end
+  A.list(names, {
+    "Grimy irit", "Clean irit", "Irit potion (unf)", "Super attack (4)", "Super attack (2)",
+    "Clean avantoe", "Extreme attack (3)", "Super ranging (4)", "Grenwall spikes", "Clean torstol", "Overload (4)",
+    "Ranarr potion (unf)", "Prayer potion (4)", "Super restore (4)",
+  })
+end
+
+function T.chains_pick_the_most_specific_name()
+  local group, member = Sorting.chain("Super antipoison (4)")
+  local _, plain = Sorting.chain("Antipoison (4)")
+  A.truthy(member > plain, "super antipoison sorts after antipoison")
+  A.eq(Sorting.chain("Extreme attack (4)"), Sorting.chain("Overload (4)"), "same chain")
+  A.truthy(Sorting.chain("Mystery") > group, "unknown items come after every chain")
+end
+
 return T

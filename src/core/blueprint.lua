@@ -6,6 +6,10 @@ local Blueprint = {}
 
 Blueprint.compare = Sorting.compare
 
+function Blueprint.smart(mode)
+  return mode == nil or mode == "smart"
+end
+
 local function entryFor(item, tag, d, rank, mode)
   local entry = { slot = item.slot, id = item.id, name = item.name, quantity = item.quantity, tag = tag, destination = d, rank = rank }
   entry.keys = Sorting.keys(entry, item.info, mode)
@@ -23,7 +27,10 @@ function Blueprint.build(items, layout, tagOf, mode)
     table.insert(destinations[d], entry)
     bySlot[item.slot] = entry
   end
-  for d = 0, last do table.sort(destinations[d], Blueprint.compare) end
+  for d = 0, last do
+    if Blueprint.smart(mode) then Sorting.groupHerblore(destinations[d]) end
+    table.sort(destinations[d], Blueprint.compare)
+  end
   return destinations, bySlot
 end
 
@@ -108,7 +115,10 @@ function Blueprint.buildFromTabs(items, sections, tagOf, pinned, order, mode)
     table.insert(destinations[d], entry)
     bySlot[item.slot] = entry
   end
-  for s = 0, last do table.sort(destinations[s], Blueprint.compare) end
+  for s = 0, last do
+    if Blueprint.smart(mode) then Sorting.groupHerblore(destinations[s]) end
+    table.sort(destinations[s], Blueprint.compare)
+  end
   return destinations, bySlot, counts, homes
 end
 

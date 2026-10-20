@@ -218,7 +218,7 @@ function T.blueprint_places_and_orders_items()
   A.list(ids(destinations[0]), { 106, 105, 103 }, "Main: runes (air before fire), then currency")
   A.list(ids(destinations[1]), { 108 }, "Tab 1: combat")
   A.list(ids(destinations[2]), { 104, 101 }, "Tab 2: potions then food")
-  A.list(ids(destinations[3]), { 109, 110, 102 }, "Tab 3: grimy herbs by level, then part doses")
+  A.list(ids(destinations[3]), { 110, 102, 109 }, "Tab 3: ranarr with its prayer potion, then the guam chain")
   A.list(ids(destinations[9]), { 107 }, "unknown -> Storage & Cleanup")
 end
 

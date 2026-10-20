@@ -142,7 +142,68 @@ local function materialOf(name)
   return #MATERIALS + 1
 end
 
+local CHAINS = {
+  { "irit", "super attack", "avantoe", "extreme attack", "kwuarm", "super strength", "extreme strength",
+    "cadantine", "super defence", "extreme defence", "dwarf weed", "super ranging", "grenwall spikes",
+    "extreme ranging", "lantadyme", "super magic", "ground mud runes", "extreme magic", "spirit weed",
+    "congealed blood", "super necromancy", "ground miasma rune", "extreme necromancy", "torstol", "overload",
+    "primal fruit pulp" },
+  { "ranarr", "snape grass", "prayer potion", "snapdragon", "red spiders' eggs", "super restore", "super prayer",
+    "fellstalk", "morchella mushroom", "prayer renewal", "wyvern bonemeal" },
+  { "toadflax", "crushed nest", "saradomin brew", "super saradomin brew" },
+  { "dragon scale dust", "antifire", "super antifire", "phoenix feather" },
+  { "bloodweed", "adrenaline", "replenishment", "adrenaline crystal" },
+  { "marrentill", "unicorn horn dust", "antipoison", "antipoison+", "super antipoison", "antipoison++",
+    "poison ivy berries", "coconut", "cactus spine" },
+  { "harralander", "chocolate dust", "energy potion", "super energy", "stamina" },
+  { "guam", "eye of newt", "attack potion", "tarromin", "limpwurt root", "strength potion", "defence potion",
+    "white berries", "ranging potion", "wine of zamorak", "magic potion", "potato cactus", "combat potion",
+    "goat horn dust" },
+  { "aggression", "searing ashes", "powerburst", "perfect plus", "perfect juju", "juju", "spirit attraction",
+    "weapon poison", "bomb", "incense" },
+}
+
+local HERBLORE_STAGE = {
+  ["grimy-herbs"] = 1, ["clean-herbs"] = 2, ["unfinished-potions"] = 3, ["secondaries"] = 4,
+  ["potions"] = 5, ["potion-doses"] = 5, ["herblore-other"] = 6,
+}
+
+function Sorting.isHerblore(tag)
+  return HERBLORE_STAGE[tag] ~= nil
+end
+
+function Sorting.chain(name)
+  name = (name or ""):lower()
+  for group, members in ipairs(CHAINS) do
+    local best, length = nil, 0
+    for index, member in ipairs(members) do
+      if #member > length and hasWord(name, member) then best, length = index, #member end
+    end
+    if best then return group, best end
+  end
+  return #CHAINS + 1, indexIn(HERB_ORDER, name)
+end
+
+local function herbloreKeys(tag, name)
+  local group, member = Sorting.chain(name)
+  return { group, member, HERBLORE_STAGE[tag], -(Classify.dose(name) or 0), (name:gsub("%s*%(%d%)%s*$", "")) }
+end
+
+function Sorting.groupHerblore(entries)
+  local rank
+  for _, entry in ipairs(entries) do
+    if Sorting.isHerblore(entry.tag) and type(entry.keys[1]) == "number" and (rank == nil or entry.keys[1] < rank) then
+      rank = entry.keys[1]
+    end
+  end
+  if rank == nil then return end
+  for _, entry in ipairs(entries) do
+    if Sorting.isHerblore(entry.tag) then entry.keys[1] = rank end
+  end
+end
+
 local function smartKeys(tag, name, info)
+  if Sorting.isHerblore(tag) then return herbloreKeys(tag, name) end
   local category = info.category or ""
   local value = -(tonumber(info.cost) or 0)
   if tag == "gear" or tag == "ammunition" then

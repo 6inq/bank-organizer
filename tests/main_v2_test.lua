@@ -56,7 +56,9 @@ local function boot(opts)
   end
   function container:IterateDynamicComponents(fn)
     for i, id in ipairs(env.bank) do
-      if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = ((i - 1) % 8) * 40, y = ((i - 1) // 8) * 40,
+      local x, y = ((i - 1) % 8) * 40, ((i - 1) // 8) * 40
+      if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
+        xyGlobal = { x = 100 + x, y = 100 + y - (env.scroll or 0) },
         width = 36, height = 32, associatedObjectQuantity = 1, interfaceID = 517 }) then return end
     end
   end
@@ -669,6 +671,32 @@ function T.sort_choice_is_in_the_sidebar_and_saved()
   A.truthy(combo, "Sort inside tabs dropdown")
   pick(combo, "name")
   A.eq(Store.new(PersistentDB):get("sort"), "name")
+  PluginShutdown()
+end
+
+function T.arrow_follows_the_bank_when_it_scrolls()
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  tick(env)
+  A.eq(liveLine(env).y, 100, "starts at the scimitar")
+  env.scroll = 10
+  tick(env)
+  local line = liveLine(env)
+  A.eq(line.y + line.h, 116 - 10, "redrawn from where the scimitar now is")
+  PluginShutdown()
+end
+
+function T.offscreen_item_gets_a_scroll_pointer_instead_of_a_line()
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  env.scroll = 300
+  tick(env)
+  local line = liveLine(env)
+  A.truthy(line, "a pointer is drawn")
+  A.eq(line.w, 1, "straight up at the top edge"); A.eq(line.y, 106); A.eq(line.h, 26)
+  for _, c in ipairs(env.created) do
+    A.truthy(not (c.kind == "rect" and not c.destroyed and c.parent == env.layer), "no drop marker until the item is in view")
+  end
   PluginShutdown()
 end
 

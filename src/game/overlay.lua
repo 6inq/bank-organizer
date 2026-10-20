@@ -161,7 +161,12 @@ function Overlay:render(app)
   for _, itemID in ipairs({ fromID or false, toID or false }) do
     if itemID and byId[itemID] then self.lastSeen[itemID] = globalBox(byId[itemID], container) end
   end
-  local signature = signatureOf(slots or {}, app, tint, marks)
+  local onScreen = {}
+  for _, itemID in ipairs({ fromID or false, toID or false }) do
+    local box = itemID and self.lastSeen[itemID]
+    if box then onScreen[#onScreen + 1] = box.x .. "," .. box.y end
+  end
+  local signature = signatureOf(slots or {}, app, tint, marks) .. "|" .. table.concat(onScreen, ";")
   if signature == self.signature then return false end
   self:clear()
   self.container, self.signature = container, signature
