@@ -1,4 +1,3 @@
--- Bank Organizer 2: tags, layout, classifier, blueprint and the sorting guide.
 local A = require("assert")
 local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
@@ -14,8 +13,6 @@ local function ops(...)
   for _, op in ipairs({ ... }) do set[op] = true end
   return set
 end
-
--- Tags and default layout ------------------------------------------------------------
 
 function T.ten_categories_and_their_tags()
   A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 32)
@@ -86,11 +83,9 @@ function T.custom_layout_round_trips_and_old_saves_load()
   local again = Layout.new("main", layout:serialize())
   A.eq(again:last(), 10); A.eq(again:destinationOf("runes"), 10)
   A.eq(again.names[10], "Extra"); A.eq(again.names[1], "Combat")
-  -- Saves from before custom tabs: string keys "0".."9", no count.
   local old = { ["0"] = { "runes" }, ["4"] = { "gear" } }
   local loaded = Layout.new("main", old)
   A.eq(loaded:last(), 9); A.eq(loaded:destinationOf("gear"), 4); A.eq(loaded:destinationOf("food"), 2, "missing tags restored")
-  -- A tag whose default tab no longer exists lands in infinity.
   local short = Layout.new("main", { count = 2, tabs = { ["0"] = {}, ["1"] = { "gear" } } })
   A.eq(short:last(), 1); A.eq(short:destinationOf("food"), 0)
 end
@@ -103,8 +98,6 @@ function T.copy_tabs_builds_a_layout_from_the_bank()
   A.eq(layout:destinationOf("runes"), 0, "a home past the last tab falls back to infinity")
   A.eq(layout.names[1], "MTX")
 end
-
--- Classifier -------------------------------------------------------------------------
 
 local cases = {
   { { name = "Coins" }, "currency" },
@@ -133,7 +126,6 @@ local cases = {
   { { name = "Ghostspeak amulet", quests = 1, tradeable = false }, "quest-items" },
 }
 
--- Items from a real, hand-organised bank that used to land in Storage & Cleanup or the wrong tag.
 local function real(name, category, opList)
   return { name = name, category = category, ops = ops(table.unpack(opList or {})) }
 end
@@ -196,8 +188,6 @@ function T.dose_parsing()
   A.eq(Classify.dose("Prayer potion (3)"), 3); A.eq(Classify.dose("Overload flask (6)"), 6); A.eq(Classify.dose("Shark"), nil)
 end
 
--- Blueprint --------------------------------------------------------------------------
-
 local function item(slot, id, name, extra)
   local info = { name = name }
   for k, v in pairs(extra or {}) do info[k] = v end
@@ -244,9 +234,6 @@ function T.empty_destinations_are_skipped()
   A.eq(physical, 4); A.eq(map[1], 1); A.eq(map[3], 3); A.eq(map[9], 4, "Storage tab becomes physical tab 4")
 end
 
--- Sorting guide simulation -----------------------------------------------------------
-
--- Apply a guide step the way the bank would.
 local function apply(sections, step)
   if step.kind == "to-tab" or step.kind == "new-tab" then
     local from = sections[step.from]

@@ -1,8 +1,5 @@
--- Categories (bundles) and the tags they split into, modelled on Bank Architect.
--- Destination 0 is the Main section; 1..9 are the numbered bank tabs.
 local Tags = {}
 
--- Ten categories, in default destination order (Main, Tab 1 .. Tab 9).
 Tags.CATEGORIES = {
   { key = "currency-utilities", main = "Currency, Runes & Teleports", ironman = "Frequently Used, Runes & Teleports", colour = 0xFFCD3CFF },
   { key = "combat-gear", main = "Combat Gear", ironman = "Combat Gear", colour = 0xE24A4AFF },
@@ -16,7 +13,6 @@ Tags.CATEGORIES = {
   { key = "storage-cleanup", main = "Storage & Cleanup Review", ironman = "Storage & Cleanup Review", colour = 0x969696FF },
 }
 
--- Tags in their default order within each category.
 Tags.LIST = {
   { key = "frequently-used", label = "Frequently Used", category = "currency-utilities" },
   { key = "runes", label = "Runes", category = "currency-utilities" },
@@ -52,9 +48,8 @@ Tags.LIST = {
   { key = "quest-items", label = "Quest Items", category = "storage-cleanup" },
 }
 
--- Where anything unclassified goes (Bank Architect "fails closed" into review).
 Tags.FALLBACK = "cleanup"
-Tags.DESTINATIONS = 10 -- Main + 9 tabs
+Tags.DESTINATIONS = 10
 
 Tags.byKey, Tags.categoryByKey = {}, {}
 for index, tag in ipairs(Tags.LIST) do
@@ -80,8 +75,6 @@ function Tags.categoryOf(key)
   return tag and Tags.categoryByKey[tag.category]
 end
 
--- "Main" for destination 0, "Tab N" otherwise.
--- RS3 numbering: the infinity (main) tab is Tab 1, so destination N is Tab N+1.
 function Tags.destinationName(destination)
   if destination == 0 then return "Tab 1 (infinity)" end
   return "Tab " .. (destination + 1)

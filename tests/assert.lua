@@ -1,4 +1,3 @@
--- Minimal assertion helpers for the test suites.
 local A = {}
 
 local function show(value)

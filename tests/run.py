@@ -1,8 +1,3 @@
-"""Runs tests/*_test.lua under an embedded Lua 5.4 (pip install lupa).
-
-Each test file returns a table of name -> function. Each file gets a fresh
-Lua state so fake globals from one suite never leak into another.
-"""
 import pathlib
 import sys
 

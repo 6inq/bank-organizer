@@ -41,11 +41,17 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 
 <h2>Features</h2>
 <h3>Analyze, Blueprint, Sorting Guide</h3>
-<p>Press <strong>Analyze Bank</strong> and every item is tinted with the colour of the tab it belongs in. <strong>Open Blueprint</strong> shows the plan tab by tab. <strong>Sorting Guide</strong> then marks the item to <strong>MOVE</strong> and draws a white line to where it goes: the item to drop it next to, or the tab button to drop it on. It re-plans from your real bank after every move.</p>
+<p>Press <strong>Analyze Bank</strong> and every item is tinted with the colour of the tab it belongs in. <strong>Open Blueprint</strong> shows the plan tab by tab. <strong>Sorting Guide</strong> then marks the item to <strong>MOVE</strong> and draws an arrow to exactly where it goes: a bar in the gap where it should be inserted, or an outline around the tab button to drop it on. It re-plans from your real bank after every move.</p>
 
 <h3>Keep your tabs, or design new ones</h3>
 <p><strong>My tabs</strong> keeps the tabs you already have. Tab 1 (infinity) is the misc catch-all, and loose items go to the tab that already holds most of their kind. Pin any kind of item to a tab, remove it, or swap whole tabs around.</p>
 <p><strong>Whole bank</strong> follows your <strong>Tab Layout</strong>. Add, delete, rename and reorder tabs, and choose which kinds of item each one holds and in what order. <strong>Copy my current tabs</strong> starts you from the bank you already have.</p>
+
+<h3>Sorted the way you would sort it</h3>
+<p>Inside each tab, <strong>Smart</strong> sorting groups gear by combat style (melee, ranged, magic, necromancy), then by slot (weapon, off-hand, head, body, legs and so on), best items first. Outfits stay together as sets, runes and herbs follow the game's order, and potions keep their doses side by side. Prefer something simpler? Sort by <strong>Name</strong> or <strong>Item ID</strong>, or choose <strong>Keep my order</strong> to only move items between tabs.</p>
+
+<h3>Starting from scratch</h3>
+<p>No tabs yet? The guide shows you which item to drop on the <strong>+</strong> button to start each new tab, in order.</p>
 
 <h3>Smart classification</h3>
 <p>About 30 kinds of item, including Runes, Summoning, MTX &amp; XP Boosts, Skilling Outfits, Potions and Herbs. Items are recognised from the game's own item categories, their right-click options and their names. Anything it gets wrong, fix with <strong>Assign Categories</strong>: right-click the item and pick its kind. Your choice always wins.</p>
@@ -108,5 +114,5 @@ This listing has two parts:
 
 - [ ] Confirm `contactEmailAddress` in `plugin.json` (set to im6ing@gmail.com).
 - [ ] Test in the beta world (see the testing steps): Analyze, Blueprint, Sorting Guide line, Tab Layout.
-- [ ] Upload `dist/bank-organizer-1.2.0.zip` as the plugin file.
+- [ ] Upload `dist/bank-organizer-1.3.0.zip` as the plugin file.
 - [ ] Upload your listing image.

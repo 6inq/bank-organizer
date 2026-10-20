@@ -1,15 +1,11 @@
--- Tab layout: the tabs you want, in bank order (Main/infinity first), each with a name and the
--- tags that go there. Pure. Every tag always has exactly one destination, so nothing falls out
--- of the blueprint.
 local Tags = require("src/core/tags")
 
 local Layout = {}
 Layout.__index = Layout
 
 Layout.PRESETS = { main = "Main - All-Round Bank", ironman = "Ironman - All-Round Bank" }
-Layout.MAX_TABS = 14 -- RS3 custom tabs after the infinity tab
+Layout.MAX_TABS = 14
 
--- Default: each category's tags on the destination matching its position (Main, Tab 1 .. 9).
 function Layout.defaultDestinations()
   local destinations = {}
   for d = 0, Tags.DESTINATIONS - 1 do destinations[d] = {} end
@@ -20,8 +16,6 @@ function Layout.defaultDestinations()
   return destinations
 end
 
----@param preset string "main" or "ironman"
----@param saved table? previous serialize() output (or the older { [destination] = tags } form)
 function Layout.new(preset, saved)
   local self = setmetatable({ preset = Layout.PRESETS[preset] and preset or "main", names = {} }, Layout)
   self.destinations = Layout.sanitize(saved) or Layout.defaultDestinations()
@@ -39,8 +33,6 @@ local function savedList(saved, d)
   return tabs[d] or tabs[tostring(d)]
 end
 
--- Accepts a saved arrangement, keeping every tag exactly once; tags missing from an older save
--- go back to their default destination (or Main if that tab no longer exists).
 function Layout.sanitize(saved)
   if type(saved) ~= "table" then return nil end
   local count = tonumber(saved.count) or Tags.DESTINATIONS
@@ -65,7 +57,6 @@ function Layout.sanitize(saved)
   return destinations
 end
 
--- Highest destination number (0 = Main only).
 function Layout:last()
   local last = 0
   while self.destinations[last + 1] do last = last + 1 end
@@ -82,7 +73,6 @@ function Layout:destinationOf(tagKey)
   return self:destinationOf(Tags.FALLBACK)
 end
 
--- Position of a tag within its destination (1-based); used for ordering items.
 function Layout:rankOf(tagKey)
   local d = self:destinationOf(tagKey)
   for index, key in ipairs(self.destinations[d]) do
@@ -97,7 +87,6 @@ local function removeFrom(list, tagKey)
   end
 end
 
--- Move a tag to another destination (appended at the end there).
 function Layout:moveTag(tagKey, destination)
   if not Tags.isValid(tagKey) or not self.destinations[destination] then return false end
   for d = 0, self:last() do removeFrom(self.destinations[d], tagKey) end
@@ -105,13 +94,11 @@ function Layout:moveTag(tagKey, destination)
   return true
 end
 
--- The no-entry button: send a tag to wherever Storage & Cleanup lives.
 function Layout:removeTag(tagKey)
   if tagKey == Tags.FALLBACK then return false end
   return self:moveTag(tagKey, self:destinationOf(Tags.FALLBACK))
 end
 
--- Move a tag up (-1) or down (+1) within its destination.
 function Layout:shiftTag(tagKey, direction)
   local d, index = self:rankOf(tagKey)
   local list = self.destinations[d]
@@ -120,8 +107,6 @@ function Layout:shiftTag(tagKey, direction)
   list[index], list[other] = list[other], list[index]
   return true
 end
-
--- Tabs --------------------------------------------------------------------------------
 
 function Layout:name(d)
   return self.names[d] or Tags.destinationName(d)
@@ -134,7 +119,6 @@ function Layout:rename(d, name)
   return true
 end
 
--- Append an empty custom tab.
 function Layout:addTab(name)
   local last = self:last()
   if last >= Layout.MAX_TABS then return false end
@@ -143,7 +127,6 @@ function Layout:addTab(name)
   return true
 end
 
--- Delete a custom tab; its tags move to Main. Later tabs shift up one place.
 function Layout:removeTab(d)
   local last = self:last()
   if d < 1 or d > last then return false end
@@ -155,7 +138,6 @@ function Layout:removeTab(d)
   return true
 end
 
--- Swap a custom tab with its neighbour (-1 left, +1 right). Main always stays first.
 function Layout:moveTab(d, direction)
   local other = d + direction
   if d < 1 or other < 1 or other > self:last() then return false end
@@ -164,11 +146,6 @@ function Layout:moveTab(d, direction)
   return true
 end
 
--- Rebuild from the bank you already have: one tab per custom tab, in your order, each holding
--- the tags it collects (homes: tag -> section); every other tag goes to Main.
----@param tabCount integer number of custom tabs in the bank
----@param homes table { [tag] = section }
----@param names table? { [section] = name }
 function Layout:copyTabs(tabCount, homes, names)
   tabCount = math.max(0, math.min(Layout.MAX_TABS, math.floor(tabCount or 0)))
   self.destinations, self.names = {}, {}
@@ -191,7 +168,6 @@ function Layout:categoryName(category)
   return self.preset == "ironman" and category.ironman or category.main
 end
 
--- Plain table for PersistentDB (string keys only).
 function Layout:serialize()
   local tabs, names = {}, {}
   for d = 0, self:last() do

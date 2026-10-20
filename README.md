@@ -1,6 +1,6 @@
 # Bank Organizer
 
-An RS3 plugin for the official Plugin Hub. Created by **6ing**. Version **1.2.0**.
+An RS3 plugin for the official Plugin Hub. Created by **6ing**. Version **1.3.0**.
 
 It works out where everything in your bank belongs, tints each item with the colour of its tab, and guides you through sorting it, one drag at a time. It is built on the workflow of the RuneLite plugin Bank Architect: **Analyze, Blueprint, Sorting Guide**.
 
@@ -15,11 +15,13 @@ Part of [6ing's RS3 plugins](https://github.com/6inq/rs3-plugins).
 4. Press **Open Blueprint** to review the plan, one tab at a time.
 5. Press **Sorting Guide** and follow it:
    - The item to drag says **MOVE**.
-   - A white line runs to where it goes: the item to drop it next to, or the tab button to drop it on.
+   - An arrow runs to exactly where it goes: a bar in the gap where it should be inserted, or an outline around the tab button (the + button for a new tab).
    - In My tabs mode it sorts the tab you are looking at.
 
 ## Features
 - **Classification**: about 30 kinds of item (Runes, Summoning, MTX & XP Boosts, Skilling Outfits, Potions, Herbs and more). It uses the client's own item category first, then right-click options and name families. Anything it cannot place goes to Storage & Cleanup for review.
+- **Sort inside tabs**: Smart (gear by combat style, then slot, best first; outfits by set; runes and herbs in game order; potions by family and dose; resources by material and tier), Name, Item ID, or Keep my order (only move items between tabs).
+- **No tabs yet**: the guide starts each new tab by showing which item to drop on the + button.
 - **Corrections**: press **Assign Categories**, right-click any bank item and pick its kind. Your choice always wins.
 - **Tab Layout (Whole bank)**: add, delete, rename and reorder tabs, and choose the kinds of item each one holds and their order. **Copy my current tabs** builds a layout from the bank you already have.
 - **Tab Layout (My tabs)**:
@@ -57,8 +59,9 @@ Then run the suite:
 python tests/run.py
 ```
 
-The suite has 71 tests, covering:
+The suite has 90 tests, covering:
 - tags, layouts (including custom tab orders and old saves), the classifier (with cases from a real bank) and the blueprint
+- sorting (styles, slots, families, keep my order) and the guide line's geometry
 - the guide planner, including complete sorting sessions on banks of 10, 100, 500 and 1000 real RS3 items
 - the full user flow through `main.lua` against a stubbed client: panel, windows, dropdowns, corrections, the guide line, My tabs pins and tab reordering, persistence and shutdown
 

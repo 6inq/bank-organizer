@@ -1,5 +1,23 @@
 # Changelog: Bank Organizer
 
+## 1.3.0 (2026-10-20)
+### New
+- **Sort inside tabs**:
+  - **Smart** groups gear by combat style (melee, ranged, magic, necromancy), then slot (weapon, off-hand, head, body, legs, hands, feet, cape, neck, ring, ammo, pocket), most valuable first. Outfits stay together as sets, runes and herbs follow the game's order, potions keep their doses together, and resources sort by material and tier.
+  - Also **Name**, **Item ID**, or **Keep my order**, which only moves items between tabs and leaves each tab's order alone.
+- **Starting from no tabs**: in My tabs with nothing but the infinity tab, the guide follows your Tab Layout and shows which item to drop on the **+** button to start each new tab.
+- **Sidebar** reorganised into setup, actions, status and your tabs, with the sort choice up front.
+
+### Improved
+- **Guide arrow**:
+  - Has a dark outline so it stands out on any background, and an arrowhead.
+  - Starts at the item's edge instead of covering its icon.
+  - Ends on a bar in the gap where the item should be inserted, or on an outline around the target item or tab button.
+  - Targets scrolled out of view are pointed at from the edge of the bank.
+  - Drawn above the bank so the tab row is never clipped.
+- **Tab buttons**: found by walking the bank window the documented way, so the arrow reaches the right tab and the + button.
+- **Colour settings** are named by kind of item (Combat Gear, Herblore) instead of tab number.
+
 ## 1.2.0 (2026-10-20)
 Rebuilt around the Bank Architect workflow: **Analyze Bank, Open Blueprint, Sorting Guide**.
 

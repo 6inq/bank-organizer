@@ -1,5 +1,3 @@
--- Bank Organizer 2: Analyze -> Blueprint -> (tint, preview) -> Sorting Guide, with your
--- corrections and tab layout. Read-only: it never moves, clicks or withdraws anything.
 local Tags = require("src/core/tags")
 local Blueprint = require("src/core/blueprint")
 local Guide = require("src/core/guide")
@@ -18,6 +16,7 @@ App.STATUS = {
   NEED_ALL = "Open the All items view and clear the bank search to continue the guide.",
   NO_SEARCH = "Clear the bank search to continue the guide.",
   NEED_TABS = "My tabs needs your bank tab sizes, which this client is not reporting.",
+  NO_TABS_YET = "You have no tabs yet, so My tabs follows your Tab Layout to create them.",
   NO_TABS = "This client does not expose bank tab sizes yet, so the guide is paused.",
   DONE = "Your bank matches the blueprint.",
   CHANGED = "Your bank changed, so the blueprint was rebuilt.",
@@ -47,7 +46,6 @@ function App:_setStatus(status)
   self:_notify()
 end
 
--- Tag for an item: your correction, then the classifier, then Storage & Cleanup.
 function App:tagOf(item)
   return Blueprint.resolver(self.store.corrections)(item)
 end
@@ -60,26 +58,43 @@ end
 
 App.SCOPES = { bank = "Whole bank (follow my Tab Layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
 
--- Blueprint for the chosen scope: Bank Architect destinations, or the player's own tabs.
 function App:_build(items)
   local tagOf = function(item) return self:tagOf(item) end
-  self.tabCounts = nil
+  local mode = self.store:get("sort")
+  self.tabCounts, self.noTabs = nil, false
+  local sizes = Bank.tabSizes()
+  local sections = sizes and Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
   if self.store:get("scope") == "tabs" then
-    local sizes = Bank.tabSizes()
-    if sizes then
-      local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+    if not sizes then
+      self.status = App.STATUS.NEED_TABS
+    elseif App.countTabs(sections) == 0 then
+      self.noTabs = true
+    else
       self.destinations, self.bySlot, self.tabCounts, self.autoHomes = Blueprint.buildFromTabs(
-        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder)
+        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder, mode)
       self:_trackOrder(sections)
+      self:_keepOrder(sections)
       return true
     end
-    self.status = App.STATUS.NEED_TABS
   end
-  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, tagOf)
+  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, tagOf, mode)
+  self:_keepOrder(sections)
   return true
 end
 
--- Destination numbers present in the blueprint (0 = main, then tabs), in order.
+function App.countTabs(sections)
+  local total = 0
+  for s in pairs(sections or {}) do if s > total then total = s end end
+  return total
+end
+
+function App:_keepOrder(sections)
+  if self.store:get("sort") ~= "keep" or not sections then return end
+  local sectionOf = {}
+  for s, ids in pairs(sections) do for _, itemID in ipairs(ids) do sectionOf[itemID] = s end end
+  Blueprint.keepOrder(self.destinations, sectionOf, Guide.sectionMap(self.destinations))
+end
+
 function App:destinationList()
   local list = {}
   for d in pairs(self.destinations or {}) do
@@ -90,7 +105,6 @@ function App:destinationList()
   return list
 end
 
--- Scan the open bank and rebuild the blueprint.
 function App:analyze()
   local items = Bank.readItems()
   if not items then
@@ -99,7 +113,7 @@ function App:analyze()
   end
   self.items, self.signature = items, signatureOf(items)
   self:_build(items)
-  self.status = App.STATUS.ANALYZED
+  self.status = self.noTabs and App.STATUS.NO_TABS_YET or App.STATUS.ANALYZED
   self:_logDiagnostics(items)
   self:_saveExport(items)
   self:_notify()
@@ -113,8 +127,6 @@ local function opsText(ops)
   return table.concat(list, "|")
 end
 
--- Saves every bank item's facts (and which tab it is in) to PersistentDB as tab-separated
--- text, so classification can be checked against a real, hand-organised bank.
 function App:_saveExport(items)
   local db = rawget(_G, "PersistentDB")
   if not db then return end
@@ -124,18 +136,20 @@ function App:_saveExport(items)
     local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
     for s, ids in pairs(sections) do for _, itemID in ipairs(ids) do sectionOf[itemID] = s end end
   end
-  local lines = { "slot\tid\tname\tcategory\tops\ttradeable\tquests\tstockmarket\ttab\ttag" }
+  local lines = { "slot\tid\tname\tcategory\tops\ttradeable\tquests\tstockmarket\ttab\ttag\tparams" }
   for _, item in ipairs(items) do
     local info = item.info or {}
     lines[#lines + 1] = table.concat({ item.slot, item.id, tostring(item.name), tostring(info.category), opsText(info.ops),
       tostring(info.tradeable), tostring(info.quests), tostring(info.stockmarket), tostring(sectionOf[item.id]),
-      self:tagOf(item) }, "\t")
+      self:tagOf(item), info.params or "" }, "\t")
   end
   pcall(function() return db:SetString("bank-organizer-export", table.concat(lines, "\n")) end)
+  local container = Bank.slotsContainer()
+  if container then
+    pcall(function() return db:SetString("bank-organizer-ui", Bank.describeInterface(container)) end)
+  end
 end
 
--- One console line to confirm the bank model in game: tab sizes, view, mode and the first
--- item of each section as the plugin splits them.
 function App:_logDiagnostics(items)
   if not log then return end
   local sizes = Bank.tabSizes()
@@ -156,7 +170,6 @@ function App:_name(itemID)
   return tostring(itemID)
 end
 
--- Layout, preset or correction changed: rebuild from the last scan.
 function App:rebuild()
   if self.items then
     self:_build(self.items)
@@ -178,7 +191,6 @@ function App:myTabs()
   return self.tabCounts ~= nil
 end
 
--- My tabs: where a tag's items go, and whether the player pinned it. nil = stays where it is.
 function App:tabHomeOf(tag)
   local pin = self.store.tabHomes[tag]
   local list = self:destinationList()
@@ -188,7 +200,6 @@ function App:tabHomeOf(tag)
   return nil, false
 end
 
--- My tabs order in use: positionOf[current tab] and sectionAt[position] (identity by default).
 function App:_trackOrder(sections)
   self.tabTotal = 0
   for s in pairs(sections) do if s > self.tabTotal then self.tabTotal = s end end
@@ -197,8 +208,6 @@ function App:_trackOrder(sections)
   for s, position in pairs(self.positionOf) do self.sectionAt[position] = s end
 end
 
--- My tabs: swap a tab with its neighbour (-1 left, +1 right). What each tab holds and any pins
--- travel with it; the guide then moves the items across.
 function App:moveMyTab(d, direction)
   local other, total = d + direction, self.tabTotal or 0
   if not self:myTabs() or d < 1 or other < 1 or d > total or other > total then return false end
@@ -220,8 +229,6 @@ function App:resetMyTabOrder()
   self:rebuild()
 end
 
--- Colours: a layout tab takes the colour of its first tag's category; in My tabs the main
--- (catch-all) tab is grey and custom tabs cycle through the palette.
 function App:destinationColour(d)
   if self:myTabs() then
     if d == 0 then return self.store:colour("storage-cleanup") end
@@ -233,7 +240,6 @@ function App:destinationColour(d)
   return self.store:colour(category and category.key or "storage-cleanup")
 end
 
--- RS3 numbers the main (infinity) tab as Tab 1, so custom tab N is "Tab N+1" in game.
 function App:destinationLabel(d)
   if self:myTabs() then
     if d == 0 then return "Tab 1 (infinity): misc catch-all" end
@@ -249,16 +255,14 @@ function App:destinationLabel(d)
   return title .. ": " .. (#names > 0 and table.concat(names, ", ") or "empty")
 end
 
--- A bank section (0 = infinity, N = custom tab N) the way RS3 numbers it, plus the layout's
--- name for the destination when there is one.
 function App:tabName(section, destination)
   local name = Tags.destinationName(section)
-  local custom = not self:myTabs() and destination and self.store.layout.names[destination]
+  local layout = self.store.layout
+  local first = destination and (layout.destinations[destination] or {})[1]
+  local custom = not self:myTabs() and destination and (layout.names[destination] or (first and Tags.label(first)))
   return custom and (name .. " (" .. custom .. ")") or name
 end
 
--- Tab Layout from the bank you already have: one tab per custom tab, in your order, named after
--- what it mostly holds. Needs an analyzed bank with readable tab sizes.
 function App:copyCurrentTabs()
   local sizes = self.items and Bank.tabSizes()
   if not sizes then return false end
@@ -296,9 +300,6 @@ function App:stopGuide()
   self:_notify()
 end
 
--- Current bank state for the guide, or nil + reason when it must pause (fails closed).
--- Current bank state for the guide, the section to focus on (My tabs: the tab you are
--- viewing), or nil + reason when it must pause (fails closed).
 function App:_sections(items)
   local sizes = Bank.tabSizes()
   if not sizes then return nil, App.STATUS.NO_TABS end
@@ -323,7 +324,6 @@ function App:_tickGuide()
   local items = Bank.readItems()
   if not items then return self:_setStatus(App.STATUS.CLOSED) end
   if signatureOf(items) ~= self.signature then
-    -- Deposits, withdrawals and moves all change the scan; rebuild so the plan matches the bank.
     local before = self.signature
     self.items, self.signature = items, signatureOf(items)
     self:_build(items)
@@ -349,11 +349,10 @@ local function nameOf(app, id)
   return "item " .. tostring(id)
 end
 
--- Plain-English instruction for a guide step.
 function App.describe(step, app)
   local name = nameOf(app, step.id or step.move)
   if step.kind == "new-tab" then
-    return string.format("Drag %s onto the new-tab button to create %s.", name, app:tabName(step.to, step.destination))
+    return string.format("Drag %s onto the + button to start %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "to-tab" then
     return string.format("Drag %s onto %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "insert" then

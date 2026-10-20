@@ -1,10 +1,3 @@
--- Sorting guide planner: one safe manual move at a time. Pure and stateless: it re-plans
--- from the bank as it actually is after every move, so a different move never confuses it.
---
--- Bank model: sections[0] = Main (untabbed items), sections[1..n] = the custom tabs, each an
--- ordered list of item ids.
--- Whole-bank blueprints (destinations 0-9) map densely onto custom tabs in order, skipping
--- empty ones. "My tabs" blueprints set destinations.identity: destination N is custom tab N.
 local Order = require("src/core/order")
 
 local Guide = {}
@@ -19,7 +12,6 @@ local function lastDestination(destinations)
   return last
 end
 
--- Blueprint destination -> custom tab index (Main stays 0).
 function Guide.sectionMap(destinations)
   local map, physical = { [0] = 0 }, 0
   for d = 1, lastDestination(destinations) do
@@ -35,7 +27,6 @@ function Guide.sectionMap(destinations)
   return map, physical
 end
 
--- Target ids per custom tab.
 function Guide.targetSections(destinations)
   local map = Guide.sectionMap(destinations)
   local targets = {}
@@ -63,7 +54,6 @@ local function tabCount(sections)
   return count
 end
 
--- Swap mode: put the right item in the first wrong position.
 local function nextSwap(current, target)
   for index, id in ipairs(target) do
     if current[index] ~= id then
@@ -75,7 +65,6 @@ local function nextSwap(current, target)
   return nil
 end
 
--- Swaps needed to sort = n - cycles (exact for unique ids).
 function Guide.swapCount(current, target)
   local position = {}
   for index, id in ipairs(target) do position[id] = index end
@@ -96,8 +85,6 @@ function Guide.swapCount(current, target)
   return n - cycles
 end
 
--- Moves between sections. With a focus, only items leaving the viewed section count:
--- an item can only be dragged from the tab you are looking at.
 local function crossMove(sections, destinations, map, focus)
   local where = locate(sections)
   for d = 0, lastDestination(destinations) do
@@ -124,11 +111,6 @@ local function orderMove(current, target, mode, s)
   return move
 end
 
----@param sections table { [0..n] = { id, ... } } bank as it is now
----@param destinations table blueprint destinations
----@param mode string Guide.INSERT or Guide.SWAP
----@param focus integer? only plan for this section (the tab you are viewing)
----@return table? step, string status ("done" when the bank matches the blueprint)
 function Guide.next(sections, destinations, mode, focus)
   local targets, map = Guide.targetSections(destinations)
   local cross = crossMove(sections, destinations, map, focus)
@@ -145,8 +127,6 @@ function Guide.next(sections, destinations, mode, focus)
   return nil, "done"
 end
 
--- Total manual moves left: between-section moves, then in-section moves counted on each
--- section as it will look once those arrive (moved items land at the end, in blueprint order).
 function Guide.remaining(sections, destinations, mode, focus)
   local targets, map = Guide.targetSections(destinations)
   local where, total = locate(sections), 0

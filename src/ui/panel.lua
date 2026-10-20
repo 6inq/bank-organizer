@@ -1,7 +1,5 @@
--- Sidebar (ribbon panel), laid out like Bank Architect's: preset chooser, then
--- Analyze Bank, Open Blueprint, Sorting Guide, Assign Categories, Tab Layout, and the legend.
-local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
+local Sorting = require("src/core/sorting")
 local Windows = require("src/ui/windows")
 local Combo = require("src/ui/combo")
 
@@ -11,56 +9,66 @@ local EVENT_ID = "bank-organizer:content"
 local LISTENER = "panel"
 local parent, view
 
-local function addPreset(app)
-  view:AddComboBox(Combo.options(
-    { { label = Layout.PRESETS.main, key = "main" }, { label = Layout.PRESETS.ironman, key = "ironman" } },
-    app.store.preset,
-    function(preset)
-      if preset ~= app.store.preset and app.store:setPreset(preset) then app:rebuild() end
-    end))
+local function choose(app, label, choices, current, onPick)
+  view:AddText(label)
+  view:AddComboBox(Combo.options(choices, current, function(key)
+    if key ~= current and onPick(key) then app:rebuild() end
+  end))
 end
 
-local function addScope(app)
-  view:AddText("Organize")
-  view:AddComboBox(Combo.options(
-    { { label = app.SCOPES.bank, key = "bank" }, { label = app.SCOPES.tabs, key = "tabs" } },
-    app.store:get("scope"),
-    function(scope)
-      if scope ~= app.store:get("scope") and app.store:set("scope", scope) then app:rebuild() end
-    end))
+local function addSetup(app)
+  local store = app.store
+  choose(app, "Organize", { { label = app.SCOPES.bank, key = "bank" }, { label = app.SCOPES.tabs, key = "tabs" } },
+    store:get("scope"), function(scope) return store:set("scope", scope) end)
+  choose(app, "Sort inside tabs", Sorting.MODES, store:get("sort"), function(mode) return store:set("sort", mode) end)
+  if store:get("scope") ~= "tabs" then
+    choose(app, "Starting layout", { { label = Layout.PRESETS.main, key = "main" }, { label = Layout.PRESETS.ironman, key = "ironman" } },
+      store.preset, function(preset) return store:setPreset(preset) end)
+  end
 end
 
 local function addActions(app)
   view:AddFancyButton("Analyze Bank", function() app:analyze() end)
   view:AddSimpleButton("Open Blueprint", function() Windows.blueprint(app) end)
+  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end, { inline = true })
   view:AddSimpleButton(app.guiding and "Stop Sorting Guide" or "Sorting Guide", function()
     if app.guiding then app:stopGuide() else app:startGuide() end
   end)
   view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
     app:setAssigning(not app.assigning)
-  end)
-  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
+  end, { inline = true })
+end
+
+local function addStatus(app)
+  view:AddText({ text = app.status, height = 56 })
+  if app.assigning then
+    view:AddText({ text = "Right-click any bank item and choose Assign category to correct it.", height = 40 })
+  end
 end
 
 local function addLegend(app)
-  view:AddTitle("Legend")
+  view:AddTitle("Your tabs")
   for _, d in ipairs(app:destinationList()) do
-    local count = app.destinations and #(app.destinations[d] or {}) or 0
-    local label = view:AddText({ text = app:destinationLabel(d) .. (app.destinations and ("  [" .. count .. "]") or ""), height = 36 })
+    local count = app.destinations and #(app.destinations[d] or {}) or nil
+    local text = app:destinationLabel(d) .. (count and ("  (" .. count .. ")") or "")
+    local label = view:AddText({ text = text, height = 36 })
     if label then pcall(function() label.rgba = app:destinationColour(d) end) end
   end
+end
+
+local function divider()
+  pcall(function() view:AddDivider() end)
 end
 
 local function build(app)
   view:AddTitle("Bank Organizer")
   view:AddText("by 6ing")
-  addScope(app)
-  if app.store:get("scope") ~= "tabs" then addPreset(app) end
+  addSetup(app)
+  divider()
   addActions(app)
-  view:AddText({ text = app.status, height = 56 })
-  if app.assigning then
-    view:AddText({ text = "Right-click any bank item and choose Assign category to correct it.", height = 40 })
-  end
+  divider()
+  addStatus(app)
+  divider()
   addLegend(app)
 end
 

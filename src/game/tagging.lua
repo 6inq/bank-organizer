@@ -1,7 +1,3 @@
--- Assign Categories: while it is on, right-clicking a bank item offers
--- "Assign category (Bank Organizer)", which opens a small picker for that item.
--- Uses the game's own MiniMenu:Add, so it works with any PrettyUI version. It only records
--- your choice locally; it performs no bank action.
 local Tags = require("src/core/tags")
 
 local Tagging = {}
@@ -9,7 +5,6 @@ local Tagging = {}
 local EVENT_ID = "bank-organizer:menu"
 Tagging.LABEL = "Assign category (Bank Organizer)"
 
--- The bank item the menu was opened on: id and name, or nil.
 function Tagging.bankItem(miniMenu)
   local ok, found = pcall(function()
     local bankInterface = id.Interface.BANK
@@ -27,7 +22,6 @@ function Tagging.bankItem(miniMenu)
   return nil
 end
 
--- Entries for the picker: automatic first, then every tag grouped by category.
 function Tagging.choices()
   local list = { { label = "Use automatic classification", key = "auto" } }
   for _, tag in ipairs(Tags.LIST) do
@@ -37,8 +31,6 @@ function Tagging.choices()
   return list
 end
 
----@param app table App (assigning flag, store, rebuild)
----@param openPicker fun(itemID: integer) shows the picker window
 function Tagging.start(app, openPicker)
   Event.MiniMenuReady.Subscribe(EVENT_ID, function(event)
     if not app.assigning then return end

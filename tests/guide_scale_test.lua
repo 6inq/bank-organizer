@@ -1,4 +1,3 @@
--- The sorting guide on banks of 10 / 100 / 500 / 1000 REAL RS3 items spread over random tabs.
 local A = require("assert")
 local Layout = require("src/core/layout")
 local Blueprint = require("src/core/blueprint")

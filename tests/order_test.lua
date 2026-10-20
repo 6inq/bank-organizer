@@ -3,8 +3,6 @@ local Order = require("src/core/order")
 
 local T = {}
 
-
--- Applies nextMove until done; returns final list and number of moves.
 local function solve(current, target, skipped, limit)
   local first = Order.nextMove(current, target, skipped)
   local moves, move = 0, first
@@ -17,12 +15,10 @@ local function solve(current, target, skipped, limit)
   return current, moves, first
 end
 
--- nextMove: terminal states
 function T.sorted_returns_nil() A.eq(Order.nextMove({ 1, 2, 3 }, { 1, 2, 3 }), nil) end
 function T.empty_returns_nil() A.eq(Order.nextMove({}, {}), nil) end
 function T.single_returns_nil() A.eq(Order.nextMove({ 7 }, { 7 }), nil) end
 
--- nextMove: specific steps
 function T.one_item_out_of_place()
   local move = Order.nextMove({ 1, 2, 4, 5, 3 }, { 1, 2, 3, 4, 5 })
   A.eq(move.move, 3); A.eq(move.before, 4); A.eq(move.remaining, 1)
@@ -41,7 +37,6 @@ function T.reverse_converges_in_n_minus_one()
   A.list(final, target); A.eq(moves, 11); A.eq(first.remaining, 11)
 end
 
--- Property: for random permutations the loop reaches target in exactly `remaining` moves.
 function T.random_permutations_minimal_and_converge()
   for seed = 1, 200 do
     math.randomseed(seed)

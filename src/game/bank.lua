@@ -1,4 +1,3 @@
--- Reads the live bank slot grid. Every client access is guarded.
 local Bank = {}
 
 local SLOT_COMPONENT = "BANK__BANK_INV"
@@ -14,7 +13,6 @@ local function varValue(group, name)
   return nil
 end
 
----@return ui.ComponentCollection?
 function Bank.slotsContainer()
   local ok, container = pcall(function()
     local componentID = id.Component[SLOT_COMPONENT]
@@ -36,9 +34,6 @@ local function rowMajor(a, b)
   return a.x < b.x
 end
 
----@return table[]? slots sorted row-major
----@return string? reason when the bank is unavailable
----@return ui.ComponentCollection? container
 function Bank.scan()
   local container = Bank.slotsContainer()
   if container == nil then return nil, "Open your bank." end
@@ -73,17 +68,31 @@ local function count(list)
   return n
 end
 
+local function readParams(obj, ops)
+  if not (ops.wear or ops.wield or ops.equip) then return nil end
+  local ok, text = pcall(function()
+    local parts = {}
+    for _, param in pairs(obj.params) do
+      parts[#parts + 1] = tostring(param.configName or param.id) .. "=" .. tostring(obj:GetParamValue(param))
+    end
+    table.sort(parts)
+    return table.concat(parts, "|")
+  end)
+  return ok and text or nil
+end
+
 local function lookup(objectID)
   local obj = config.Obj.FromID(objectID)
   if obj == nil then return nil end
   local categoryName = obj.category and obj.category >= 0 and id.Category.FromID(obj.category) or nil
+  local ops = readOps(obj)
   return {
-    id = objectID, name = obj.name, category = categoryName, ops = readOps(obj),
+    id = objectID, name = obj.name, category = categoryName, ops = ops,
     quests = count(obj.quests), tradeable = obj.isTradeable, stockmarket = obj.isStockmarket, cost = obj.cost,
+    params = readParams(obj, ops),
   }
 end
 
----@return table { id, name, category, ops }
 function Bank.info(objectID)
   local cached = infoCache[objectID]
   if cached then return cached end
@@ -102,8 +111,6 @@ function Bank.currentTab()
   return varValue("VarPlayer", "BANK_CURRENT_TAB")
 end
 
--- RS3's first (main) tab shows every item, like OSRS's All items view. Quest Helper's bank
--- filter relies on the same value (1) for "the main bank tab".
 function Bank.isAllItemsTab()
   return Bank.currentTab() == ALL_ITEMS_TAB
 end
@@ -117,10 +124,6 @@ function Bank.viewSignature()
   }, ":")
 end
 
--- Bank tab variables, from the client's VarPlayer list (`pan VarPlayer`):
--- Tab 1 is the main tab; BANK_TAB2..BANK_TAB15 hold the item counts of the 14 custom tabs.
--- BANKINSERT is non-zero in Insert mode. tabsFirst: custom-tab items sit before the main
--- tab's in the bank container (as in OSRS); confirmed by the log line Analyze prints.
 Bank.TAB_VARS = {
   group = "VarPlayer",
   sizes = {
@@ -131,7 +134,6 @@ Bank.TAB_VARS = {
   tabsFirst = true,
 }
 
--- Item counts of the custom tabs, or nil when they cannot be read.
 function Bank.tabSizes()
   local vars = Bank.TAB_VARS
   if #vars.sizes == 0 then return nil end
@@ -152,7 +154,6 @@ function Bank.insertMode()
   return value ~= 0
 end
 
--- Every occupied bank slot, in container order, with item facts for the classifier.
 function Bank.readItems()
   local ok, items = pcall(function()
     local inv = Inventory.Find(config.Inv.BANK)
@@ -171,8 +172,6 @@ function Bank.readItems()
   return nil
 end
 
--- Split container-ordered items into sections: [0] = Main, [1..n] = numbered tabs.
----@param sizes integer[] item counts of the custom tabs, in order
 function Bank.sections(items, sizes, tabsFirst)
   local sections, cursor = { [0] = {} }, 1
   local function take(count, into)
@@ -199,7 +198,6 @@ function Bank.sections(items, sizes, tabsFirst)
   return sections
 end
 
--- Bank item components by item id, for drawing highlights on the visible slots.
 function Bank.componentsById()
   local slots, _, container = Bank.scan()
   local byId = {}
@@ -207,12 +205,10 @@ function Bank.componentsById()
   return byId, container, slots
 end
 
--- Test hook.
 function Bank._resetCache()
   infoCache = {}
 end
 
--- Absolute (screen) position of a component, or 0, 0 when the client does not report it.
 function Bank.globalXY(component)
   local ok, x, y = pcall(function()
     local xy = component.xyGlobal
@@ -222,38 +218,42 @@ function Bank.globalXY(component)
   return 0, 0
 end
 
--- The outermost bank component above the slots (so a guide line can reach the tab row without
--- being clipped by the slot area), with its absolute position.
-function Bank.lineHost(container)
-  local host = container
-  pcall(function()
-    local depth = 0
-    while host.parent and depth < 12 do
-      host, depth = host.parent, depth + 1
-    end
+function Bank.drawLayer(container)
+  local ok, layer = pcall(function()
+    return ui.Interfaces:GetComponent(id.Component.TOPLEVEL_V2__PLUGIN_BUILD_LAYER_TOP)
   end)
+  local host = ok and layer or container
   local x, y = Bank.globalXY(host)
   return host, x, y
 end
 
-local function visit(collection, skip, fn, depth)
-  if depth > 10 or collection == skip then return false end
-  local found = false
-  local function each(component)
-    if found then return true end
-    if component ~= skip then
-      if fn(component) then found = true return true end
-      found = visit(component, skip, fn, depth + 1)
-    end
-    return found
-  end
-  pcall(function() collection:IterateStaticComponents(each) end)
-  if not found then pcall(function() collection:IterateDynamicComponents(each) end) end
-  return found
-end
+local MAX_STATIC_ID = 400
 
-local BUTTON_MIN, BUTTON_MAX = 20, 72 -- tab button size range, interface units
-local ROW_REACH = 80 -- how far above the slots the tab row may sit
+local function bankComponents(container)
+  local list = {}
+  local cx, cy = Bank.globalXY(container)
+  local function isSlotArea(component)
+    local x, y = Bank.globalXY(component)
+    return x == cx and y == cy and component.width == container.width and component.height == container.height
+  end
+  for staticID = 0, MAX_STATIC_ID do
+    local ok, component = pcall(function() return ui.Interfaces:GetComponent(id.Interface.BANK, staticID) end)
+    if ok and component and not isSlotArea(component) then
+      list[#list + 1] = { component = component, staticID = staticID }
+      pcall(function()
+        component:IterateDynamicComponents(function(child)
+          list[#list + 1] = { component = child, staticID = staticID, dynamic = true }
+          return false
+        end)
+      end)
+    end
+  end
+  return list
+end
+Bank._bankComponents = bankComponents
+
+local BUTTON_MIN, BUTTON_MAX = 20, 72
+local ROW_REACH = 80
 
 local function isShown(component)
   local ok, shown = pcall(function()
@@ -264,27 +264,24 @@ local function isShown(component)
   return ok and shown
 end
 
--- The bank's tab buttons, left to right (infinity first), as absolute boxes. Tab buttons can
--- show any icon, so they are found by shape: the row of same-sized boxes just above the slots.
 function Bank.tabButtons(container)
-  local host = Bank.lineHost(container)
   local cx, cy = Bank.globalXY(container)
   local byColumn = {}
-  visit(host, container, function(component)
+  for _, found in ipairs(bankComponents(container)) do
+    local component = found.component
     local w, h = component.width or 0, component.height or 0
-    if w < BUTTON_MIN or w > BUTTON_MAX or h < BUTTON_MIN or h > BUTTON_MAX or not isShown(component) then return false end
-    local x, y = Bank.globalXY(component)
-    local inRow = y + h <= cy + 4 and y + h >= cy - ROW_REACH and x >= cx - 24 and x <= cx + (container.width or 0)
-    if inRow then
-      local column = math.floor(x / 8 + 0.5)
-      local best = byColumn[column]
-      if not best or w * h > best.width * best.height then
-        byColumn[column] = { x = x, y = y, width = w, height = h }
+    if w >= BUTTON_MIN and w <= BUTTON_MAX and h >= BUTTON_MIN and h <= BUTTON_MAX and isShown(component) then
+      local x, y = Bank.globalXY(component)
+      local inRow = y + h <= cy + 4 and y + h >= cy - ROW_REACH and x >= cx - 24 and x <= cx + (container.width or 0)
+      if inRow then
+        local column = math.floor(x / 8 + 0.5)
+        local best = byColumn[column]
+        if not best or w * h > best.width * best.height then
+          byColumn[column] = { x = x, y = y, width = w, height = h }
+        end
       end
     end
-    return false
-  end, 0)
-  -- Keep the most common width (the buttons), drop odd boxes like scroll arrows.
+  end
   local widths, common, most = {}, nil, 0
   for _, box in pairs(byColumn) do
     local key = math.floor(box.width / 4 + 0.5)
@@ -297,6 +294,31 @@ function Bank.tabButtons(container)
   end
   table.sort(buttons, function(a, b) return a.x < b.x end)
   return buttons
+end
+
+function Bank.describeInterface(container)
+  local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ",") }
+  for _, found in ipairs(bankComponents(container)) do
+    local c = found.component
+    local ok, line = pcall(function()
+      local x, y = Bank.globalXY(c)
+      return table.concat({ found.staticID, found.dynamic and "d" or "s", tostring(c.type), x, y, c.width, c.height,
+        tostring(isShown(c)), tostring(c.associatedObjectID) }, "\t")
+    end)
+    if ok then lines[#lines + 1] = line end
+  end
+  return table.concat(lines, "\n")
+end
+
+function Bank.componentNames(prefix)
+  local names = {}
+  pcall(function()
+    for name in pairs(id.Component) do
+      if type(name) == "string" and name:sub(1, #prefix) == prefix then names[#names + 1] = name end
+    end
+  end)
+  table.sort(names)
+  return names
 end
 
 return Bank

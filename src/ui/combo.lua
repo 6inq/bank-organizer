@@ -1,11 +1,5 @@
--- The game's combo box only accepts integer entry ids, so dropdowns use positions (1, 2, 3...)
--- and map the chosen position back to our own key.
 local Combo = {}
 
----@param choices table[] { { label = string, key = any }, ... }
----@param selectedKey any key to show as selected (falls back to the first entry)
----@param onPick fun(key: any) called with the chosen entry's key
----@param extra table? additional ComboBox options (width, inline, ...)
 function Combo.options(choices, selectedKey, onPick, extra)
   local entries, selectedID = {}, 1
   for index, choice in ipairs(choices) do

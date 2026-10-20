@@ -1,4 +1,3 @@
--- Bank Organizer by 6ing
 local Store = require("src/core/store")
 local App = require("src/app")
 local Tagging = require("src/game/tagging")
@@ -10,7 +9,6 @@ local store = Store.new()
 local app = App.new(store)
 local stopped = false
 
--- Client lifecycle hook: runs when the plugin is disabled or reloaded.
 function PluginShutdown()
   if stopped then return end
   stopped = true

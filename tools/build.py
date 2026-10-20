@@ -1,4 +1,3 @@
-"""Packages the plugin for upload: plugin.json, main.lua and src/ only."""
 import json
 import pathlib
 import zipfile

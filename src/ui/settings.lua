@@ -1,4 +1,3 @@
--- Settings (gear icon): tinting, rearrange mode, every colour, and resets.
 local Tags = require("src/core/tags")
 local Combo = require("src/ui/combo")
 
@@ -34,9 +33,10 @@ local function mount(parent, store, app)
     { { label = "Insert (fewer moves)", key = "insert" }, { label = "Swap", key = "swap" } },
     store:get("mode"),
     function(key) store:set("mode", key) end))
-  view:AddTitle("Tab colours")
-  for d, category in ipairs(Tags.CATEGORIES) do
-    addColour(store, app, category.key, Tags.destinationName(d - 1) .. " colour")
+  view:AddTitle("Colours by kind")
+  view:AddText({ text = "A tab takes the colour of the first kind of item it holds.", height = 40 })
+  for _, category in ipairs(Tags.CATEGORIES) do
+    addColour(store, app, category.key, category.main)
   end
   view:AddTitle("Guide colours")
   for _, highlight in ipairs(HIGHLIGHTS) do addColour(store, app, highlight[1], highlight[2]) end

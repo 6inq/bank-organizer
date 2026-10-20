@@ -1,14 +1,11 @@
--- Draws on top of the real bank slots: each item tinted with the colour of the tab it is
--- planned for, plus the current guide step (MOVE and its drop target) and a line from the item
--- to where it goes. Every shape is clickthrough, so the player can still drag items underneath.
--- Draws only; never acts.
 local Bank = require("src/game/bank")
+local GuideLine = require("src/game/guide_line")
 
 local Overlay = {}
 Overlay.__index = Overlay
 
 local LABEL_HEIGHT = 14
-local TAB_ROW_GAP = 24 -- fallback target: just above the slots, where the tab row sits
+local TAB_ROW_GAP = 24
 
 function Overlay.new()
   return setmetatable({ components = {}, signature = nil, container = nil, lastSeen = {} }, Overlay)
@@ -36,7 +33,6 @@ end
 
 function Overlay:_label(slot, text, rgba)
   local label = self:_track(ui.Text.new(self.container))
-  -- Above the slot, except on the top row where that would sit under the tab bar.
   local y, top = slot.y - LABEL_HEIGHT, slot.y
   local ok, gy = pcall(function() return slot.component.xyGlobal.y end)
   if ok and type(gy) == "number" then top = gy - select(2, Bank.globalXY(self.container)) end
@@ -49,37 +45,8 @@ function Overlay:_label(slot, text, rgba)
   return label
 end
 
-local function unpackColour(rgba)
-  return ((rgba >> 24) & 0xFF) / 255, ((rgba >> 16) & 0xFF) / 255, ((rgba >> 8) & 0xFF) / 255, (rgba & 0xFF) / 255
-end
+Overlay.lineBox = GuideLine.box
 
--- A ui.Line runs from its top-left to its bottom-right (invert: bottom-left to top-right),
--- so a line between two points is the box spanning them.
-function Overlay.lineBox(x1, y1, x2, y2)
-  local x, y = math.min(x1, x2), math.min(y1, y2)
-  local invert = (x2 - x1) * (y2 - y1) < 0
-  return x, y, math.max(1, math.abs(x2 - x1)), math.max(1, math.abs(y2 - y1)), invert
-end
-
-local function centre(box)
-  return box.x + box.width / 2, box.y + box.height / 2
-end
-
--- Line between two boxes given in the coordinates of `parent`.
-function Overlay:_line(parent, from, to, rgba)
-  local x1, y1 = centre(from)
-  local x2, y2 = centre(to)
-  local x, y, w, h, invert = Overlay.lineBox(x1, y1, x2, y2)
-  local line = self:_track(ui.Line.new(parent))
-  line:SetPos(x, y)
-  line:SetSize(w, h)
-  line.invert = invert
-  line.width = 3
-  line.colour = Vector4.new(unpackColour(rgba))
-  return line
-end
-
--- The item the guide says to move, and the item it should land next to (insert/swap steps).
 local function stepEnds(step)
   if not step then return nil end
   if step.kind == "insert" then return step.move, step.before or step.after end
@@ -87,7 +54,6 @@ local function stepEnds(step)
   return step.id, nil
 end
 
--- What the guide step highlights: { [itemID] = { text, colourKey } }.
 local function stepMarks(step)
   if not step then return {} end
   local marks = {}
@@ -121,7 +87,6 @@ local function signatureOf(slots, app, tint, marks)
   return table.concat(parts, "|")
 end
 
--- Global box of a slot, from its component (falls back to container-relative + container).
 local function globalBox(slot, container)
   local ok, box = pcall(function()
     local xy = slot.component.xyGlobal
@@ -132,12 +97,17 @@ local function globalBox(slot, container)
   return { x = cx + slot.x, y = cy + slot.y, width = slot.width, height = slot.height }
 end
 
--- Where a to-tab / new-tab step should be dropped, as a global box: the tab's button (infinity
--- is the first button, the new-tab "+" the last), else just above the slots.
+function Overlay:_buttons(container, tabs)
+  local cx, cy = Bank.globalXY(container)
+  local key = table.concat({ cx, cy, container.width or 0, tabs }, ":")
+  if key ~= self.buttonsKey then self.buttons, self.buttonsKey = Bank.tabButtons(container), key end
+  return self.buttons
+end
+
 function Overlay:_tabTarget(app, step, container)
   local tabs = 0
   for s in pairs(app.sections or {}) do if s > tabs then tabs = s end end
-  local buttons = Bank.tabButtons(container)
+  local buttons = self:_buttons(container, tabs)
   if step.kind == "to-tab" and buttons[step.to + 1] and #buttons >= tabs + 1 then return buttons[step.to + 1] end
   if step.kind == "new-tab" and #buttons >= tabs + 2 then return buttons[#buttons] end
   if log and not self.loggedMissing then
@@ -149,22 +119,31 @@ function Overlay:_tabTarget(app, step, container)
   return { x = cx + container.width / 2 - 8, y = cy - TAB_ROW_GAP, width = 16, height = 16 }
 end
 
+local function targetKind(step)
+  if step.kind == "insert" then return step.before and "before" or "after" end
+  if step.kind == "swap" then return "swap" end
+  return "tab"
+end
+
 function Overlay:_guideLine(app, container, byId)
   local step = app.guiding and app.step
   local fromID, toID = stepEnds(step)
   if not fromID then return end
   local from = byId[fromID] and globalBox(byId[fromID], container) or self.lastSeen[fromID]
   if not from then return end
-  local to
+  local box
   if toID then
-    to = byId[toID] and globalBox(byId[toID], container) or self.lastSeen[toID]
+    box = byId[toID] and globalBox(byId[toID], container) or self.lastSeen[toID]
   else
-    to = self:_tabTarget(app, step, container)
+    box = self:_tabTarget(app, step, container)
   end
-  if not to then return end
-  local host, hx, hy = Bank.lineHost(container)
-  local function local_(box) return { x = box.x - hx, y = box.y - hy, width = box.width, height = box.height } end
-  self:_line(host, local_(from), local_(to), app.store:colour("line"))
+  if not box then return end
+  local cx, cy = Bank.globalXY(container)
+  local viewport = { x = cx, y = cy, width = container.width, height = container.height }
+  local plan = GuideLine.plan(from, { kind = targetKind(step), box = box }, viewport)
+  if not plan then return end
+  local host, hx, hy = Bank.drawLayer(container)
+  GuideLine.draw(plan, host, hx, hy, app.store:colour("line"), function(component) return self:_track(component) end)
 end
 
 function Overlay:render(app)
@@ -176,7 +155,6 @@ function Overlay:render(app)
   local marks = app.guiding and stepMarks(app.step) or {}
   local byId = {}
   for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
-  -- An item being dragged leaves its slot; the line keeps its last known spot.
   local key = stepKey(app.guiding and app.step)
   if key ~= self.lastStep then self.lastSeen, self.lastStep = {}, key end
   local fromID, toID = stepEnds(app.guiding and app.step)
@@ -198,7 +176,6 @@ function Overlay:render(app)
       self:_label(slot, mark[1], colour)
     end
   end
-  -- Drawn last so it sits on top of the tints and highlights.
   local ok, err = pcall(function() self:_guideLine(app, container, byId) end)
   if not ok and log then log("[bank-organizer] guide line failed: " .. tostring(err)) end
   return true

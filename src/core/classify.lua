@@ -1,7 +1,3 @@
--- RS3 item classifier: item facts -> tag key. Pure.
--- Uses the client's own item data (category, right-click ops, quest links, tradeability)
--- plus exact RS3 name families. Anything it is not confident about returns nil, and the
--- blueprint puts it in Storage & Cleanup (fails closed), where a right-click correction fixes it.
 local Classify = {}
 
 local HERBS = {
@@ -55,17 +51,14 @@ local GEMS = {
   "red topaz", "lapis lazuli", "uncut",
 }
 
--- Skillcapes and other skilling capes (fire capes and the like stay combat gear).
 local SKILL_CAPES = { "cape (t)", "master cape", "max cape", "gatherer's cape", "artisan's cape", "support cape", "completionist cape" }
 
--- MTX and Treasure Hunter rewards: XP boosts, packs, lamps and the like.
 local XP_ITEMS = {
   "knowledge bomb", "wildcard", "protean", "luminite injector", "combat dummy", "brassica primer", "lamp",
   "silverhawk", "chameleon extract", "skilling pack", "training dummy", "crafting catalyst", "dwarven toolbox",
   "artefact replicator",
 }
 
--- Pieces of a wearable skilling outfit (Treasure Hunter sets); other wearables there are MTX items.
 local OUTFIT_PIECES = {
   "head", "hat", "hood", "mask", "helm", "body", "top", "torso", "chest", "jacket", "legs", "trousers", "legguards",
   "trunks", "hands", "gloves", "arms", "branch", "feet", "boots", "legwear",
@@ -78,8 +71,6 @@ local INVENTION_ARCH = {
 
 local FARMING = { "compost", "manure", "patch bomb", "seed bag", "farm totem" }
 
--- The client's own item category (id.Category name) is the strongest signal, checked in order.
--- A tag of false means "no opinion": fall through to the name rules.
 local CATEGORY_RULES = {
   { "^MAGIC_RUNE$", "runes" }, { "^NECROMANCY_RUNE$", "runes" }, { "^RUNE_MULTIPLIER$", "runes" },
   { "^LORE_.*EGG$", false }, { "^LORE_BABY", false }, { "^LORE_", "summoning" }, { "SPIRIT_GEM", "summoning" },
@@ -134,13 +125,11 @@ local function anyOp(ops, names)
   return false
 end
 
--- "Super restore (4)" -> 4 ; "Saradomin brew flask (6)" -> 6 ; nil when no dose.
 function Classify.dose(name)
   local dose = tostring(name or ""):match("%((%d)%)%s*$")
   return dose and tonumber(dose) or nil
 end
 
--- Whole words only, so "spirit" never reads as "irit".
 local function herbFamily(name)
   for _, herb in ipairs(HERBS) do
     if hasWord(name, { herb }) then return herb end
@@ -179,7 +168,6 @@ local function classifyCategory(category, ops, name)
   for _, rule in ipairs(CATEGORY_RULES) do
     if category:match(rule[1]) then return rule[2] or nil end
   end
-  -- Treasure Hunter rewards: wearable pieces are skilling outfits, the rest go with MTX & XP boosts.
   if category:match("^TRH") then
     return isEquipment(ops, category) and hasWord(name, OUTFIT_PIECES) and "skilling-outfits" or "xp-items"
   end
@@ -193,8 +181,6 @@ local function anyOpContains(ops, word)
   return false
 end
 
----@param info table? { name, category (id.Category name), ops = { [op]=true }, quests (count), tradeable }
----@return string? tag key, or nil when not confident
 function Classify.classify(info)
   info = info or {}
   local name = type(info.name) == "string" and info.name:lower() or ""

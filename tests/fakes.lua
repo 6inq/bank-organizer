@@ -1,4 +1,3 @@
--- Fake client globals for testing game-facing modules without the RS3 client.
 local F = {}
 
 local SPRITE, RECT = 5, 3
@@ -12,7 +11,6 @@ local function component(fields)
   return c
 end
 
--- items: list of { id, x, y, [hidden], [type], [visible] }
 function F.install(opts)
   opts = opts or {}
   F.created, F.destroyed, F.events = {}, 0, {}

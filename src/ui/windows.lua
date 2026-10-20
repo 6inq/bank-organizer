@@ -1,13 +1,12 @@
--- Floating windows: Blueprint, Tab Layout editor and the category picker (PrettyUI Window).
 local Tags = require("src/core/tags")
 local Tagging = require("src/game/tagging")
 local Combo = require("src/ui/combo")
 
 local Windows = {}
 
-local open = {} -- name -> PrettyUI window
-local blueprintTab = nil -- destination the Blueprint window is showing
-local layoutNote = nil -- one-off message for the Tab Layout window
+local open = {}
+local blueprintTab = nil
+local layoutNote = nil
 
 local function host()
   local ok, layer = pcall(function()
@@ -52,7 +51,6 @@ end
 
 local GRID_COLUMNS = 8
 
--- Destinations with items, in bank order.
 local function filledTabs(app)
   local list = {}
   for _, d in ipairs(app:destinationList()) do
@@ -66,8 +64,6 @@ local function indexOf(list, value)
   return nil
 end
 
--- Blueprint: one tab at a time (big banks are thousands of slots), picked from a dropdown or
--- stepped through with Previous / Next.
 function Windows.blueprint(app)
   return create("blueprint", { title = "Blueprint", width = 470, height = 560, x = 60, y = 60 }, function(window)
     if not app.destinations then
@@ -118,8 +114,6 @@ local function tagChoicesFor(layout, d)
   return list
 end
 
--- My tabs layout: which kinds of item each of your own tabs collects. Pinning a tag sends every
--- item of that kind to the tab; unpinned tags follow the tab that already holds most of them.
 local function pinChoicesFor(app, d)
   local list = { { label = "Pin a tag here...", key = "none" } }
   for _, tag in ipairs(Tags.LIST) do
@@ -165,7 +159,6 @@ local function tabLayout(app, window, changed)
   window:AddSimpleButton("Keep my tab order", function() app:resetMyTabOrder(); changed() end, { inline = true })
 end
 
--- One tab of your own layout: name, position, delete, and the tags it collects in order.
 local function layoutTab(window, layout, d, changed)
   window:AddTitle(Tags.destinationName(d) .. (layout.names[d] and (" " .. layout.names[d]) or ""))
   window:AddTextField({
@@ -188,8 +181,6 @@ local function layoutTab(window, layout, d, changed)
   end))
 end
 
--- Whole-bank layout: your tabs in bank order. Start from the Bank Architect default or copy the
--- tabs you already have, then add, delete, rename, reorder and fill them.
 local function bankLayout(app, window, changed)
   local layout = app.store.layout
   window:AddText({ text = "Your tabs in bank order, left to right. Name them, move them, and choose which kinds of item each one holds. Remove sends a kind to wherever Storage & Cleanup lives.", height = 64 })
@@ -209,8 +200,6 @@ local function bankLayout(app, window, changed)
   for d = 0, layout:last() do layoutTab(window, layout, d, changed) end
 end
 
--- Tab Layout: your tab order and contents (whole bank), or what each of your existing tabs
--- collects (My tabs); changes save and rebuild immediately.
 function Windows.layout(app)
   local function changed()
     app.store:save()
@@ -227,7 +216,6 @@ function Windows.layout(app)
   end)
 end
 
--- Category picker for one item, opened from the right-click option.
 function Windows.picker(app, itemID)
   local name = "item " .. tostring(itemID)
   local obj = objectOf(itemID)

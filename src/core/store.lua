@@ -1,7 +1,6 @@
--- Persistent state: preset, tab layout, your category corrections and settings. Pure; the
--- db is injectable for tests and defaults to the client's PersistentDB.
 local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
+local Sorting = require("src/core/sorting")
 
 local Store = {}
 Store.__index = Store
@@ -20,6 +19,7 @@ local SETTINGS = {
   opacity = { default = 0.35, valid = function(v) return type(v) == "number" and v >= 0 and v <= 1 end },
   mode = { default = "insert", valid = function(v) return v == "insert" or v == "swap" end },
   scope = { default = "bank", valid = function(v) return v == "bank" or v == "tabs" end },
+  sort = { default = Sorting.DEFAULT, valid = Sorting.isMode },
 }
 
 local function read(db)
@@ -38,7 +38,6 @@ local function sanitizeCorrections(raw)
   return corrections
 end
 
--- My tabs pins: tag -> section (0 = Tab 1 infinity, N = custom tab N).
 Store.MAX_SECTION = 14
 
 local function sanitizeTabHomes(raw)
@@ -52,7 +51,6 @@ local function sanitizeTabHomes(raw)
   return homes
 end
 
--- My tabs order: position N takes the contents of current custom tab order[N].
 local function isOrder(list)
   if type(list) ~= "table" then return false end
   local seen = {}
@@ -125,7 +123,6 @@ function Store:set(name, value)
   return true
 end
 
--- Switching preset restores that preset's default layout (Bank Architect behaviour).
 function Store:setPreset(preset)
   if not Layout.PRESETS[preset] then return false end
   self.preset = preset
@@ -151,7 +148,6 @@ function Store:resetCorrections()
   self:save()
 end
 
--- Pin a tag to a tab in My tabs mode (every item of that kind goes there).
 function Store:setTabHome(tag, section)
   if not Tags.isValid(tag) or type(section) ~= "number" or section ~= math.floor(section)
     or section < 0 or section > Store.MAX_SECTION then
@@ -172,7 +168,6 @@ function Store:resetTabHomes()
   self:save()
 end
 
----@param order integer[]? nil restores your tabs' own order
 function Store:setTabOrder(order)
   if order ~= nil and not isOrder(order) then return false end
   self.tabOrder = order
@@ -180,7 +175,6 @@ function Store:setTabOrder(order)
   return true
 end
 
--- Colour for a category key or a highlight key ("move", "target", "done").
 function Store:colour(key)
   return self.colours[key] or DEFAULT_COLOURS[key] or Store.HIGHLIGHT_DEFAULTS[key] or 0xFFFFFFFF
 end
