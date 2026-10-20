@@ -17,6 +17,7 @@ local function memoryDb()
   local db = { data = {} }
   function db:GetStructuredData(key) return self.data[key] end
   function db:SetStructuredData(key, value) self.data[key] = value end
+  function db:SetString(key, value) self.data[key] = value end
   return db
 end
 
@@ -287,6 +288,20 @@ function T.every_dropdown_uses_integer_ids()
   assertIntegerIds(env.windows[#env.windows])
   env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
   assertIntegerIds(env.settings[#env.settings])
+  PluginShutdown()
+end
+
+function T.analyze_exports_item_facts_with_their_tab()
+  local env = boot({ tabSizes = { 2 } })
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  local export = PersistentDB.data["bank-organizer-export"]
+  local lines = {}
+  for line in export:gmatch("[^\n]+") do lines[#lines + 1] = line end
+  A.eq(#lines, 8, "header + 7 items")
+  A.truthy(lines[1]:find("^slot\tid\tname"), "tab-separated header")
+  A.truthy(lines[2]:find("\tShark\t", 1, false), "item name")
+  A.truthy(lines[2]:find("eat", 1, true), "right-click ops")
+  A.truthy(lines[2]:find("\t1\tfood$"), "in custom tab 1, classified as food")
   PluginShutdown()
 end
 

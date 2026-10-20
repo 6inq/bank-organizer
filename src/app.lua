@@ -67,8 +67,37 @@ function App:analyze()
   self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
   self.status = App.STATUS.ANALYZED
   self:_logDiagnostics(items)
+  self:_saveExport(items)
   self:_notify()
   return true
+end
+
+local function opsText(ops)
+  local list = {}
+  for op in pairs(ops or {}) do list[#list + 1] = op end
+  table.sort(list)
+  return table.concat(list, "|")
+end
+
+-- Saves every bank item's facts (and which tab it is in) to PersistentDB as tab-separated
+-- text, so classification can be checked against a real, hand-organised bank.
+function App:_saveExport(items)
+  local db = rawget(_G, "PersistentDB")
+  if not db then return end
+  local sizes = Bank.tabSizes()
+  local sectionOf = {}
+  if sizes then
+    local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+    for s, ids in pairs(sections) do for _, itemID in ipairs(ids) do sectionOf[itemID] = s end end
+  end
+  local lines = { "slot\tid\tname\tcategory\tops\ttradeable\tquests\tstockmarket\ttab\ttag" }
+  for _, item in ipairs(items) do
+    local info = item.info or {}
+    lines[#lines + 1] = table.concat({ item.slot, item.id, tostring(item.name), tostring(info.category), opsText(info.ops),
+      tostring(info.tradeable), tostring(info.quests), tostring(info.stockmarket), tostring(sectionOf[item.id]),
+      self:tagOf(item) }, "\t")
+  end
+  pcall(function() return db:SetString("bank-organizer-export", table.concat(lines, "\n")) end)
 end
 
 -- One console line to confirm the bank model in game: tab sizes, view, mode and the first
