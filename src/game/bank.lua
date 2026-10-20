@@ -297,7 +297,7 @@ function Bank.tabButtons(container)
 end
 
 function Bank.describeInterface(container)
-  local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ",") }
+  local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ","), "mapping: " .. table.concat(Bank.tabMapping(), ",") }
   for _, found in ipairs(bankComponents(container)) do
     local c = found.component
     local ok, line = pcall(function()
@@ -308,6 +308,12 @@ function Bank.describeInterface(container)
     if ok then lines[#lines + 1] = line end
   end
   return table.concat(lines, "\n")
+end
+
+function Bank.tabMapping()
+  local values = {}
+  for tab = 2, 15 do values[#values + 1] = tostring(varValue("VarPlayer", "BANK_TAB_" .. tab .. "_MAPPING_SERVER")) end
+  return values
 end
 
 function Bank.componentNames(prefix)

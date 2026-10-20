@@ -45,9 +45,24 @@ function Verify.sameItems(a, b)
   return true
 end
 
+local function sequenceFor(sections, sequence)
+  local listed, order = {}, {}
+  for _, s in ipairs(sequence) do listed[s] = true end
+  local extra = {}
+  for s in pairs(sections) do if not listed[s] then extra[#extra + 1] = s end end
+  table.sort(extra)
+  for _, s in ipairs(sequence) do
+    if s == 0 then for _, e in ipairs(extra) do order[#order + 1] = e end end
+    order[#order + 1] = s
+  end
+  return order
+end
+
 function Verify.flatten(sections, tabsFirst)
   local order = {}
-  if tabsFirst ~= false then
+  if type(tabsFirst) == "table" then
+    order = sequenceFor(sections, tabsFirst)
+  elseif tabsFirst ~= false then
     for s = 1, last(sections) do order[#order + 1] = s end
     order[#order + 1] = 0
   else

@@ -57,7 +57,9 @@ local function boot(opts)
   end
   function container:IterateDynamicComponents(fn)
     for i, id in ipairs(env.bank) do
-      local x, y = ((i - 1) % 8) * 40, ((i - 1) // 8) * 40
+      local position = i
+      for index, shown in ipairs(env.display or {}) do if shown == id then position = index end end
+      local x, y = ((position - 1) % 8) * 40, ((position - 1) // 8) * 40
       if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
         xyGlobal = { x = 100 + x, y = 100 + y - (env.scroll or 0) },
         width = 36, height = 32, associatedObjectQuantity = 1, interfaceID = 517 }) then return end
@@ -478,6 +480,12 @@ end
 
 local TAB_BANK = { bank = { 103, 108, 102, 104 }, tabSizes = { 1 } }
 
+local function tabRow4()
+  local row = {}
+  for i = 0, 3 do row[#row + 1] = { xyGlobal = { x = 100 + i * 48, y = 60 }, width = 40, height = 40, visible = true } end
+  return row
+end
+
 local function tabRow()
   local row = {}
   for i = 0, 2 do
@@ -840,6 +848,28 @@ function T.a_mistake_is_logged_for_diagnosis()
   settle(env)
   A.truthy(table.concat(lines, " | "):find("move check: step=insert", 1, true), table.concat(lines, " | "))
   A.truthy(PersistentDB.data["bank-organizer-debug"], "saved for PluginData.db")
+  PluginShutdown()
+end
+
+function T.tabs_shown_in_a_different_order_than_stored()
+  local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 }, tabIcons = tabRow4() })
+  env.display = { 109, 102, 101, 107, 103, 108 }
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  tick(env)
+  A.list(Store.new(PersistentDB).displayOrder, { 2, 1 }, "learned from the infinity view: stored tab 2 is shown first")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Drag Dragon dagger onto Tab 3", 1, true), "the gear tab is the third button on screen: " .. text)
+  tick(env)
+  local box
+  for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.parent == env.layer then box = c end end
+  A.eq(box.x, 100 + 2 * 48 - 2, "the arrow outlines the third button")
+  env.bank = { 103, 108, 109, 101, 107, 102 }
+  env.display = { 102, 101, 107, 103, 108, 109 }
+  settle(env); settle(env)
+  text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, text)
+  A.eq(text:find("Dragon dagger", 1, true), nil, "the dagger is home: " .. text)
   PluginShutdown()
 end
 

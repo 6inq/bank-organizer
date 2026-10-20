@@ -2,6 +2,7 @@ local Tags = require("src/core/tags")
 local Blueprint = require("src/core/blueprint")
 local Guide = require("src/core/guide")
 local Verify = require("src/core/verify")
+local TabOrder = require("src/core/tab_order")
 local Bank = require("src/game/bank")
 local Overlay = require("src/game/overlay")
 
@@ -68,7 +69,7 @@ function App:_build(allItems)
   local mode = self.store:get("sort")
   self.tabCounts, self.noTabs = nil, false
   local sizes = self:tabSizes()
-  local sections = sizes and Bank.sections(allItems, sizes, Bank.TAB_VARS.tabsFirst)
+  local sections = sizes and self:_displaySections(allItems, sizes)
   if self.store:get("scope") == "tabs" then
     if not sizes then
       self.status = App.STATUS.NEED_TABS
@@ -272,7 +273,7 @@ function App:copyCurrentTabs()
   local sizes = self.items and Bank.tabSizes()
   if not sizes then return false end
   local tagOf = function(item) return self:tagOf(item) end
-  local sections = Bank.sections(self.items, sizes, Bank.TAB_VARS.tabsFirst)
+  local sections = self:_displaySections(self.items, sizes)
   local _, _, counts, homes = Blueprint.buildFromTabs(self.items, sections, tagOf)
   local last = 0
   for s in pairs(sections) do if s > last then last = s end end
@@ -305,6 +306,31 @@ function App:stopGuide()
   self:_notify()
 end
 
+function App:_displaySections(items, sizes)
+  local container = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+  self.displayOf, self.containerOf = TabOrder.maps(self.store.displayOrder, container)
+  self.containerSequence = TabOrder.containerSequence(self.displayOf, self.containerOf, Bank.TAB_VARS.tabsFirst)
+  return TabOrder.toDisplay(container, self.displayOf)
+end
+
+function App:_learnTabOrder()
+  if not Bank.isAllItemsTab() or Bank.searchActive() then return end
+  local items = Bank.readItems()
+  local sizes = self:tabSizes()
+  if not items or not sizes then return end
+  local key = signatureOf(items) .. "|" .. table.concat(sizes, ",")
+  if key == self.learnKey then return end
+  self.learnKey = key
+  local slots = Bank.scan()
+  if not slots then return end
+  local displayIds = {}
+  for index, slot in ipairs(slots) do displayIds[index] = slot.objectID end
+  local order = TabOrder.learn(displayIds, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst))
+  if order and self.store:setDisplayOrder(order) and self.items then
+    self:_build(self.items)
+  end
+end
+
 function App:tabSizes()
   local raw = Bank.tabSizes()
   local override = self.sizeOverride
@@ -317,7 +343,7 @@ function App:_sections(items)
   local sizes = self:tabSizes()
   if not sizes then return nil, App.STATUS.NO_TABS end
   if Bank.searchActive() then return nil, App.STATUS.NO_SEARCH end
-  local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+  local sections = self:_displaySections(items, sizes)
   if self:myTabs() then
     local tab = Bank.currentTab()
     if type(tab) ~= "number" or tab < 1 then return nil, App.STATUS.NO_TABS end
@@ -386,17 +412,19 @@ function App:_checkMove(items, sections)
   local pending = self.pending
   if not pending or self.correction then return end
   local flat = flatIds(items)
-  local verdict, expected = Verify.check(pending.before, flat, sections, pending.step, Bank.TAB_VARS.tabsFirst)
+  local verdict, expected = Verify.check(pending.before, flat, sections, pending.step, self.containerSequence)
   if verdict == "done" and expected and not Verify.same(expected, sections) then
     local game = Bank.tabSizes()
     if game then
-      self.sizeOverride = { game = table.concat(game, ","), sizes = Verify.sizes(expected, #game) }
+      local sizes = {}
+      for c = 1, #game do sizes[c] = #(expected[self.displayOf[c] or c] or {}) end
+      self.sizeOverride = { game = table.concat(game, ","), sizes = sizes }
       return "resync"
     end
   elseif verdict == "mistake" then
     self.correction = { target = pending.before, step = pending.step }
     self.pending = nil
-    self:_recordMistake(Verify.describe(Verify.flatten(pending.before, Bank.TAB_VARS.tabsFirst), flat, pending.step)
+    self:_recordMistake(Verify.describe(Verify.flatten(pending.before, self.containerSequence), flat, pending.step)
       .. " sizes=" .. table.concat(Bank.tabSizes() or {}, ","))
   end
 end
@@ -475,6 +503,8 @@ function App:tick()
     self.overlay:clear()
     return
   end
+  local learned, learnErr = pcall(function() self:_learnTabOrder() end)
+  if not learned and log then log("[bank-organizer] tab order failed: " .. tostring(learnErr)) end
   if self.guiding then self:_tickGuide() end
   local ok, err = pcall(function() return self.overlay:render(self) end)
   if not ok and log then log("[bank-organizer] overlay failed: " .. tostring(err)) end

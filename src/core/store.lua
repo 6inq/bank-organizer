@@ -100,6 +100,7 @@ function Store.new(db)
   self.layout = Layout.new(self.preset, raw.layout)
   self.corrections = sanitizeCorrections(raw.corrections)
   self.ignored = sanitizeIgnored(raw.ignored)
+  self.displayOrder = sanitizeOrder(raw.displayOrder)
   self.colours = sanitizeColours(raw.colours)
   self.tabHomes = sanitizeTabHomes(raw.tabHomes)
   self.tabOrder = sanitizeOrder(raw.tabOrder)
@@ -121,6 +122,7 @@ function Store:save()
   local data = {
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections, ignored = ignored,
     colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, tabOrder = self.tabOrder,
+    displayOrder = self.displayOrder,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
@@ -147,6 +149,17 @@ end
 function Store:correct(itemID, tag)
   if not Tags.isValid(tag) then return false end
   self.corrections[itemID] = tag
+  self:save()
+  return true
+end
+
+function Store:setDisplayOrder(order)
+  if not isOrder(order) then return false end
+  local current = self.displayOrder or {}
+  local changed = #current ~= #order
+  for index = 1, #order do if current[index] ~= order[index] then changed = true end end
+  if not changed then return false end
+  self.displayOrder = order
   self:save()
   return true
 end

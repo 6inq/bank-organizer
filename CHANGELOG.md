@@ -31,6 +31,9 @@
 - Ground mud and miasma runes count as herblore secondaries, not runes.
 - **Colour settings** are named by kind of item (Combat Gear, Herblore) instead of tab number.
 
+### Fixed
+- **Tabs shown in a different order than the game stores them** (for example after rearranging tabs): the plugin now learns the on-screen order from the infinity view, so tab numbers, arrows, the tab you are viewing and move checks all match what you see. This fixes correct drops onto a tab being called a mistake.
+
 ## 1.2.0 (2026-10-20)
 Rebuilt around the Bank Architect workflow: **Analyze Bank, Open Blueprint, Sorting Guide**.
 
