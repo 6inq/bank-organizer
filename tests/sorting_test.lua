@@ -104,7 +104,7 @@ function T.keep_my_order_leaves_a_tab_alone_and_appends_arrivals()
 end
 
 function T.every_mode_is_offered_and_valid()
-  A.eq(#Sorting.MODES, 4)
+  A.eq(#Sorting.MODES, 5)
   for _, mode in ipairs(Sorting.MODES) do A.eq(Sorting.isMode(mode.key), true) end
   A.eq(Sorting.isMode("bogus"), false)
 end
@@ -183,6 +183,14 @@ function T.incense_stays_out_of_the_potion_chains()
   layout:moveTag("herblore-other", 2)
   local d = Blueprint.build(items, layout, function(item) return tags[item.id] end, "smart")
   A.eq(d[2][1].name, "Super attack (4)", "incense after the potions")
+end
+
+function T.value_mode_puts_the_most_valuable_first_whatever_the_kind()
+  local items = {
+    gear(1, 1, "Abyssal whip", "WEAPON_WHIP", 120000), gear(2, 2, "Torva full helm", "ARMOUR_HELMET", 9000000),
+    gear(3, 3, "Bronze dagger", "WEAPON_DAGGER", 10), gear(4, 4, "Armadyl chestplate", "ARMOUR_BODY", 4000000),
+  }
+  A.list(order(items, "value"), { "Torva full helm", "Armadyl chestplate", "Abyssal whip", "Bronze dagger" })
 end
 
 return T

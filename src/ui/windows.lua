@@ -1,12 +1,14 @@
 local Tags = require("src/core/tags")
 local Tagging = require("src/game/tagging")
 local Combo = require("src/ui/combo")
+local Preset = require("src/core/preset")
 
 local Windows = {}
 
 local open = {}
 local blueprintTab = nil
 local layoutNote = nil
+local presetNote = nil
 
 local function host()
   local ok, layer = pcall(function()
@@ -213,6 +215,34 @@ function Windows.layout(app)
   end
   return create("layout", { title = "Tab Layout", width = 470, height = 600, x = 120, y = 60 }, function(window)
     bankLayout(app, window, changed)
+  end)
+end
+
+function Windows.presets(app)
+  return create("presets", { title = "Share or Load a Setup", width = 470, height = 420, x = 140, y = 80 }, function(window)
+    window:AddTitle("Share my setup")
+    window:AddText({ text = "Copy this code and post it anywhere. It holds your tabs, their names, the kinds of item in each, your pins, how you organize and how you sort.", height = 64 })
+    window:AddTextField({ text = Preset.encode(app.store) })
+    window:AddTitle("Load a setup")
+    window:AddText({ text = "Paste a code someone shared, then press Enter. Your current setup is replaced.", height = 40 })
+    if presetNote then
+      window:AddText({ text = presetNote, height = 40 })
+      presetNote = nil
+    end
+    window:AddTextField({
+      placeholder = "Paste a setup code here",
+      onSubmit = function(_, content)
+        local preset, reason = Preset.decode(content)
+        if preset then
+          local last = Preset.apply(app.store, preset)
+          presetNote = string.format("Loaded a setup with %d tab%s after infinity.", last, last == 1 and "" or "s")
+          app:rebuild()
+        else
+          presetNote = reason
+        end
+        Windows.presets(app)
+      end,
+    })
   end)
 end
 

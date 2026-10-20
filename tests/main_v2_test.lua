@@ -873,4 +873,23 @@ function T.tabs_shown_in_a_different_order_than_stored()
   PluginShutdown()
 end
 
+function T.share_and_load_a_setup_from_the_sidebar()
+  local env = boot()
+  find(panel(env), "AddSimpleButton", "Share or Load a Setup").args[2]()
+  local w = env.windows[#env.windows]
+  local fields = {}
+  for _, c in ipairs(w) do if c.method == "AddTextField" then fields[#fields + 1] = c end end
+  A.truthy(fields[1].args[1].text:find("^BO1|"), "your code is shown to copy")
+  fields[2].args[1].onSubmit(nil, "not a code")
+  A.truthy(texts(env.windows[#env.windows]):find("not a Bank Organizer setup code", 1, true))
+  w = env.windows[#env.windows]
+  fields = {}
+  for _, c in ipairs(w) do if c.method == "AddTextField" then fields[#fields + 1] = c end end
+  fields[2].args[1].onSubmit(nil, "BO1|s=tabs|o=name|t=runes/gear|n=1:Weapons|p=")
+  A.truthy(texts(env.windows[#env.windows]):find("Loaded a setup with 1 tab after infinity", 1, true))
+  local store = Store.new(PersistentDB)
+  A.eq(store:get("scope"), "tabs"); A.eq(store:get("sort"), "name"); A.eq(store.layout.names[1], "Weapons")
+  PluginShutdown()
+end
+
 return T

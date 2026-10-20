@@ -6,7 +6,12 @@
   - **Smart** groups gear by combat style (melee, ranged, magic, necromancy), then slot (weapon, off-hand, head, body, legs, hands, feet, cape, neck, ring, ammo, pocket), most valuable first. Herblore is grouped by recipe chain: everything that goes into overloads sits together (irit, super attack, avantoe, extreme attack, and so on up to the overload), then the prayer and restore chain, brews, antifires and more, each herb next to its unfinished potion and the potion it makes. Outfits stay together as sets, runes follow the game's order, potions keep their doses together, and resources sort by material and tier.
   - Every other kind has its own smart order too: food by healing tier with full portions first, teleports as tablets then jewellery (most charges first) then gear, tools by skill, containers, summoning (shards, charms, pouches, scrolls, contracts), MTX & XP boosts, seeds, compost, ammo components by tier, clues by tier, and boss loot by value.
   - **Smart is the default** for everyone, including existing setups.
+  - **Value (highest first)** orders each tab by item value, whatever the kind. This uses the game's own item value; live GE prices are planned.
   - Also **Name**, **Item ID**, or **Keep my order**, which only moves items between tabs and leaves each tab's order alone.
+- **Share or load a setup**:
+  - **Share my setup** turns your whole setup (tabs and their names, the kinds of item in each, pins, how you organize and how you sort) into one line of text to post anywhere.
+  - **Load a setup** applies a code someone else shared.
+  - Codes are read, never run, and anything unknown in them is ignored.
 - **Move checking**:
   - The guide checks every move you make.
   - If you swap instead of insert, drop on the wrong spot, or move a different item, it says **Not quite** and walks you back one move at a time, then shows the original move again.

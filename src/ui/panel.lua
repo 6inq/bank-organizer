@@ -37,6 +37,7 @@ local function addActions(app)
   view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
     app:setAssigning(not app.assigning)
   end, { inline = true })
+  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end)
 end
 
 local function addStatus(app)

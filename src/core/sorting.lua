@@ -6,6 +6,7 @@ Sorting.MODES = {
   { key = "smart", label = "Smart (style, slot, tier)" },
   { key = "name", label = "Name" },
   { key = "id", label = "Item ID" },
+  { key = "value", label = "Value (highest first)" },
   { key = "keep", label = "Keep my order (only move between tabs)" },
 }
 Sorting.DEFAULT = "smart"
@@ -298,6 +299,7 @@ function Sorting.keys(entry, info, mode)
   local name = (entry.name or ""):lower()
   if mode == "id" then return { entry.rank, entry.id } end
   if mode == "name" then return { entry.rank, name, entry.id } end
+  if mode == "value" then return { -(tonumber(info and info.cost) or 0), name, entry.id } end
   local keys = { entry.rank }
   for _, key in ipairs(smartKeys(entry.tag, name, info or {})) do keys[#keys + 1] = key end
   keys[#keys + 1] = name
