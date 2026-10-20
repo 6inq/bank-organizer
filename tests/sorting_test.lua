@@ -104,7 +104,7 @@ function T.keep_my_order_leaves_a_tab_alone_and_appends_arrivals()
 end
 
 function T.every_mode_is_offered_and_valid()
-  A.eq(#Sorting.MODES, 5)
+  A.eq(#Sorting.MODES, 7)
   for _, mode in ipairs(Sorting.MODES) do A.eq(Sorting.isMode(mode.key), true) end
   A.eq(Sorting.isMode("bogus"), false)
 end
@@ -191,6 +191,22 @@ function T.value_mode_puts_the_most_valuable_first_whatever_the_kind()
     gear(3, 3, "Bronze dagger", "WEAPON_DAGGER", 10), gear(4, 4, "Armadyl chestplate", "ARMOUR_BODY", 4000000),
   }
   A.list(order(items, "value"), { "Torva full helm", "Armadyl chestplate", "Abyssal whip", "Bronze dagger" })
+end
+
+function T.quantity_modes_sort_by_stack_size_both_ways()
+  local items = {}
+  for slot, row in ipairs({ { "Coins", 5000 }, { "Air rune", 120000 }, { "Shark", 28 }, { "Abyssal whip", 1 }, { "Bones", 28 } }) do
+    items[slot] = { slot = slot, id = slot, name = row[1], quantity = row[2], info = { name = row[1], ops = {} } }
+  end
+  local function sorted(mode)
+    local layout = Layout.new("main")
+    local d = Blueprint.build(items, layout, function() return "cleanup" end, mode)
+    local names = {}
+    for index, entry in ipairs(d[layout:destinationOf("cleanup")]) do names[index] = entry.name end
+    return names
+  end
+  A.list(sorted("qty-desc"), { "Air rune", "Coins", "Bones", "Shark", "Abyssal whip" }, "biggest stacks first, ties by name")
+  A.list(sorted("qty-asc"), { "Abyssal whip", "Bones", "Shark", "Coins", "Air rune" }, "smallest stacks first")
 end
 
 return T

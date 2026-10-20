@@ -7,6 +7,8 @@ Sorting.MODES = {
   { key = "name", label = "Name" },
   { key = "id", label = "Item ID" },
   { key = "value", label = "Value: item value (highest first)" },
+  { key = "qty-desc", label = "Quantity (highest first)" },
+  { key = "qty-asc", label = "Quantity (lowest first)" },
   { key = "keep", label = "Keep my order (only move between tabs)" },
 }
 Sorting.DEFAULT = "smart"
@@ -321,6 +323,8 @@ function Sorting.keys(entry, info, mode)
   if mode == "id" then return { entry.rank, entry.id } end
   if mode == "name" then return { entry.rank, name, entry.id } end
   if mode == "value" then return { -Sorting.worth(info), name, entry.id } end
+  if mode == "qty-desc" then return { -(tonumber(entry.quantity) or 0), name, entry.id } end
+  if mode == "qty-asc" then return { tonumber(entry.quantity) or 0, name, entry.id } end
   local keys = { entry.rank }
   for _, key in ipairs(smartKeys(entry.tag, name, info or {})) do keys[#keys + 1] = key end
   keys[#keys + 1] = name

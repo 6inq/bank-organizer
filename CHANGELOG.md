@@ -2,6 +2,7 @@
 
 ## 1.4.0 (2026-10-20)
 ### New
+- **Sort by quantity**: **Quantity (highest first)** puts the biggest stacks of each tab first, **Quantity (lowest first)** the smallest, with ties by name.
 - **Value sort uses live Grand Exchange prices**: **Value (highest first)** now orders each tab by the item's current GE price, the middle of the latest instant buy and sell prices. Items the GE does not trade, or has no price for, keep using the game's own item value.
   - Prices load in the background, so the sidebar and the guide never wait for them. Until they arrive, Value sorts by item value, and once they do the blueprint is rebuilt once by GE price.
   - The sort choice says which is in use: **Value: GE price**, **Value: item value until GE prices load**, or **Value: item value** when GE prices are unavailable or price fetching is turned off.
