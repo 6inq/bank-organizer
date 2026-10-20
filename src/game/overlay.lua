@@ -35,7 +35,7 @@ end
 function Overlay:_label(slot, text, rgba)
   local label = self:_track(ui.Text.new(self.container))
   local y = slot.y - LABEL_HEIGHT
-  local _, scrolled = Bank.scroll(self.container)
+  local scrolled = self.view and self.view.scrollY or 0
   if slot.y - scrolled < LABEL_HEIGHT then y = slot.y + slot.height - LABEL_HEIGHT end
   label:SetPos(slot.x - 4, y)
   label:SetSize(slot.width + 8, LABEL_HEIGHT)
@@ -91,10 +91,16 @@ local function signatureOf(slots, app, tint, marks)
   return table.concat(parts, "|")
 end
 
-local function globalBox(slot, container)
+local function globalBox(slot, container, view)
   local cx, cy = Bank.globalXY(container)
-  local sx, sy = Bank.scroll(container)
-  return { x = cx + slot.x - sx, y = cy + slot.y - sy, width = slot.width, height = slot.height }
+  return { x = cx + slot.x - view.scrollX, y = cy + slot.y - view.scrollY, width = slot.width, height = slot.height }
+end
+
+function Overlay:_view(container)
+  local cx, cy = Bank.globalXY(container)
+  local key = table.concat({ cx, cy, container.width or 0, container.height or 0 }, ":")
+  if key ~= self.frameKey then self.frame, self.frameKey = Bank.scrollFrame(container), key end
+  return Bank.view(container, self.frame)
 end
 
 function Overlay:_buttons(container, tabs)
@@ -129,17 +135,17 @@ function Overlay:_guideLine(app, container, byId)
   local step = activeStep(app)
   local fromID, toID = stepEnds(step)
   if not fromID then return end
-  local from = byId[fromID] and globalBox(byId[fromID], container) or self.lastSeen[fromID]
+  local view = self.view
+  local from = byId[fromID] and globalBox(byId[fromID], container, view) or self.lastSeen[fromID]
   if not from then return end
   local box
   if toID then
-    box = byId[toID] and globalBox(byId[toID], container) or self.lastSeen[toID]
+    box = byId[toID] and globalBox(byId[toID], container, view) or self.lastSeen[toID]
   else
     box = self:_tabTarget(app, step, container)
   end
   if not box then return end
-  local cx, cy = Bank.globalXY(container)
-  local viewport = { x = cx, y = cy, width = container.width, height = container.height }
+  local viewport = { x = view.x, y = view.y, width = view.width, height = view.height }
   local plan = GuideLine.plan(from, { kind = targetKind(step), box = box }, viewport)
   if not plan then return end
   local host, hx, hy = Bank.drawLayer(container)
@@ -153,13 +159,15 @@ function Overlay:render(app)
   if container ~= self.container then self:clear() end
   local tint = app.store:get("tint") or app.assigning
   local marks = activeStep(app) and stepMarks(app.step) or {}
+  app:assignSlotKeys(slots or {})
+  self.view = self:_view(container)
   local byId = {}
   for _, slot in ipairs(slots or {}) do byId[slot.key] = slot end
   local key = stepKey(activeStep(app))
   if key ~= self.lastStep then self.lastSeen, self.lastStep = {}, key end
   local fromID, toID = stepEnds(activeStep(app))
   for _, itemID in ipairs({ fromID or false, toID or false }) do
-    if itemID and byId[itemID] then self.lastSeen[itemID] = globalBox(byId[itemID], container) end
+    if itemID and byId[itemID] then self.lastSeen[itemID] = globalBox(byId[itemID], container, self.view) end
   end
   local onScreen = {}
   for _, itemID in ipairs({ fromID or false, toID or false }) do

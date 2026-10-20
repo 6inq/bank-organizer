@@ -319,6 +319,39 @@ function Bank.tabButtons(container)
   return buttons
 end
 
+local function number(component, field)
+  local ok, value = pcall(function() return component[field] end)
+  return ok and tonumber(value) or nil
+end
+
+function Bank.scrollFrame(container)
+  local cx, cy = Bank.globalXY(container)
+  local best, area
+  for _, found in ipairs(bankComponents(container)) do
+    local c = found.component
+    if not found.dynamic then
+      local w, h, sh = number(c, "width") or 0, number(c, "height") or 0, number(c, "scrollHeight") or 0
+      local x, y = Bank.globalXY(c)
+      local scrolls = sh > h + 1 or (number(c, "scrollY") or 0) > 0
+      if scrolls and w > 0 and h > 0 and cx >= x - 1 and cx <= x + w and cy >= y - 1 and cy <= y + h and (area == nil or w * h < area) then
+        best, area = c, w * h
+      end
+    end
+  end
+  return best
+end
+
+function Bank.view(container, frame)
+  local sx, sy = Bank.scroll(container)
+  local host = container
+  if frame then
+    local fx, fy = Bank.scroll(frame)
+    sx, sy, host = sx + fx, sy + fy, frame
+  end
+  local x, y = Bank.globalXY(host)
+  return { scrollX = sx, scrollY = sy, x = x, y = y, width = number(host, "width") or 0, height = number(host, "height") or 0 }
+end
+
 function Bank.describeInterface(container)
   local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ","), "mapping: " .. table.concat(Bank.tabMapping(), ",") }
   for _, found in ipairs(bankComponents(container)) do

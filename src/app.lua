@@ -312,7 +312,57 @@ function App:_displaySections(items, sizes)
   local container = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
   self.displayOf, self.containerOf = TabOrder.maps(self.store.displayOrder, container)
   self.containerSequence = TabOrder.containerSequence(self.displayOf, self.containerOf, Bank.TAB_VARS.tabsFirst)
-  return TabOrder.toDisplay(container, self.displayOf)
+  self.displaySections = TabOrder.toDisplay(container, self.displayOf)
+  return self.displaySections
+end
+
+function App:assignSlotKeys(slots)
+  local shown = self.displaySections
+  if not shown then return end
+  local seen, repeated = {}, false
+  for _, slot in ipairs(slots) do
+    if seen[slot.objectID] then repeated = true end
+    seen[slot.objectID] = true
+  end
+  if not repeated then return end
+  local sectionOfSlot = {}
+  local view = Bank.currentTab()
+  if view == 1 then
+    local blocks, total, last = { 0 }, #(shown[0] or {}), 0
+    for d in pairs(shown) do if d > last then last = d end end
+    for d = 1, last do
+      blocks[#blocks + 1] = d
+      total = total + #(shown[d] or {})
+    end
+    if total ~= #slots then return end
+    local index = 1
+    for _, d in ipairs(blocks) do
+      for _ = 1, #(shown[d] or {}) do sectionOfSlot[index], index = d, index + 1 end
+    end
+  elseif type(view) == "number" and shown[view - 1] then
+    for index = 1, #slots do sectionOfSlot[index] = view - 1 end
+  else
+    return
+  end
+  local keysOf, used = {}, {}
+  for d, keys in pairs(shown) do
+    keysOf[d] = {}
+    for _, key in ipairs(keys) do
+      local real = Bank.realId(key)
+      keysOf[d][real] = keysOf[d][real] or {}
+      table.insert(keysOf[d][real], key)
+    end
+  end
+  for index, slot in ipairs(slots) do
+    local d = sectionOfSlot[index]
+    local list = d and keysOf[d] and keysOf[d][slot.objectID]
+    if list then
+      used[d] = used[d] or {}
+      local n = (used[d][slot.objectID] or 0) + 1
+      used[d][slot.objectID] = n
+      slot.key = list[n] or slot.key
+    end
+  end
 end
 
 function App:_learnTabOrder()
@@ -325,8 +375,11 @@ function App:_learnTabOrder()
   self.learnKey = key
   local slots = Bank.scan()
   if not slots then return end
-  local displayIds = {}
-  for index, slot in ipairs(slots) do displayIds[index] = slot.key end
+  local copies, displayIds = {}, {}
+  for _, slot in ipairs(slots) do copies[slot.objectID] = (copies[slot.objectID] or 0) + 1 end
+  for _, slot in ipairs(slots) do
+    if copies[slot.objectID] == 1 then displayIds[#displayIds + 1] = slot.objectID end
+  end
   local order = TabOrder.learn(displayIds, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst))
   if order and self.store:setDisplayOrder(order) and self.items then
     self:_build(self.items)

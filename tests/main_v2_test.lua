@@ -50,20 +50,29 @@ local function boot(opts)
     for i, id in ipairs(env.bank) do slots[i] = { obj = { id = id }, count = 1 } end
     return { isValid = true, GetSlots = function() return slots end }
   end }
-  local container = setmetatable({ visibleGlobal = true, width = 400, height = 600, xyGlobal = { x = 100, y = 100 } },
+  local container = setmetatable({ visibleGlobal = true, width = 400, height = opts.frame and 2000 or 600, xyGlobal = { x = 100, y = 100 } },
     { __index = function(_, key)
-      if key == "scrollY" then return env.scroll or 0 end
+      if key == "scrollY" then return opts.frame and 0 or (env.scroll or 0) end
       if key == "scrollX" then return 0 end
     end })
+  if opts.frame then
+    env.frame = setmetatable({ xyGlobal = { x = 100, y = 100 }, width = 400, height = 300, scrollHeight = 2000 },
+      { __index = function(_, key)
+        if key == "scrollY" then return env.scroll or 0 end
+        if key == "scrollX" then return 0 end
+      end })
+  end
   env.layer = { kind = "layer", xyGlobal = { x = 0, y = 0 } }
   local function bankStatic(staticID)
     if staticID == 0 then return container end
+    if staticID == 399 then return env.frame end
     return env.tabIcons[staticID]
   end
   function container:IterateDynamicComponents(fn)
     for i, id in ipairs(env.bank) do
       local position = i
       for index, shown in ipairs(env.display or {}) do if shown == id then position = index end end
+      if env.displayIndex then position = env.displayIndex[i] end
       local x, y = ((position - 1) % 8) * 40, ((position - 1) // 8) * 40
       if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
         xyGlobal = { x = 100 + x, y = 100 + y },
@@ -987,6 +996,47 @@ function T.ignoring_one_ushabti_ignores_them_all()
   added[1].fn()
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
   A.truthy(texts(panel(env)):find("(1)", 1, true), "only the coins are planned: " .. texts(panel(env)))
+  PluginShutdown()
+end
+
+function T.arrow_uses_the_scrolling_viewport_around_the_slots()
+  local bank = { 103, 109 }
+  for _ = 1, 80 do bank[#bank + 1] = 110 end
+  bank[#bank + 1] = 108
+  local env = boot({ bank = bank, tabSizes = { 2 }, tabIcons = tabRow(), frame = true })
+  var.VarPlayer.BANKINSERT = { value = 0 }
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  A.truthy(texts(panel(env)):find("Drag Rune scimitar onto Tab 2", 1, true), texts(panel(env)))
+  tick(env)
+  local line = liveLine(env)
+  A.eq(line.w, 1, "the scimitar is below the 300-tall view: a pointer, not a long line")
+  A.eq(line.y + line.h, 100 + 300 - 6, "pointing down at the bottom edge of the view")
+  env.scroll = 300
+  tick(env)
+  line = liveLine(env)
+  A.truthy(line.h > 26, "scrolled into view: the full arrow")
+  A.eq(line.y, 100, "ending at the tab button")
+  A.truthy(line.y + line.h <= 100 + 400 - 300 + 32, "starting at the scimitar's scrolled position")
+  PluginShutdown()
+end
+
+function T.identical_copies_are_matched_within_each_tab_on_screen()
+  local env = boot({ bank = { 103, 109, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
+  env.displayIndex = { 5, 6, 3, 4, 1, 2 }
+  var.VarPlayer.BANKINSERT = { value = 0 }
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  tick(env)
+  A.list(Store.new(PersistentDB).displayOrder, { 2, 1 }, "learned from the single copies only")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  A.truthy(texts(panel(env)):find("Drag Dragon dagger onto Tab 3", 1, true), texts(panel(env)))
+  tick(env)
+  local move
+  for _, c in ipairs(env.created) do
+    if c.kind == "rect" and not c.destroyed and c.outlineThickness == 3 then move = c end
+  end
+  A.truthy(move, "a MOVE box")
+  A.eq(move.x, 0); A.eq(move.y, 0, "on the infinity copy at the top, not the copy already in its tab")
   PluginShutdown()
 end
 
