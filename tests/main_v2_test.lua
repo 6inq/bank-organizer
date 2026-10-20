@@ -204,8 +204,8 @@ function T.right_click_correction_moves_an_item()
   local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 106 } } } } }
   function menu:Add(label, fn) added[#added + 1] = { label = label, fn = fn } end
   env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
-  A.eq(#added, 1); A.eq(added[1].label, "Assign category (Bank Organizer)")
-  added[1].fn()
+  A.eq(#added, 2); A.eq(added[1].label, "Ignore (Bank Organizer)"); A.eq(added[2].label, "Assign category (Bank Organizer)")
+  added[2].fn()
   local picker = env.windows[#env.windows]
   A.eq(picker.options.title, "Assign category")
   pick(find(picker, "AddComboBox"), "boss-loot")
@@ -221,7 +221,8 @@ function T.menu_entry_only_while_assigning_and_on_bank_items()
   local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 106 } } } } }
   function menu:Add() added = added + 1 end
   env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
-  A.eq(added, 0, "not assigning")
+  A.eq(added, 1, "only Ignore while not assigning")
+  added = 0
   find(panel(env), "AddSimpleButton", "Assign Categories").args[2]()
   env.events["Menu:bank-organizer:menu"]({ miniMenu = { entries = { { componentData = { component = { interfaceID = 9 } } } }, Add = menu.Add } })
   A.eq(added, 0, "not a bank item")
@@ -698,6 +699,104 @@ function T.offscreen_item_gets_a_scroll_pointer_instead_of_a_line()
     A.truthy(not (c.kind == "rect" and not c.destroyed and c.parent == env.layer), "no drop marker until the item is in view")
   end
   PluginShutdown()
+end
+
+local MISTAKE_BANK = { bank = { 108, 101, 103 }, tabSizes = { 3 } }
+
+local function guideOnTab(env)
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  var.VarPlayer.BANK_CURRENT_TAB.value = 2
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  return texts(panel(env))
+end
+
+function T.a_wrong_move_is_caught_and_walked_back()
+  local env = boot(MISTAKE_BANK)
+  local first = guideOnTab(env)
+  A.truthy(first:find("Insert Abyssal whip before Rune scimitar", 1, true), first)
+  env.bank = { 103, 101, 108 }
+  tick(env)
+  local text = texts(panel(env))
+  A.truthy(text:find("Not quite", 1, true), "mistake noticed: " .. text)
+  A.truthy(find(panel(env), "AddSimpleButton", "Continue from here"), "can accept the new layout")
+  env.bank = { 108, 101, 103 }
+  tick(env)
+  text = texts(panel(env))
+  A.truthy(text:find("Insert Abyssal whip before Rune scimitar", 1, true), "back to the original move: " .. text)
+  A.eq(find(panel(env), "AddSimpleButton", "Continue from here"), nil)
+  PluginShutdown()
+end
+
+function T.the_right_move_moves_on()
+  local env = boot(MISTAKE_BANK)
+  guideOnTab(env)
+  env.bank = { 103, 108, 101 }
+  tick(env)
+  local text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, text)
+  A.truthy(text:find("Tab 2 is organized", 1, true), text)
+  PluginShutdown()
+end
+
+function T.continue_from_here_accepts_the_new_layout()
+  local env = boot(MISTAKE_BANK)
+  guideOnTab(env)
+  env.bank = { 103, 101, 108 }
+  tick(env)
+  find(panel(env), "AddSimpleButton", "Continue from here").args[2]()
+  local text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, "planning from the bank as it is now: " .. text)
+  PluginShutdown()
+end
+
+local function rightClick(env, itemID)
+  local added = {}
+  local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = itemID } } } } }
+  function menu:Add(label, fn) added[#added + 1] = { label = label, fn = fn } end
+  env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
+  return added
+end
+
+function T.ignored_items_are_left_alone()
+  local env = boot(MISTAKE_BANK)
+  guideOnTab(env)
+  local menu = rightClick(env, 103)
+  A.eq(menu[1].label, "Ignore (Bank Organizer)")
+  menu[1].fn()
+  A.eq(Store.new(PersistentDB):isIgnored(103), true, "saved")
+  local text = texts(panel(env))
+  A.truthy(text:find("Ignoring 1 item", 1, true), text)
+  A.truthy(text:find("Tab 2 is organized", 1, true), "the whip no longer needs moving: " .. text)
+  tick(env)
+  local outlined = 0
+  for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.outlineThickness == 1 then outlined = outlined + 1 end end
+  A.eq(outlined, 1, "the ignored whip gets a thin outline instead of a tint")
+  menu = rightClick(env, 103)
+  A.eq(menu[1].label, "Stop ignoring (Bank Organizer)")
+  menu[1].fn()
+  A.eq(Store.new(PersistentDB):isIgnored(103), false)
+  A.truthy(texts(panel(env)):find("Insert Abyssal whip before Rune scimitar", 1, true), "sorted again once unignored")
+  PluginShutdown()
+end
+
+function T.ignored_items_never_move_between_tabs()
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
+  rightClick(env, 108)[1].fn()
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  A.eq(texts(panel(env)):find("Rune scimitar", 1, true), nil, "the ignored scimitar is never asked to move: " .. texts(panel(env)))
+  PluginShutdown()
+end
+
+function T.ignore_list_survives_a_restart()
+  local db = { data = { ["bank-organizer-v2"] = { ignored = { 103, "108", "x" } } } }
+  function db:GetStructuredData(key) return self.data[key] end
+  function db:SetStructuredData(key, value) self.data[key] = value end
+  local store = Store.new(db)
+  A.eq(store:isIgnored(103), true); A.eq(store:isIgnored(108), true); A.eq(store:ignoredCount(), 2)
+  store:setIgnored(101, true)
+  A.list(db.data["bank-organizer-v2"].ignored, { 101, 103, 108 }, "saved as a plain sorted list")
+  store:resetIgnored()
+  A.eq(Store.new(db):ignoredCount(), 0)
 end
 
 return T

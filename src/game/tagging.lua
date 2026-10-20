@@ -4,6 +4,8 @@ local Tagging = {}
 
 local EVENT_ID = "bank-organizer:menu"
 Tagging.LABEL = "Assign category (Bank Organizer)"
+Tagging.IGNORE = "Ignore (Bank Organizer)"
+Tagging.UNIGNORE = "Stop ignoring (Bank Organizer)"
 
 function Tagging.bankItem(miniMenu)
   local ok, found = pcall(function()
@@ -33,11 +35,14 @@ end
 
 function Tagging.start(app, openPicker)
   Event.MiniMenuReady.Subscribe(EVENT_ID, function(event)
-    if not app.assigning then return end
     local menu = event and event.miniMenu
     local item = menu and Tagging.bankItem(menu)
     if not item then return end
-    pcall(function() return menu:Add(Tagging.LABEL, function() openPicker(item.id) end) end)
+    local label = app:isIgnored(item.id) and Tagging.UNIGNORE or Tagging.IGNORE
+    pcall(function() return menu:Add(label, function() app:toggleIgnore(item.id) end) end)
+    if app.assigning then
+      pcall(function() return menu:Add(Tagging.LABEL, function() openPicker(item.id) end) end)
+    end
   end)
 end
 

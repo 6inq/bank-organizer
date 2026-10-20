@@ -73,6 +73,15 @@ local function sanitizeOrder(raw)
   return isOrder(list) and #list > 0 and list or nil
 end
 
+local function sanitizeIgnored(raw)
+  local ignored = {}
+  for key, value in pairs(type(raw) == "table" and raw or {}) do
+    local numeric = tonumber(value == true and key or value)
+    if numeric then ignored[math.floor(numeric)] = true end
+  end
+  return ignored
+end
+
 local function sanitizeColours(raw)
   local colours = {}
   for key, colour in pairs(type(raw) == "table" and raw or {}) do
@@ -90,6 +99,7 @@ function Store.new(db)
   self.preset = Layout.PRESETS[raw.preset] and raw.preset or "main"
   self.layout = Layout.new(self.preset, raw.layout)
   self.corrections = sanitizeCorrections(raw.corrections)
+  self.ignored = sanitizeIgnored(raw.ignored)
   self.colours = sanitizeColours(raw.colours)
   self.tabHomes = sanitizeTabHomes(raw.tabHomes)
   self.tabOrder = sanitizeOrder(raw.tabOrder)
@@ -105,8 +115,11 @@ function Store:save()
   if not self.db then return end
   local corrections = {}
   for id, tag in pairs(self.corrections) do corrections[tostring(id)] = tag end
+  local ignored = {}
+  for id in pairs(self.ignored) do ignored[#ignored + 1] = id end
+  table.sort(ignored)
   local data = {
-    preset = self.preset, layout = self.layout:serialize(), corrections = corrections,
+    preset = self.preset, layout = self.layout:serialize(), corrections = corrections, ignored = ignored,
     colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, tabOrder = self.tabOrder,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
@@ -136,6 +149,28 @@ function Store:correct(itemID, tag)
   self.corrections[itemID] = tag
   self:save()
   return true
+end
+
+function Store:isIgnored(itemID)
+  return self.ignored[itemID] == true
+end
+
+function Store:setIgnored(itemID, ignored)
+  if type(itemID) ~= "number" then return false end
+  self.ignored[itemID] = ignored and true or nil
+  self:save()
+  return true
+end
+
+function Store:ignoredCount()
+  local count = 0
+  for _ in pairs(self.ignored) do count = count + 1 end
+  return count
+end
+
+function Store:resetIgnored()
+  self.ignored = {}
+  self:save()
 end
 
 function Store:clearCorrection(itemID)

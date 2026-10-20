@@ -1,6 +1,7 @@
 local Tags = require("src/core/tags")
 local Blueprint = require("src/core/blueprint")
 local Guide = require("src/core/guide")
+local Verify = require("src/core/verify")
 local Bank = require("src/game/bank")
 local Overlay = require("src/game/overlay")
 
@@ -58,12 +59,16 @@ end
 
 App.SCOPES = { bank = "Whole bank (follow my Tab Layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
 
-function App:_build(items)
+function App:_build(allItems)
+  local items = {}
+  for _, item in ipairs(allItems) do
+    if not self.store:isIgnored(item.id) then items[#items + 1] = item end
+  end
   local tagOf = function(item) return self:tagOf(item) end
   local mode = self.store:get("sort")
   self.tabCounts, self.noTabs = nil, false
   local sizes = Bank.tabSizes()
-  local sections = sizes and Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+  local sections = sizes and Bank.sections(allItems, sizes, Bank.TAB_VARS.tabsFirst)
   if self.store:get("scope") == "tabs" then
     if not sizes then
       self.status = App.STATUS.NEED_TABS
@@ -290,13 +295,13 @@ end
 
 function App:startGuide()
   if not self.destinations and not self:analyze() then return end
-  self.guiding = true
+  self.guiding, self.pending, self.correction = true, nil, nil
   self:_tickGuide()
   self:_notify()
 end
 
 function App:stopGuide()
-  self.guiding, self.step, self.remaining = false, nil, nil
+  self.guiding, self.step, self.remaining, self.pending, self.correction = false, nil, nil, nil, nil
   self:_notify()
 end
 
@@ -336,10 +341,56 @@ function App:_tickGuide()
   end
   local mode = self:modeForGuide()
   self.focus, self.sections = focus, sections
+  self:_checkMove(sections)
+  if self:_correcting(sections, mode) then return end
   self.step = Guide.next(sections, self.destinations, mode, focus)
   self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
+  self.pending = self.step and { step = self.step, before = Verify.copy(sections) } or nil
   local done = focus and (self:tabName(focus) .. " is organized. Open another tab to keep going.") or App.STATUS.DONE
   self:_setStatus(self.step and App.describe(self.step, self) or done)
+end
+
+function App:_checkMove(sections)
+  local pending = self.pending
+  if not pending or self.correction then return end
+  if Verify.check(pending.before, sections, pending.step) == "mistake" then
+    self.correction = { target = pending.before, step = pending.step }
+    self.pending = nil
+  end
+end
+
+function App:_correcting(sections, mode)
+  local correction = self.correction
+  if not correction then return false end
+  if not Verify.sameItems(correction.target, sections) or Verify.same(correction.target, sections) then
+    self.correction = nil
+    return false
+  end
+  local step = Verify.restoreStep(sections, correction.target, mode)
+  if not step then
+    self.correction = nil
+    return false
+  end
+  self.step, self.remaining, self.pending = step, nil, nil
+  self:_setStatus("Not quite: that wasn't the move. Put it back first. " .. App.describe(step, self))
+  return true
+end
+
+function App:isIgnored(itemID)
+  return self.store:isIgnored(itemID)
+end
+
+function App:toggleIgnore(itemID)
+  self.store:setIgnored(itemID, not self.store:isIgnored(itemID))
+  self.pending, self.correction = nil, nil
+  self:rebuild()
+  if self.guiding then self:_tickGuide() end
+end
+
+function App:continueFromHere()
+  self.correction, self.pending = nil, nil
+  if self.guiding then self:_tickGuide() end
+  self:_notify()
 end
 
 local function nameOf(app, id)
@@ -347,6 +398,10 @@ local function nameOf(app, id)
     if item.id == id then return item.name end
   end
   return "item " .. tostring(id)
+end
+
+function App.left(app)
+  return app.remaining and string.format(" (%d left)", app.remaining) or ""
 end
 
 function App.describe(step, app)
@@ -357,9 +412,9 @@ function App.describe(step, app)
     return string.format("Drag %s onto %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "insert" then
     local anchor = step.before and ("before " .. nameOf(app, step.before)) or ("after " .. nameOf(app, step.after))
-    return string.format("Insert %s %s (%d left).", name, anchor, app.remaining or 0)
+    return string.format("Insert %s %s%s.", name, anchor, App.left(app))
   end
-  return string.format("Swap %s with %s (%d left).", name, nameOf(app, step.swapWith), app.remaining or 0)
+  return string.format("Swap %s with %s%s.", name, nameOf(app, step.swapWith), App.left(app))
 end
 
 function App:tick()

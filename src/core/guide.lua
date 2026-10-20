@@ -111,7 +111,22 @@ local function orderMove(current, target, mode, s)
   return move
 end
 
+local function onlyPlanned(sections, destinations)
+  local planned = {}
+  for d, entries in pairs(destinations) do
+    if type(d) == "number" then for _, entry in ipairs(entries) do planned[entry.id] = true end end
+  end
+  local out = {}
+  for s, ids in pairs(sections) do
+    local list = {}
+    for _, id in ipairs(ids) do if planned[id] then list[#list + 1] = id end end
+    out[s] = list
+  end
+  return out
+end
+
 function Guide.next(sections, destinations, mode, focus)
+  sections = onlyPlanned(sections, destinations)
   local targets, map = Guide.targetSections(destinations)
   local cross = crossMove(sections, destinations, map, focus)
   if cross then return cross, "moving" end
@@ -128,6 +143,7 @@ function Guide.next(sections, destinations, mode, focus)
 end
 
 function Guide.remaining(sections, destinations, mode, focus)
+  sections = onlyPlanned(sections, destinations)
   local targets, map = Guide.targetSections(destinations)
   local where, total = locate(sections), 0
   local after, targetSectionOf = {}, {}

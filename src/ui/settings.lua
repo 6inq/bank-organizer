@@ -45,6 +45,10 @@ local function mount(parent, store, app)
       confirmLabel = "RESET", onConfirm = function() store:resetColours(); app:rebuild() end })
   end)
   view:AddTitle("Corrections")
+  view:AddSimpleButton("Stop ignoring all items", function()
+    prettyui.Confirm.new(parent, { title = "STOP IGNORING", body = "Let the guide organize every item you ignored?",
+      confirmLabel = "RESET", onConfirm = function() store:resetIgnored(); app:rebuild() end })
+  end)
   view:AddSimpleButton("Reset corrections", function()
     prettyui.Confirm.new(parent, { title = "RESET CORRECTIONS", body = "Forget every category you assigned by hand?",
       confirmLabel = "RESET", onConfirm = function() store:resetCorrections(); app:rebuild() end })

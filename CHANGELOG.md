@@ -7,6 +7,15 @@
   - Every other kind has its own smart order too: food by healing tier with full portions first, teleports as tablets then jewellery (most charges first) then gear, tools by skill, containers, summoning (shards, charms, pouches, scrolls, contracts), MTX & XP boosts, seeds, compost, ammo components by tier, clues by tier, and boss loot by value.
   - **Smart is the default** for everyone, including existing setups.
   - Also **Name**, **Item ID**, or **Keep my order**, which only moves items between tabs and leaves each tab's order alone.
+- **Move checking**:
+  - The guide checks every move you make.
+  - If you swap instead of insert, drop on the wrong spot, or move a different item, it says **Not quite** and walks you back one move at a time, then shows the original move again.
+  - **Continue from here** accepts the new layout instead.
+  - Deposits and withdrawals are never treated as mistakes.
+- **Ignore items**:
+  - Right-click any bank item and choose **Ignore (Bank Organizer)** to leave it out of organizing. It is never moved, everything else sorts around it, and it gets a thin grey outline instead of a tint.
+  - **Stop ignoring** on the same menu brings it back.
+  - Settings has **Stop ignoring all items**.
 - **Starting from no tabs**: in My tabs with nothing but the infinity tab, the guide follows your Tab Layout and shows which item to drop on the **+** button to start each new tab.
 - **Sidebar** reorganised into setup, actions, status and your tabs, with the sort choice up front.
 

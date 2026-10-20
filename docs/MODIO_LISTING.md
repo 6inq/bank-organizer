@@ -50,6 +50,12 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <h3>Sorted the way you would sort it</h3>
 <p>Inside each tab, <strong>Smart</strong> sorting groups gear by combat style (melee, ranged, magic, necromancy), then by slot (weapon, off-hand, head, body, legs and so on), best items first. Herblore is grouped by recipe chain, so every overload ingredient sits together, herb next to its unfinished potion and the potion it makes. Outfits stay together as sets, runes follow the game's order, potions keep their doses side by side, food goes by healing tier, teleports by type and charges, tools by skill, and clues by tier. Smart is the default. Prefer something simpler? Sort by <strong>Name</strong> or <strong>Item ID</strong>, or choose <strong>Keep my order</strong> to only move items between tabs.</p>
 
+<h3>Checks every move</h3>
+<p>Swapped when you should have inserted, or dropped an item in the wrong spot? The guide notices, tells you <strong>Not quite</strong>, and walks you back before carrying on. Or press <strong>Continue from here</strong> to keep the new layout.</p>
+
+<h3>Ignore anything</h3>
+<p>Right-click any bank item and choose <strong>Ignore (Bank Organizer)</strong>. It stays exactly where it is and everything else sorts around it.</p>
+
 <h3>Starting from scratch</h3>
 <p>No tabs yet? The guide shows you which item to drop on the <strong>+</strong> button to start each new tab, in order.</p>
 

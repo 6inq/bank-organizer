@@ -349,4 +349,27 @@ function T.my_tabs_order_moves_whole_tabs()
   A.list(ids(d[1]), { 2, 4, 1 }, "an order for a different number of tabs is ignored")
 end
 
+function T.ignored_items_in_the_way_do_not_confuse_the_planner()
+  local destinations = { identity = true, [0] = {}, [1] = { { id = 1 }, { id = 2 }, { id = 3 } } }
+  for _, mode in ipairs({ Guide.INSERT, Guide.SWAP }) do
+    local sections = { [0] = {}, [1] = { 3, 99, 2, 1 } }
+    for _ = 1, 6 do
+      local step = Guide.next(sections, destinations, mode)
+      if not step then break end
+      local list = sections[1]
+      local function at(id) for index, value in ipairs(list) do if value == id then return index end end end
+      if step.kind == "swap" then
+        local a, b = at(step.move), at(step.swapWith)
+        list[a], list[b] = list[b], list[a]
+      else
+        sections[1] = Order.apply(list, step)
+      end
+    end
+    local planned = {}
+    for _, id in ipairs(sections[1]) do if id ~= 99 then planned[#planned + 1] = id end end
+    A.list(planned, { 1, 2, 3 }, mode .. ": sorted around the ignored item")
+    A.eq(Guide.next(sections, destinations, mode), nil, mode .. ": nothing asks to move item 99")
+  end
+end
+
 return T

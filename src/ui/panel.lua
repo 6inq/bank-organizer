@@ -41,6 +41,13 @@ end
 
 local function addStatus(app)
   view:AddText({ text = app.status, height = 56 })
+  local ignored = app.store:ignoredCount()
+  if ignored > 0 then
+    view:AddText({ text = string.format("Ignoring %d item%s (right-click to stop).", ignored, ignored == 1 and "" or "s"), height = 36 })
+  end
+  if app.correction then
+    view:AddSimpleButton("Continue from here", function() app:continueFromHere() end)
+  end
   if app.assigning then
     view:AddText({ text = "Right-click any bank item and choose Assign category to correct it.", height = 40 })
   end

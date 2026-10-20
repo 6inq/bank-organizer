@@ -5,6 +5,7 @@ local Overlay = {}
 Overlay.__index = Overlay
 
 local LABEL_HEIGHT = 14
+local IGNORED_OUTLINE = 0x969696AA
 local TAB_ROW_GAP = 24
 
 function Overlay.new()
@@ -173,7 +174,11 @@ function Overlay:render(app)
   local opacity = app.store:get("opacity")
   for _, slot in ipairs(slots or {}) do
     local d = app:destinationOfItem(slot.objectID)
-    if tint and d then self:_rect(slot, withAlpha(app:destinationColour(d), opacity)) end
+    if tint and d then
+      self:_rect(slot, withAlpha(app:destinationColour(d), opacity))
+    elseif tint and app:isIgnored(slot.objectID) then
+      self:_rect(slot, IGNORED_OUTLINE, 1)
+    end
     local mark = marks[slot.objectID]
     if mark then
       local colour = app.store:colour(mark[2])
