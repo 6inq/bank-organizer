@@ -316,6 +316,31 @@ function App:_displaySections(items, sizes)
   return self.displaySections
 end
 
+App.VIEW_MAJORITY = 0.8
+
+function App:_viewedSection(sections)
+  local slots = Bank.scan()
+  if not slots or #slots == 0 then return nil end
+  local sectionOf, shared = {}, {}
+  for s, keys in pairs(sections) do
+    for _, key in ipairs(keys) do
+      local real = Bank.realId(key)
+      if sectionOf[real] ~= nil and sectionOf[real] ~= s then shared[real] = true end
+      sectionOf[real] = s
+    end
+  end
+  local votes, total, best = {}, 0, nil
+  for _, slot in ipairs(slots) do
+    local s = not shared[slot.objectID] and sectionOf[slot.objectID]
+    if s then
+      votes[s], total = (votes[s] or 0) + 1, total + 1
+      if best == nil or votes[s] > votes[best] then best = s end
+    end
+  end
+  if best == nil or votes[best] < total * App.VIEW_MAJORITY then return nil end
+  return best
+end
+
 function App:sortedSections()
   if not self.destinations or not self.displaySections then return {}, {} end
   local key = tostring(self.signature) .. "|" .. tostring(self.sizesKey) .. "|" .. tostring(self.destinations) .. "|" .. tostring(self.displaySections)
@@ -430,8 +455,10 @@ function App:_sections(items)
   local sections = self:_displaySections(items, sizes)
   if self:myTabs() then
     local tab = Bank.currentTab()
-    if type(tab) ~= "number" or tab < 1 then return nil, App.STATUS.NO_TABS end
-    return sections, nil, tab - 1
+    if tab == 1 then return sections end
+    local viewed = self:_viewedSection(sections) or (type(tab) == "number" and tab > 1 and tab - 1) or nil
+    if not viewed then return nil, App.STATUS.NO_TABS end
+    return sections, nil, viewed
   end
   if not Bank.isAllItemsTab() then return nil, App.STATUS.NEED_ALL end
   return sections
@@ -483,8 +510,15 @@ function App:_tickGuide()
   self.step = Guide.next(sections, self.destinations, mode, focus)
   self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
   self.pending = self.step and { step = self.step, before = Verify.copy(sections) } or nil
-  local done = focus and (self:tabName(focus) .. " is organized. Open another tab to keep going.") or App.STATUS.DONE
-  self:_setStatus(self.step and App.describe(self.step, self) or done)
+  self:_setStatus(self.step and App.describe(self.step, self) or self:_doneMessage(sections, mode, focus))
+end
+
+function App:_doneMessage(sections, mode, focus)
+  if focus == nil then return App.STATUS.DONE end
+  local next = Guide.next(sections, self.destinations, mode)
+  if not next then return App.STATUS.DONE end
+  local section = next.from or next.section or 0
+  return self:tabName(focus) .. " is organized. Open " .. self:tabName(section) .. " next."
 end
 
 local function flatIds(items)

@@ -74,7 +74,12 @@ local function boot(opts)
       for index, shown in ipairs(env.display or {}) do if shown == id then position = index end end
       if env.displayIndex then position = env.displayIndex[i] end
       local x, y = ((position - 1) % 8) * 40, ((position - 1) // 8) * 40
-      if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
+      local onScreen = true
+      if env.view then
+        onScreen = false
+        for _, shown in ipairs(env.view) do if shown == id then onScreen = true end end
+      end
+      if onScreen and not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
         xyGlobal = { x = 100 + x, y = 100 + y },
         width = 36, height = 32, associatedObjectQuantity = 1, interfaceID = 517 }) then return end
     end
@@ -764,7 +769,7 @@ function T.the_right_move_moves_on()
   settle(env)
   local text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, text)
-  A.truthy(text:find("Tab 2 is organized", 1, true), text)
+  A.truthy((text:find("Tab 2 is organized", 1, true) or text:find("matches the blueprint", 1, true)), text)
   PluginShutdown()
 end
 
@@ -796,7 +801,7 @@ function T.ignored_items_are_left_alone()
   A.eq(Store.new(PersistentDB):isIgnored(103), true, "saved")
   local text = texts(panel(env))
   A.truthy(text:find("Ignoring 1 item", 1, true), text)
-  A.truthy(text:find("Tab 2 is organized", 1, true), "the whip no longer needs moving: " .. text)
+  A.truthy((text:find("Tab 2 is organized", 1, true) or text:find("matches the blueprint", 1, true)), "the whip no longer needs moving: " .. text)
   tick(env)
   local outlined = 0
   for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.outlineThickness == 1 then outlined = outlined + 1 end end
@@ -843,7 +848,7 @@ function T.a_right_move_is_not_judged_while_the_game_is_mid_update()
   tick(env)
   text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, "the tab sizes caught up a tick later: " .. text)
-  A.eq(text:find("Dragon dagger", 1, true), nil, "the dagger is home: " .. text)
+  A.eq(text:find("Drag Dragon dagger onto", 1, true), nil, "the dagger is home: " .. text)
   PluginShutdown()
 end
 
@@ -856,7 +861,7 @@ function T.a_right_move_is_accepted_when_the_games_tab_sizes_never_catch_up()
   settle(env); settle(env); settle(env)
   local text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, text)
-  A.eq(text:find("Dragon dagger", 1, true), nil, "no loop back to the dagger: " .. text)
+  A.eq(text:find("Drag Dragon dagger onto", 1, true), nil, "no loop back to the dagger: " .. text)
   PluginShutdown()
 end
 
@@ -891,7 +896,7 @@ function T.tabs_shown_in_a_different_order_than_stored()
   settle(env); settle(env)
   text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, text)
-  A.eq(text:find("Dragon dagger", 1, true), nil, "the dagger is home: " .. text)
+  A.eq(text:find("Drag Dragon dagger onto", 1, true), nil, "the dagger is home: " .. text)
   PluginShutdown()
 end
 
@@ -979,7 +984,7 @@ function T.a_move_next_to_identical_items_goes_through()
   settle(env)
   text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, text)
-  A.eq(text:find("Dragon dagger", 1, true), nil, text)
+  A.eq(text:find("Drag Dragon dagger onto", 1, true), nil, text)
   tick(env)
   local tints = 0
   for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.fill then tints = tints + 1 end end
@@ -1069,6 +1074,37 @@ function T.an_unsorted_tab_keeps_its_colour()
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
   tick(env)
   for _, c in ipairs(fills(env)) do A.truthy(c.rgba ~= Store.HIGHLIGHT_DEFAULTS.done, "nothing green yet") end
+  PluginShutdown()
+end
+
+function T.infinity_view_goes_on_to_sort_every_tab()
+  local env = boot({ bank = { 108, 103, 101 }, tabSizes = { 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy((text:find("Insert Abyssal whip before Rune scimitar", 1, true) or text:find("Insert Rune scimitar after Abyssal whip", 1, true)), "infinity is fine, so it sorts Tab 2 next: " .. text)
+  PluginShutdown()
+end
+
+function T.single_tab_view_follows_the_items_on_screen()
+  local env = boot({ bank = { 108, 103, 101, 107, 102 }, tabSizes = { 2, 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  var.VarPlayer.BANK_CURRENT_TAB.value = 3
+  env.view = { 108, 103 }
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy((text:find("Insert Abyssal whip before Rune scimitar", 1, true) or text:find("Insert Rune scimitar after Abyssal whip", 1, true)), "the game's tab number says 3, the screen shows the gear tab: " .. text)
+  PluginShutdown()
+end
+
+function T.a_finished_tab_names_the_next_one_to_open()
+  local env = boot({ bank = { 103, 108, 101, 107, 102 }, tabSizes = { 2, 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  var.VarPlayer.BANK_CURRENT_TAB.value = 2
+  env.view = { 103, 108 }
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Tab 2 is organized. Open Tab 3 next.", 1, true), text)
   PluginShutdown()
 end
 

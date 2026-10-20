@@ -7,9 +7,10 @@
   - The sort choice says which is in use: **Value: GE price**, **Value: item value until GE prices load**, or **Value: item value** when GE prices are unavailable or price fetching is turned off.
   - Prices come from the **GE Price Library**, now installed automatically as a dependency. It downloads them from the RuneScape Wiki prices API; Bank Organizer itself still has no internet access.
 - **Sorted tabs light up**: once a tab holds exactly the right items in the right order, its items turn green, so you can see your progress. Settings has **Tabs that are sorted**: Green (default), No overlay, or Keep tab colour, plus a colour picker for the green.
-- **Infinity first, then your tabs, from the top down**: the guide first empties the infinity tab, starting with the topmost item, each dropped onto its tab's button (or + for a new tab). Once infinity is done, it sorts inside your tabs. The moves-left count follows that exact order.
+- **Infinity first, then your tabs, from the top down**: the guide first empties the infinity tab, starting with the topmost item, each dropped onto its tab's button (or + for a new tab). Once infinity is done, it goes on to sort every tab, in order, without you switching views. Viewing a single tab sorts that tab, and when it is done the guide names the next tab to open. The moves-left count follows that exact order.
 
 ### Fixed
+- In My tabs, the guide could stop after the infinity tab, or check the wrong tab when your tabs are stored in a different order than shown. It now tells which tab you are viewing from the items on screen.
 - Items that do not stack and share one name, such as filled Ushabti, confused the guide. Each slot is now told apart, matched tab by tab as you see them, so the guide never asks you to move a copy that is already in its tab. Ignoring one still ignores them all.
 - Right after a move, the old arrow flashed for a moment from the item's new spot. The arrow and MOVE marks now wait until the bank has settled, then show the next step.
 - The guide arrow started below the bank when the bank was scrolled down. It now reads the scroll from the bank's scrolling viewport, so it starts at the item you are moving, and points at the top or bottom edge when that item is out of view.
