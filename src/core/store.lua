@@ -38,6 +38,20 @@ local function sanitizeCorrections(raw)
   return corrections
 end
 
+-- My tabs pins: tag -> section (0 = Tab 1 infinity, N = custom tab N).
+Store.MAX_SECTION = 14
+
+local function sanitizeTabHomes(raw)
+  local homes = {}
+  for tag, section in pairs(type(raw) == "table" and raw or {}) do
+    local numeric = tonumber(section)
+    if Tags.isValid(tag) and numeric and numeric == math.floor(numeric) and numeric >= 0 and numeric <= Store.MAX_SECTION then
+      homes[tag] = numeric
+    end
+  end
+  return homes
+end
+
 local function sanitizeColours(raw)
   local colours = {}
   for key, colour in pairs(type(raw) == "table" and raw or {}) do
@@ -56,6 +70,7 @@ function Store.new(db)
   self.layout = Layout.new(self.preset, raw.layout)
   self.corrections = sanitizeCorrections(raw.corrections)
   self.colours = sanitizeColours(raw.colours)
+  self.tabHomes = sanitizeTabHomes(raw.tabHomes)
   self.settings = {}
   local saved = type(raw.settings) == "table" and raw.settings or {}
   for name, spec in pairs(SETTINGS) do
@@ -70,7 +85,7 @@ function Store:save()
   for id, tag in pairs(self.corrections) do corrections[tostring(id)] = tag end
   local data = {
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections,
-    colours = self.colours, settings = self.settings,
+    colours = self.colours, settings = self.settings, tabHomes = self.tabHomes,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
@@ -109,6 +124,27 @@ end
 
 function Store:resetCorrections()
   self.corrections = {}
+  self:save()
+end
+
+-- Pin a tag to a tab in My tabs mode (every item of that kind goes there).
+function Store:setTabHome(tag, section)
+  if not Tags.isValid(tag) or type(section) ~= "number" or section ~= math.floor(section)
+    or section < 0 or section > Store.MAX_SECTION then
+    return false
+  end
+  self.tabHomes[tag] = section
+  self:save()
+  return true
+end
+
+function Store:clearTabHome(tag)
+  self.tabHomes[tag] = nil
+  self:save()
+end
+
+function Store:resetTabHomes()
+  self.tabHomes = {}
   self:save()
 end
 

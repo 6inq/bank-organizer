@@ -17,8 +17,8 @@ end
 
 -- Tags and default layout ------------------------------------------------------------
 
-function T.ten_categories_thirty_tags_like_bank_architect()
-  A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 30)
+function T.ten_categories_and_their_tags()
+  A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 32)
   for _, tag in ipairs(Tags.LIST) do A.truthy(Tags.categoryByKey[tag.category], tag.key .. " has a category") end
 end
 
@@ -27,7 +27,7 @@ function T.default_layout_puts_each_category_on_its_own_destination()
   A.eq(layout:destinationOf("runes"), 0, "Main: currency, runes & teleports")
   A.eq(layout:destinationOf("gear"), 1); A.eq(layout:destinationOf("potions"), 2)
   A.eq(layout:destinationOf("grimy-herbs"), 3); A.eq(layout:destinationOf("cleanup"), 9)
-  A.list(layout.destinations[0], { "frequently-used", "runes", "teleports", "currency" })
+  A.list(layout.destinations[0], { "frequently-used", "runes", "summoning", "teleports", "currency" })
 end
 
 function T.preset_names()
@@ -40,8 +40,8 @@ end
 function T.move_shift_remove_and_reset_tags()
   local layout = Layout.new("main")
   A.eq(layout:moveTag("food", 0), true); A.eq(layout:destinationOf("food"), 0)
-  A.eq(layout.destinations[0][5], "food", "appended at the end")
-  A.eq(layout:shiftTag("food", -1), true); A.eq(layout.destinations[0][4], "food")
+  A.eq(layout.destinations[0][6], "food", "appended at the end")
+  A.eq(layout:shiftTag("food", -1), true); A.eq(layout.destinations[0][5], "food")
   A.eq(layout:shiftTag("frequently-used", -1), false, "already first")
   A.eq(layout:removeTag("food"), true); A.eq(layout:destinationOf("food"), 9, "back to Storage & Cleanup's tab")
   A.eq(layout:removeTag("cleanup"), false, "cleanup itself cannot be removed")
@@ -59,7 +59,7 @@ function T.saved_layout_round_trips_and_repairs()
   A.eq(repaired:destinationOf("runes"), 0); A.eq(repaired:destinationOf("gear"), 1, "missing tags restored to defaults")
   local count = 0
   for d = 0, 9 do count = count + #repaired.destinations[d] end
-  A.eq(count, 30, "every tag exactly once")
+  A.eq(count, #Tags.LIST, "every tag exactly once")
 end
 
 -- Classifier -------------------------------------------------------------------------
@@ -90,6 +90,53 @@ local cases = {
   { { name = "Hood override token" }, "currency", "tokens count as currency first" },
   { { name = "Ghostspeak amulet", quests = 1, tradeable = false }, "quest-items" },
 }
+
+-- Items from a real, hand-organised bank that used to land in Storage & Cleanup or the wrong tag.
+local function real(name, category, opList)
+  return { name = name, category = category, ops = ops(table.unpack(opList or {})) }
+end
+local realCases = {
+  { real("Decorated cooking urn (empty)", "URN"), "tools" },
+  { real("Augmentor", "INVENT_AUGMENTOR"), "tools" },
+  { real("Gizmo dissolver", ""), "tools" },
+  { real("Electrified trap", "", { "lay" }), "tools" },
+  { real("Disk of returning", ""), nil, "\"returning\" is not an urn" },
+  { real("Pack yak pouch", "LORE_PACK_YAK"), "summoning", "familiar pouches are summoning, not containers" },
+  { real("Binding contract (gargoyle)", "LORE_ANCIENT_GARGOYLE"), "summoning" },
+  { real("Black dragon egg", "LORE_DRAGON_EGG"), nil, "eggs are not summoning" },
+  { real("Spirit sapphire", "WOF59_SPIRIT_GEM_EMPTY"), "summoning", "\"spirit\" is not the herb irit" },
+  { real("Spirit shards", ""), "summoning" },
+  { real("Augmented arcane spirit shield", "ARMOUR_SHIELD", { "wear" }), "gear" },
+  { real("Elemental anima stone", "RUNE_MULTIPLIER"), "runes" },
+  { real("Fury shark body", "TRH48_SHARK_FURY", { "wear" }), "skilling-outfits" },
+  { real("Fury shark feet", "TRH48_SHARK_FURY", { "wear" }), "skilling-outfits" },
+  { real("Master archaeologist's hat", "ARCH_ELITE_SKILLING_OUTFIT", { "wear" }), "skilling-outfits" },
+  { real("Botanist's top", "WOF_SKILL_SET_ITEM", { "wear" }), "skilling-outfits" },
+  { real("Hooded cooking cape (t)", "ARMOUR_CAPE", { "wear" }), "skilling-outfits" },
+  { real("Fire cape", "ARMOUR_CAPE", { "wear" }), "gear", "combat capes stay gear" },
+  { real("Prime Gaming knowledge bomb", "", { "activate" }), "xp-items", "MTX tab" },
+  { real("Slayer Wildcard", ""), "xp-items" },
+  { real("Large portable skilling pack", "TRH_PORTABLE_PACK"), "xp-items" },
+  { real("Protean logs", "LOGS"), "xp-items" },
+  { real("Silverhawk boots", "TRH5_PEGASUS_BOOTS", { "wear" }), "xp-items" },
+  { real("Cinder core", "TRH165_CINDER_CORE", { "wear" }), "xp-items" },
+  { real("Pungent vine", "ECOSYSTEM_OBJECT"), "produce" },
+  { real("Supercompost", "", { "empty" }), "produce" },
+  { real("Torstol potion (unfinished)", "UNFINISHED_POTION"), "unfinished-potions" },
+  { real("Potion flask", ""), "herblore-other" },
+  { real("Irit incense sticks", "INCENSE_STICKS"), "herblore-other" },
+  { real("Glacor remnants", "EGWD_WEN_BOSS_INGREDIENT"), "boss-loot" },
+  { real("Broken shackle", "BPETS_UNLOCK_ITEM"), "collection-log" },
+  { real("Platinum stone spirit", "MINING_STONE_SPIRIT"), "raw-resources" },
+  { real("Primal ore box", "MINING_OREBOX"), "containers" },
+  { real("Pirate spell sheet", "", { "braindeath-teleport" }), "teleports" },
+}
+
+function T.classifier_real_bank_cases()
+  for _, case in ipairs(realCases) do
+    A.eq(Classify.classify(case[1]), case[2], case[3] or case[1].name)
+  end
+end
 
 function T.classifier_cases()
   for _, case in ipairs(cases) do

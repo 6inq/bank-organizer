@@ -82,12 +82,56 @@ local function tagChoicesFor(layout, d)
   return list
 end
 
--- Tab Layout: what sits on Main and Tabs 1-9; changes save and rebuild immediately.
+-- My tabs layout: which kinds of item each of your own tabs collects. Pinning a tag sends every
+-- item of that kind to the tab; unpinned tags follow the tab that already holds most of them.
+local function pinChoicesFor(app, d)
+  local list = { { label = "Pin a tag here...", key = "none" } }
+  for _, tag in ipairs(Tags.LIST) do
+    local home = app:tabHomeOf(tag.key)
+    if home ~= d then
+      list[#list + 1] = { label = tag.label .. "  (" .. (home and app:tabName(home) or "stays put") .. ")", key = tag.key }
+    end
+  end
+  return list
+end
+
+local function tabLayout(app, window, changed)
+  window:AddText({ text = "Pin a kind of item to a tab and everything of that kind goes there. Unpinned kinds go to the tab that already holds most of them; anything else stays in Tab 1 (infinity).", height = 64 })
+  if not app:myTabs() then
+    window:AddText("Press Analyze Bank first.")
+    return
+  end
+  for _, d in ipairs(app:destinationList()) do
+    window:AddTitle(app:destinationLabel(d))
+    for _, tag in ipairs(Tags.LIST) do
+      local home, pinned = app:tabHomeOf(tag.key)
+      if home == d then
+        window:AddText(tag.label .. (pinned and "  (pinned)" or "  (auto)"))
+        if pinned then
+          window:AddSimpleButton("Unpin", function() app.store:clearTabHome(tag.key); changed() end, { inline = true })
+        end
+      end
+    end
+    if d == 0 then window:AddText("Plus anything no other tab collects.") end
+    window:AddComboBox(Combo.options(pinChoicesFor(app, d), "none", function(key)
+      if key ~= "none" and app.store:setTabHome(key, d) then changed() end
+    end))
+  end
+  window:AddSimpleButton("Unpin all", function() app.store:resetTabHomes(); changed() end)
+end
+
+-- Tab Layout: what sits on Main and Tabs 1-9 (or, in My tabs, what each of your tabs
+-- collects); changes save and rebuild immediately.
 function Windows.layout(app)
   local function changed()
     app.store:save()
     app:rebuild()
     Windows.layout(app)
+  end
+  if app.store:get("scope") == "tabs" then
+    return create("layout", { title = "Tab Layout (My tabs)", width = 470, height = 600, x = 120, y = 60 }, function(window)
+      tabLayout(app, window, changed)
+    end)
   end
   return create("layout", { title = "Tab Layout", width = 470, height = 600, x = 120, y = 60 }, function(window)
     local layout = app.store.layout

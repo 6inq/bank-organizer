@@ -55,6 +55,57 @@ local GEMS = {
   "red topaz", "lapis lazuli", "uncut",
 }
 
+-- Skillcapes and other skilling capes (fire capes and the like stay combat gear).
+local SKILL_CAPES = { "cape (t)", "master cape", "max cape", "gatherer's cape", "artisan's cape", "support cape", "completionist cape" }
+
+-- MTX and Treasure Hunter rewards: XP boosts, packs, lamps and the like.
+local XP_ITEMS = {
+  "knowledge bomb", "wildcard", "protean", "luminite injector", "combat dummy", "brassica primer", "lamp",
+  "silverhawk", "chameleon extract", "skilling pack", "training dummy", "crafting catalyst", "dwarven toolbox",
+  "artefact replicator",
+}
+
+-- Pieces of a wearable skilling outfit (Treasure Hunter sets); other wearables there are MTX items.
+local OUTFIT_PIECES = {
+  "head", "hat", "hood", "mask", "helm", "body", "top", "torso", "chest", "jacket", "legs", "trousers", "legguards",
+  "trunks", "hands", "gloves", "arms", "branch", "feet", "boots", "legwear",
+}
+
+local INVENTION_ARCH = {
+  "gizmo", "dissolver", "equipment separator", "equipment siphon", "divine charge", "soil box", "urn",
+  "tetracompass", "sharpening stone", "harmonic dust",
+}
+
+local FARMING = { "compost", "manure", "patch bomb", "seed bag", "farm totem" }
+
+-- The client's own item category (id.Category name) is the strongest signal, checked in order.
+-- A tag of false means "no opinion": fall through to the name rules.
+local CATEGORY_RULES = {
+  { "^MAGIC_RUNE$", "runes" }, { "^NECROMANCY_RUNE$", "runes" }, { "^RUNE_MULTIPLIER$", "runes" },
+  { "^LORE_.*EGG$", false }, { "^LORE_BABY", false }, { "^LORE_", "summoning" }, { "SPIRIT_GEM", "summoning" },
+  { "^TRH_SKILL", "xp-items" }, { "^TRH_PORTABLE_PACK$", "xp-items" }, { "PROTEAN", "xp-items" },
+  { "DUMMY", "xp-items" }, { "CLEANER_TOKEN", "xp-items" }, { "^DIV_LOCATION_OBJ$", "xp-items" },
+  { "OUTFIT", "skilling-outfits" }, { "^WOF_SKILL_SET_ITEM$", "skilling-outfits" },
+  { "^UNFINISHED_POTION$", "unfinished-potions" }, { "^HERB$", "clean-herbs" }, { "^UNIDENTIFIED$", "grimy-herbs" },
+  { "^HERB_BOMB$", "potions" }, { "^INCENSE_STICKS$", "herblore-other" },
+  { "^GOD_GRAPES$", "secondaries" }, { "^GOD_WINE$", "secondaries" }, { "^PRIMAL_EXTRACT$", "secondaries" },
+  { "^INVENT_", "tools" }, { "^URN$", "tools" }, { "^ARCH_MATERIAL$", "raw-resources" }, { "^ARCH_", "tools" },
+  { "^IMCANDO", "tools" }, { "^DIV_SIGN_PORTER", "tools" }, { "^NECRO_RITUAL", "tools" }, { "^GHOSTLY_INK$", "tools" },
+  { "^LOCKPICK$", "tools" }, { "_TOOL$", "tools" }, { "^WEAPON_PICK$", "tools" }, { "^WEAPON_AXE$", "tools" },
+  { "^WEAPON_MATTOCK$", "tools" }, { "^GNOME_FIRELIGHTER$", "tools" },
+  { "OREBOX$", "containers" }, { "WOODBOX$", "containers" }, { "STONE_SPIRIT$", "raw-resources" }, { "GEM_BAG$", "containers" },
+  { "^NECRO_ENSOULED", "raw-resources" }, { "^NECROPLASM$", "raw-resources" }, { "^MASTERWORK", "raw-resources" },
+  { "^LOGS$", "raw-resources" }, { "^ORE$", "raw-resources" }, { "^PLANK$", "raw-resources" },
+  { "^BONES$", "raw-resources" }, { "^DIV_ENERGY$", "raw-resources" }, { "^NAIL$", "raw-resources" },
+  { "^CRAFTING_", "raw-resources" }, { "^CUT_GEM$", "gems" }, { "^UNCUT_GEM$", "gems" },
+  { "^XBOWS_BOLT_TIP$", "ammo-components" }, { "^ARROWHEADS$", "ammo-components" }, { "SHAFT$", "ammo-components" },
+  { "^ECOSYSTEM_OBJECT$", "produce" }, { "^POF_", "produce" }, { "^ELR1_", "produce" },
+  { "^FARMING_.*SEED$", "seeds" }, { "^FARMING_", "produce" }, { "^PLANTPOT", "produce" },
+  { "^POH_TABLET$", "teleports" }, { "_TELE$", "teleports" }, { "_TELEPORT$", "teleports" },
+  { "^EGWD_", "boss-loot" }, { "^DINO_GAME_REWARD", "boss-loot" }, { "^SLAYER_", "boss-loot" }, { "^HOTM_", "boss-loot" },
+  { "^NTK_ARTEFACT", "alch" }, { "PETS_UNLOCK_ITEM$", "collection-log" }, { "^COLLECTION_LOG$", "collection-log" },
+}
+
 local AMMO_COMPONENTS = { "arrowheads", "arrow shaft", "headless arrow", "bolt tips", "unfinished bolts", "unf bolts", "feather" }
 
 local function has(text, word)
@@ -89,9 +140,10 @@ function Classify.dose(name)
   return dose and tonumber(dose) or nil
 end
 
+-- Whole words only, so "spirit" never reads as "irit".
 local function herbFamily(name)
   for _, herb in ipairs(HERBS) do
-    if has(name, herb) then return herb end
+    if hasWord(name, { herb }) then return herb end
   end
   return nil
 end
@@ -122,6 +174,25 @@ local function isEquipment(ops, category)
     or category:match("^WEAPON_") or category:match("^ARMOUR_") or category:match("^AMMO_")
 end
 
+local function classifyCategory(category, ops, name)
+  if category == "" then return nil end
+  for _, rule in ipairs(CATEGORY_RULES) do
+    if category:match(rule[1]) then return rule[2] or nil end
+  end
+  -- Treasure Hunter rewards: wearable pieces are skilling outfits, the rest go with MTX & XP boosts.
+  if category:match("^TRH") then
+    return isEquipment(ops, category) and hasWord(name, OUTFIT_PIECES) and "skilling-outfits" or "xp-items"
+  end
+  return nil
+end
+
+local function anyOpContains(ops, word)
+  for op in pairs(ops) do
+    if type(op) == "string" and has(op, word) then return true end
+  end
+  return false
+end
+
 ---@param info table? { name, category (id.Category name), ops = { [op]=true }, quests (count), tradeable }
 ---@return string? tag key, or nil when not confident
 function Classify.classify(info)
@@ -135,14 +206,24 @@ function Classify.classify(info)
   if has(name, "clue scroll") or has(name, "casket") or has(name, "puzzle box") or has(name, "scroll box") then return "clues" end
   if has(name, "override") or category:match("^COSMETIC") then return "cosmetics" end
   if name:match(" rune$") or name:match(" runes$") then return "runes" end
-  if anyOp(ops, { "teleport", "rub", "break" }) or has(name, "teleport") or has(name, "lodestone") then return "teleports" end
+  if anyOp(ops, { "rub", "break" }) or anyOpContains(ops, "teleport") or has(name, "teleport") or has(name, "lodestone") then
+    return "teleports"
+  end
+
+  if hasWord(name, XP_ITEMS) then return "xp-items" end
+  local byCategory = classifyCategory(category, ops, name)
+  if byCategory then return byCategory end
 
   local herblore = classifyHerblore(name, ops)
   if herblore then return herblore end
   local consumable = classifyConsumable(name, ops)
   if consumable then return consumable end
 
-  if hasAny(name, OUTFITS) and isEquipment(ops, category) then return "skilling-outfits" end
+  if (hasAny(name, OUTFITS) or hasAny(name, SKILL_CAPES)) and isEquipment(ops, category) then return "skilling-outfits" end
+  if hasWord(name, INVENTION_ARCH) or hasWord(name, { "trap" }) then return "tools" end
+  if has(name, "spirit shards") then return "summoning" end
+  if hasAny(name, FARMING) then return "produce" end
+  if name:match("vial$") or name:match("flask$") then return "herblore-other" end
   if hasWord(name, TOOLS) or hasAny(name, { "archaeologist's", "grimoire" }) then return "tools" end
   if hasAny(name, CONTAINERS) then return "containers" end
   if hasAny(name, AMMO_COMPONENTS) and not isEquipment(ops, category) then return "ammo-components" end

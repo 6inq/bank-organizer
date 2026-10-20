@@ -79,6 +79,7 @@ end
 -- "My tabs": keep the player's own tabs. Items already in a custom tab stay there; items in the
 -- main (infinity) tab move to the custom tab that already holds the most items of their kind
 -- (at least MIN_TO_ROUTE of them); anything else stays in the main tab as misc.
+-- A tag the player pinned to a tab overrides all of that: every item of it goes to that tab.
 Blueprint.MIN_TO_ROUTE = 2
 
 local function tagCounts(items, sectionOf, tagOf)
@@ -123,8 +124,9 @@ function Blueprint.profile(counts, s, limit)
 end
 
 ---@param sections table { [0..n] = { id, ... } } the bank as it is now
----@return table destinations keyed 0..n with identity = true, table entry by slot, table counts
-function Blueprint.buildFromTabs(items, sections, tagOf)
+---@param pinned table? { [tag] = section } the player's own choices
+---@return table destinations keyed 0..n with identity = true, table entry by slot, table counts, table homes
+function Blueprint.buildFromTabs(items, sections, tagOf, pinned)
   local sectionOf, last = {}, 0
   for s, ids in pairs(sections) do
     if s > last then last = s end
@@ -136,8 +138,13 @@ function Blueprint.buildFromTabs(items, sections, tagOf)
   for s = 0, last do destinations[s] = {} end
   for _, item in ipairs(items) do
     local tag, here = tags[item.id], sectionOf[item.id] or 0
+    local pin = pinned and pinned[tag]
     local d = here
-    if here == 0 and homes[tag] then d = homes[tag].section end
+    if pin and pin <= last then
+      d = pin
+    elseif here == 0 and homes[tag] then
+      d = homes[tag].section
+    end
     local primary, secondary = sortKey(tag, item.name)
     local entry = {
       slot = item.slot, id = item.id, name = item.name, quantity = item.quantity, tag = tag, destination = d,
@@ -148,7 +155,7 @@ function Blueprint.buildFromTabs(items, sections, tagOf)
     bySlot[item.slot] = entry
   end
   for s = 0, last do table.sort(destinations[s], Blueprint.compare) end
-  return destinations, bySlot, counts
+  return destinations, bySlot, counts, homes
 end
 
 -- Default tag resolution: your correction wins, then the classifier, else Storage & Cleanup.

@@ -39,9 +39,7 @@ local function addActions(app)
   view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
     app:setAssigning(not app.assigning)
   end)
-  if app.store:get("scope") ~= "tabs" then
-    view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
-  end
+  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
 end
 
 local function addLegend(app)

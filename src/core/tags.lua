@@ -20,6 +20,7 @@ Tags.CATEGORIES = {
 Tags.LIST = {
   { key = "frequently-used", label = "Frequently Used", category = "currency-utilities" },
   { key = "runes", label = "Runes", category = "currency-utilities" },
+  { key = "summoning", label = "Summoning", category = "currency-utilities" },
   { key = "teleports", label = "Teleports", category = "currency-utilities" },
   { key = "currency", label = "Currency", category = "currency-utilities" },
   { key = "gear", label = "Combat Gear", category = "combat-gear" },
@@ -38,6 +39,7 @@ Tags.LIST = {
   { key = "tools", label = "Skilling Tools", category = "skilling-tools" },
   { key = "skilling-outfits", label = "Skilling Outfits", category = "skilling-tools" },
   { key = "containers", label = "Containers", category = "skilling-tools" },
+  { key = "xp-items", label = "MTX & XP Boosts", category = "skilling-tools" },
   { key = "raw-resources", label = "Raw & Processed Resources", category = "resources" },
   { key = "gems", label = "Gems & Jewellery", category = "resources" },
   { key = "ammo-components", label = "Ammo Components", category = "resources" },

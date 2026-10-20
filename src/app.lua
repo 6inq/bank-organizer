@@ -67,8 +67,8 @@ function App:_build(items)
   if self.store:get("scope") == "tabs" then
     local sizes = Bank.tabSizes()
     if sizes then
-      self.destinations, self.bySlot, self.tabCounts =
-        Blueprint.buildFromTabs(items, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst), tagOf)
+      self.destinations, self.bySlot, self.tabCounts, self.autoHomes = Blueprint.buildFromTabs(
+        items, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst), tagOf, self.store.tabHomes)
       return true
     end
     self.status = App.STATUS.NEED_TABS
@@ -174,6 +174,16 @@ end
 
 function App:myTabs()
   return self.tabCounts ~= nil
+end
+
+-- My tabs: where a tag's items go, and whether the player pinned it. nil = stays where it is.
+function App:tabHomeOf(tag)
+  local pin = self.store.tabHomes[tag]
+  local list = self:destinationList()
+  if pin and pin <= list[#list] then return pin, true end
+  local home = self.autoHomes and self.autoHomes[tag]
+  if home then return home.section, false end
+  return nil, false
 end
 
 -- Colours: Bank Architect destinations use their category colour; in My tabs the main

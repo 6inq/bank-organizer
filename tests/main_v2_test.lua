@@ -150,7 +150,7 @@ function T.sidebar_has_the_bank_architect_controls()
   end
   A.truthy(find(p, "AddFancyButton", "Analyze Bank")); A.truthy(comboWith(p, "ironman"), "preset chooser")
   A.truthy(comboWith(p, "tabs"), "Organize: whole bank / my tabs")
-  A.truthy(texts(p):find("Main: Frequently Used, Runes, Teleports, Currency", 1, true), "legend")
+  A.truthy(texts(p):find("Main: Frequently Used, Runes, Summoning, Teleports, Currency", 1, true), "legend")
   PluginShutdown()
 end
 
@@ -349,7 +349,7 @@ function T.my_tabs_keeps_tabs_and_numbers_them_like_rs3()
   local text = texts(panel(env))
   A.truthy(text:find("Tab 1 (infinity): misc catch-all", 1, true), "infinity is the catch-all")
   A.truthy(text:find("Tab 2: Food & Drink, Potions", 1, true) or text:find("Tab 2: Potions, Food & Drink", 1, true), "tab profile from its items")
-  A.eq(find(panel(env), "AddSimpleButton", "Tab Layout"), nil, "layout editor only for whole-bank mode")
+  A.truthy(find(panel(env), "AddSimpleButton", "Tab Layout"), "layout editor in My tabs too")
   A.eq(comboWith(panel(env), "ironman"), nil, "presets only for whole-bank mode")
   PluginShutdown()
 end
@@ -387,6 +387,60 @@ function T.my_tabs_routes_infinity_items_to_the_matching_tab()
   A.list(ids(d[1]), { 2, 4, 1 }, "Monkfish joins the food tab (2 food there), sorted by name")
   A.list(ids(d[2]), { 3 }, "one rune is not enough evidence to pull Fire rune in")
   A.list(ids(d[0]), { 5, 6 }, "Fire rune and the unknown item stay in infinity")
+end
+
+function T.pinned_tag_overrides_automatic_routing()
+  local Blueprint = require("src/core/blueprint")
+  local function it(slot, id, name, ops)
+    local set = {}
+    for _, op in ipairs(ops or {}) do set[op] = true end
+    return { slot = slot, id = id, name = name, quantity = 1, info = { name = name, ops = set } }
+  end
+  local items = { it(1, 1, "Shark", { "eat" }), it(2, 2, "Lobster", { "eat" }), it(3, 3, "Air rune"), it(4, 4, "Monkfish", { "eat" }) }
+  local sections = { [0] = { 4 }, [1] = { 1, 2 }, [2] = { 3 } }
+  local function ids(list) local out = {} for i, e in ipairs(list) do out[i] = e.id end return out end
+  local d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), { food = 2 })
+  A.list(ids(d[2]), { 3, 2, 4, 1 }, "pinned food pulls every food item into tab 2, even from tab 1")
+  A.list(ids(d[1]), {}, "tab 1 empties")
+  d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), { food = 0 })
+  A.list(ids(d[0]), { 2, 4, 1 }, "pinning to infinity sends food back to the catch-all")
+  d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), { food = 9 })
+  A.list(ids(d[1]), { 2, 4, 1 }, "a pin to a tab you no longer have is ignored (automatic routing applies)")
+end
+
+function T.my_tabs_layout_window_pins_unpins_and_saves()
+  local env = boot({ tabSizes = { 2 }, bank = { 101, 107, 102, 104, 106 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  find(panel(env), "AddSimpleButton", "Tab Layout").args[2]()
+  local w = env.windows[#env.windows]
+  A.eq(w.options.title, "Tab Layout (My tabs)")
+  assertIntegerIds(w)
+  local combos = {}
+  for _, c in ipairs(w) do if c.method == "AddComboBox" then combos[#combos + 1] = c end end
+  A.eq(#combos, 2, "one pin dropdown per tab (infinity + custom tab 1)")
+  pick(combos[2], "runes")
+  A.eq(Store.new(PersistentDB).tabHomes.runes, 1, "pin saved")
+  w = env.windows[#env.windows]
+  A.truthy(texts(w):find("Runes  (pinned)", 1, true), "shown as pinned: " .. texts(w))
+  find(w, "AddSimpleButton", "Unpin").args[2]()
+  A.eq(Store.new(PersistentDB).tabHomes.runes, nil, "unpinned")
+  pick(combos[1], "food")
+  w = env.windows[#env.windows]
+  find(w, "AddSimpleButton", "Unpin all").args[2]()
+  A.eq(next(Store.new(PersistentDB).tabHomes), nil, "all pins cleared")
+  PluginShutdown()
+end
+
+function T.store_rejects_bad_pins()
+  local db = { data = { ["bank-organizer-v2"] = { tabHomes = { runes = 3, food = "x", nope = 1, gear = 99, potions = 1.5 } } } }
+  function db:GetStructuredData(key) return self.data[key] end
+  function db:SetStructuredData(key, value) self.data[key] = value end
+  local store = Store.new(db)
+  A.eq(store.tabHomes.runes, 3); A.eq(store.tabHomes.food, nil); A.eq(store.tabHomes.nope, nil)
+  A.eq(store.tabHomes.gear, nil); A.eq(store.tabHomes.potions, nil)
+  A.eq(store:setTabHome("runes", -1), false); A.eq(store:setTabHome("bogus", 1), false)
+  A.eq(store:setTabHome("runes", 0), true); A.eq(db.data["bank-organizer-v2"].tabHomes.runes, 0)
 end
 
 function T.focused_guide_only_drags_from_the_viewed_tab()
