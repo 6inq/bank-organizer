@@ -44,6 +44,16 @@ local function familyName(tag, name)
   return name
 end
 
+-- Order within a destination: tag order, then family/stage, then name, dose, id.
+function Blueprint.compare(a, b)
+  if a.rank ~= b.rank then return a.rank < b.rank end
+  if a.primary ~= b.primary then return a.primary < b.primary end
+  if a.family ~= b.family then return a.family < b.family end
+  if a.secondary ~= b.secondary then return a.secondary < b.secondary end
+  if a.id ~= b.id then return a.id < b.id end
+  return a.slot < b.slot
+end
+
 ---@param items table[] { slot, id, name, quantity, info } one per bank slot
 ---@param layout table Layout
 ---@param tagOf fun(item): string tag for an item (corrections, then classifier, then fallback)
@@ -62,17 +72,83 @@ function Blueprint.build(items, layout, tagOf)
     table.insert(destinations[d], entry)
     bySlot[item.slot] = entry
   end
-  for d = 0, Tags.DESTINATIONS - 1 do
-    table.sort(destinations[d], function(a, b)
-      if a.rank ~= b.rank then return a.rank < b.rank end
-      if a.primary ~= b.primary then return a.primary < b.primary end
-      if a.family ~= b.family then return a.family < b.family end
-      if a.secondary ~= b.secondary then return a.secondary < b.secondary end
-      if a.id ~= b.id then return a.id < b.id end
-      return a.slot < b.slot
-    end)
-  end
+  for d = 0, Tags.DESTINATIONS - 1 do table.sort(destinations[d], Blueprint.compare) end
   return destinations, bySlot
+end
+
+-- "My tabs": keep the player's own tabs. Items already in a custom tab stay there; items in the
+-- main (infinity) tab move to the custom tab that already holds the most items of their kind
+-- (at least MIN_TO_ROUTE of them); anything else stays in the main tab as misc.
+Blueprint.MIN_TO_ROUTE = 2
+
+local function tagCounts(items, sectionOf, tagOf)
+  local counts, tags = {}, {}
+  for _, item in ipairs(items) do
+    local tag = tagOf(item)
+    tags[item.id] = tag
+    local s = sectionOf[item.id]
+    if s and s > 0 then
+      counts[s] = counts[s] or {}
+      counts[s][tag] = (counts[s][tag] or 0) + 1
+    end
+  end
+  return counts, tags
+end
+
+-- For each tag, the custom tab holding most items of it (ties go to the earlier tab).
+function Blueprint.tagHomes(counts)
+  local homes = {}
+  for s, byTag in pairs(counts) do
+    for tag, count in pairs(byTag) do
+      local best = homes[tag]
+      if tag ~= Tags.FALLBACK and count >= Blueprint.MIN_TO_ROUTE
+        and (not best or count > best.count or (count == best.count and s < best.section)) then
+        homes[tag] = { section = s, count = count }
+      end
+    end
+  end
+  return homes
+end
+
+-- The kinds of item a tab mostly holds, most common first (for the legend).
+function Blueprint.profile(counts, s, limit)
+  local list = {}
+  for tag, count in pairs(counts[s] or {}) do list[#list + 1] = { tag = tag, count = count } end
+  table.sort(list, function(a, b)
+    if a.count ~= b.count then return a.count > b.count end
+    return a.tag < b.tag
+  end)
+  for index = #list, (limit or 3) + 1, -1 do list[index] = nil end
+  return list
+end
+
+---@param sections table { [0..n] = { id, ... } } the bank as it is now
+---@return table destinations keyed 0..n with identity = true, table entry by slot, table counts
+function Blueprint.buildFromTabs(items, sections, tagOf)
+  local sectionOf, last = {}, 0
+  for s, ids in pairs(sections) do
+    if s > last then last = s end
+    for _, id in ipairs(ids) do sectionOf[id] = s end
+  end
+  local counts, tags = tagCounts(items, sectionOf, tagOf)
+  local homes = Blueprint.tagHomes(counts)
+  local destinations, bySlot = { identity = true }, {}
+  for s = 0, last do destinations[s] = {} end
+  for _, item in ipairs(items) do
+    local tag, here = tags[item.id], sectionOf[item.id] or 0
+    local d = here
+    if here == 0 and homes[tag] then d = homes[tag].section end
+    local primary, secondary = sortKey(tag, item.name)
+    local entry = {
+      slot = item.slot, id = item.id, name = item.name, quantity = item.quantity, tag = tag, destination = d,
+      rank = Tags.byKey[tag] and Tags.byKey[tag].index or math.huge, primary = primary, secondary = secondary,
+      family = familyName(tag, item.name),
+    }
+    table.insert(destinations[d], entry)
+    bySlot[item.slot] = entry
+  end
+  for s = 0, last do table.sort(destinations[s], Blueprint.compare) end
+  return destinations, bySlot, counts
 end
 
 -- Default tag resolution: your correction wins, then the classifier, else Storage & Cleanup.

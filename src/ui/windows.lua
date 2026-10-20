@@ -57,8 +57,8 @@ function Windows.blueprint(app)
       window:AddText("Press Analyze Bank first.")
       return
     end
-    for d = 0, Tags.DESTINATIONS - 1 do
-      local entries = app.destinations[d]
+    for _, d in ipairs(app:destinationList()) do
+      local entries = app.destinations[d] or {}
       if #entries > 0 then
         window:AddTitle(app:destinationLabel(d))
         local objects = {}

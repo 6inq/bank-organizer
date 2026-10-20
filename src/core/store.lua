@@ -19,6 +19,7 @@ local SETTINGS = {
   tint = { default = true, valid = isBool },
   opacity = { default = 0.35, valid = function(v) return type(v) == "number" and v >= 0 and v <= 1 end },
   mode = { default = "insert", valid = function(v) return v == "insert" or v == "swap" end },
+  scope = { default = "bank", valid = function(v) return v == "bank" or v == "tabs" end },
 }
 
 local function read(db)

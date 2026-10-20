@@ -125,6 +125,14 @@ local function pick(combo, key)
   error("no entry " .. tostring(key))
 end
 
+local function comboWith(calls, key)
+  for _, c in ipairs(calls) do
+    if c.method == "AddComboBox" then
+      for _, entry in ipairs(c.args[1].entries) do if entry.key == key then return c end end
+    end
+  end
+end
+
 local function assertIntegerIds(calls)
   for _, c in ipairs(calls) do
     if c.method == "AddComboBox" then
@@ -140,7 +148,8 @@ function T.sidebar_has_the_bank_architect_controls()
   for _, label in ipairs({ "Open Blueprint", "Sorting Guide", "Assign Categories", "Tab Layout" }) do
     A.truthy(find(p, "AddSimpleButton", label), label)
   end
-  A.truthy(find(p, "AddFancyButton", "Analyze Bank")); A.truthy(find(p, "AddComboBox"), "preset chooser")
+  A.truthy(find(p, "AddFancyButton", "Analyze Bank")); A.truthy(comboWith(p, "ironman"), "preset chooser")
+  A.truthy(comboWith(p, "tabs"), "Organize: whole bank / my tabs")
   A.truthy(texts(p):find("Main: Frequently Used, Runes, Teleports, Currency", 1, true), "legend")
   PluginShutdown()
 end
@@ -261,7 +270,7 @@ end
 
 function T.ironman_preset_renames_categories()
   local env = boot()
-  pick(find(panel(env), "AddComboBox"), "ironman")
+  pick(comboWith(panel(env), "ironman"), "ironman")
   A.eq(Store.new(PersistentDB).preset, "ironman")
   PluginShutdown()
 end
@@ -328,6 +337,66 @@ function T.line_box_covers_both_directions()
   A.eq(x, 10); A.eq(y, 10); A.eq(invert, true, "down-left needs invert")
   x, y, w, h = Overlay.lineBox(10, 20, 90, 20)
   A.eq(h, 1, "flat line keeps a 1px height")
+end
+
+-- My tabs ----------------------------------------------------------------------------
+
+function T.my_tabs_keeps_tabs_and_numbers_them_like_rs3()
+  -- Custom tab 1 (RS3 "Tab 2") holds Shark + Prayer potion; the rest sit in infinity.
+  local env = boot({ tabSizes = { 2 }, bank = { 101, 107, 102, 104, 106 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Tab 1 (infinity): misc catch-all", 1, true), "infinity is the catch-all")
+  A.truthy(text:find("Tab 2: Food & Drink, Potions", 1, true) or text:find("Tab 2: Potions, Food & Drink", 1, true), "tab profile from its items")
+  A.eq(find(panel(env), "AddSimpleButton", "Tab Layout"), nil, "layout editor only for whole-bank mode")
+  A.eq(comboWith(panel(env), "ironman"), nil, "presets only for whole-bank mode")
+  PluginShutdown()
+end
+
+function T.my_tabs_guide_focuses_on_the_viewed_tab()
+  -- Tab 2 holds Prayer potion then Shark (wrong order: potions come before food).
+  local env = boot({ tabSizes = { 2 }, bank = { 101, 107, 102, 104 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  var.VarPlayer.BANK_CURRENT_TAB.value = 2 -- viewing custom tab 1 (RS3 Tab 2)
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Insert Prayer potion %(4%) before Shark") or text:find("Insert Shark after Prayer potion %(4%)"), "sorts only this tab: " .. text)
+  A.truthy(text:find("1 left", 1, true), "one move fixes this tab")
+  -- Infinity view: Coins and Air rune are both misc; Air rune should come first.
+  var.VarPlayer.BANK_CURRENT_TAB.value = 1
+  tick(env)
+  text = texts(panel(env))
+  A.truthy(text:find("Insert Air rune before Coins") or text:find("Insert Coins after Air rune"), "infinity sorts its own items: " .. text)
+  PluginShutdown()
+end
+
+function T.my_tabs_routes_infinity_items_to_the_matching_tab()
+  local Blueprint = require("src/core/blueprint")
+  local function it(slot, id, name, ops)
+    local set = {}
+    for _, op in ipairs(ops or {}) do set[op] = true end
+    return { slot = slot, id = id, name = name, quantity = 1, info = { name = name, ops = set } }
+  end
+  local items = { it(1, 1, "Shark", { "eat" }), it(2, 2, "Lobster", { "eat" }), it(3, 3, "Air rune"),
+    it(4, 4, "Monkfish", { "eat" }), it(5, 5, "Fire rune"), it(6, 6, "Strange thing") }
+  local sections = { [0] = { 4, 5, 6 }, [1] = { 1, 2 }, [2] = { 3 } }
+  local d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}))
+  local function ids(list) local out = {} for i, e in ipairs(list) do out[i] = e.id end return out end
+  A.eq(d.identity, true)
+  A.list(ids(d[1]), { 2, 4, 1 }, "Monkfish joins the food tab (2 food there), sorted by name")
+  A.list(ids(d[2]), { 3 }, "one rune is not enough evidence to pull Fire rune in")
+  A.list(ids(d[0]), { 5, 6 }, "Fire rune and the unknown item stay in infinity")
+end
+
+function T.focused_guide_only_drags_from_the_viewed_tab()
+  local Blueprint = require("src/core/blueprint")
+  local destinations = { identity = true, [0] = {}, [1] = { { id = 1 }, { id = 2 } }, [2] = { { id = 3 } } }
+  local sections = { [0] = { 2 }, [1] = { 1 }, [2] = { 3 } }
+  local step = Guide.next(sections, destinations, Guide.INSERT, 2)
+  A.eq(step, nil, "nothing to do in tab 2; item 2 must be dragged from infinity")
+  step = Guide.next(sections, destinations, Guide.INSERT, 0)
+  A.eq(step.kind, "to-tab"); A.eq(step.id, 2); A.eq(step.to, 1)
 end
 
 return T

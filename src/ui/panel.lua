@@ -20,6 +20,16 @@ local function addPreset(app)
     end))
 end
 
+local function addScope(app)
+  view:AddText("Organize")
+  view:AddComboBox(Combo.options(
+    { { label = app.SCOPES.bank, key = "bank" }, { label = app.SCOPES.tabs, key = "tabs" } },
+    app.store:get("scope"),
+    function(scope)
+      if scope ~= app.store:get("scope") and app.store:set("scope", scope) then app:rebuild() end
+    end))
+end
+
 local function addActions(app)
   view:AddFancyButton("Analyze Bank", function() app:analyze() end)
   view:AddSimpleButton("Open Blueprint", function() Windows.blueprint(app) end)
@@ -29,13 +39,15 @@ local function addActions(app)
   view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
     app:setAssigning(not app.assigning)
   end)
-  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
+  if app.store:get("scope") ~= "tabs" then
+    view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
+  end
 end
 
 local function addLegend(app)
   view:AddTitle("Legend")
-  for d = 0, Tags.DESTINATIONS - 1 do
-    local count = app.destinations and #app.destinations[d] or 0
+  for _, d in ipairs(app:destinationList()) do
+    local count = app.destinations and #(app.destinations[d] or {}) or 0
     local label = view:AddText({ text = app:destinationLabel(d) .. (app.destinations and ("  [" .. count .. "]") or ""), height = 36 })
     if label then pcall(function() label.rgba = app:destinationColour(d) end) end
   end
@@ -44,7 +56,8 @@ end
 local function build(app)
   view:AddTitle("Bank Organizer")
   view:AddText("by 6ing")
-  addPreset(app)
+  addScope(app)
+  if app.store:get("scope") ~= "tabs" then addPreset(app) end
   addActions(app)
   view:AddText({ text = app.status, height = 56 })
   if app.assigning then

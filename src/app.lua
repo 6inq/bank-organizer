@@ -16,6 +16,8 @@ App.STATUS = {
   NOT_ANALYZED = "Press Analyze Bank to build your blueprint.",
   ANALYZED = "Blueprint ready. Open Blueprint to review it, or start the Sorting Guide.",
   NEED_ALL = "Open the All items view and clear the bank search to continue the guide.",
+  NO_SEARCH = "Clear the bank search to continue the guide.",
+  NEED_TABS = "My tabs needs your bank tab sizes, which this client is not reporting.",
   NO_TABS = "This client does not expose bank tab sizes yet, so the guide is paused.",
   DONE = "Your bank matches the blueprint.",
   CHANGED = "Your bank changed, so the blueprint was rebuilt.",
@@ -56,6 +58,36 @@ local function signatureOf(items)
   return table.concat(parts, ",")
 end
 
+App.SCOPES = { bank = "Whole bank (Bank Architect layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
+
+-- Blueprint for the chosen scope: Bank Architect destinations, or the player's own tabs.
+function App:_build(items)
+  local tagOf = function(item) return self:tagOf(item) end
+  self.tabCounts = nil
+  if self.store:get("scope") == "tabs" then
+    local sizes = Bank.tabSizes()
+    if sizes then
+      self.destinations, self.bySlot, self.tabCounts =
+        Blueprint.buildFromTabs(items, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst), tagOf)
+      return true
+    end
+    self.status = App.STATUS.NEED_TABS
+  end
+  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, tagOf)
+  return true
+end
+
+-- Destination numbers present in the blueprint (0 = main, then tabs), in order.
+function App:destinationList()
+  local list = {}
+  for d in pairs(self.destinations or {}) do
+    if type(d) == "number" then list[#list + 1] = d end
+  end
+  table.sort(list)
+  if #list == 0 then for d = 0, Tags.DESTINATIONS - 1 do list[#list + 1] = d end end
+  return list
+end
+
 -- Scan the open bank and rebuild the blueprint.
 function App:analyze()
   local items = Bank.readItems()
@@ -64,7 +96,7 @@ function App:analyze()
     return false
   end
   self.items, self.signature = items, signatureOf(items)
-  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
+  self:_build(items)
   self.status = App.STATUS.ANALYZED
   self:_logDiagnostics(items)
   self:_saveExport(items)
@@ -125,30 +157,53 @@ end
 -- Layout, preset or correction changed: rebuild from the last scan.
 function App:rebuild()
   if self.items then
-    self.destinations, self.bySlot = Blueprint.build(self.items, self.store.layout, function(item) return self:tagOf(item) end)
+    self:_build(self.items)
   end
   self:_notify()
 end
 
 function App:destinationOfItem(itemID)
   if not self.destinations then return nil end
-  for d = 0, Tags.DESTINATIONS - 1 do
-    for _, entry in ipairs(self.destinations[d]) do
+  for _, d in ipairs(self:destinationList()) do
+    for _, entry in ipairs(self.destinations[d] or {}) do
       if entry.id == itemID then return d, entry end
     end
   end
   return nil
 end
 
+function App:myTabs()
+  return self.tabCounts ~= nil
+end
+
+-- Colours: Bank Architect destinations use their category colour; in My tabs the main
+-- (catch-all) tab is grey and custom tabs cycle through the palette.
 function App:destinationColour(d)
+  if self:myTabs() then
+    if d == 0 then return self.store:colour("storage-cleanup") end
+    local category = Tags.CATEGORIES[((d - 1) % (#Tags.CATEGORIES - 1)) + 1]
+    return self.store:colour(category.key)
+  end
   local category = Tags.CATEGORIES[d + 1]
   return self.store:colour(category and category.key or "storage-cleanup")
 end
 
+-- RS3 numbers the main (infinity) tab as Tab 1, so custom tab N is "Tab N+1" in game.
 function App:destinationLabel(d)
+  if self:myTabs() then
+    if d == 0 then return "Tab 1 (infinity): misc catch-all" end
+    local kinds = {}
+    for _, entry in ipairs(Blueprint.profile(self.tabCounts, d, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
+    return "Tab " .. (d + 1) .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
+  end
   local names = {}
-  for _, tag in ipairs(self.store.layout.destinations[d]) do names[#names + 1] = Tags.label(tag) end
+  for _, tag in ipairs(self.store.layout.destinations[d] or {}) do names[#names + 1] = Tags.label(tag) end
   return Tags.destinationName(d) .. ": " .. (#names > 0 and table.concat(names, ", ") or "empty")
+end
+
+function App:tabName(section)
+  if self:myTabs() then return section == 0 and "Tab 1 (infinity)" or ("Tab " .. (section + 1)) end
+  return section == 0 and "the Main section" or ("Tab " .. section)
 end
 
 function App:setAssigning(on)
@@ -169,11 +224,20 @@ function App:stopGuide()
 end
 
 -- Current bank state for the guide, or nil + reason when it must pause (fails closed).
+-- Current bank state for the guide, the section to focus on (My tabs: the tab you are
+-- viewing), or nil + reason when it must pause (fails closed).
 function App:_sections(items)
-  if Bank.searchActive() or not Bank.isAllItemsTab() then return nil, App.STATUS.NEED_ALL end
   local sizes = Bank.tabSizes()
   if not sizes then return nil, App.STATUS.NO_TABS end
-  return Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+  if Bank.searchActive() then return nil, App.STATUS.NO_SEARCH end
+  local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+  if self:myTabs() then
+    local tab = Bank.currentTab()
+    if type(tab) ~= "number" or tab < 1 then return nil, App.STATUS.NO_TABS end
+    return sections, nil, tab - 1
+  end
+  if not Bank.isAllItemsTab() then return nil, App.STATUS.NEED_ALL end
+  return sections
 end
 
 function App:modeForGuide()
@@ -189,18 +253,20 @@ function App:_tickGuide()
     -- Deposits, withdrawals and moves all change the scan; rebuild so the plan matches the bank.
     local before = self.signature
     self.items, self.signature = items, signatureOf(items)
-    self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
+    self:_build(items)
     if before and #before ~= #self.signature then self.status = App.STATUS.CHANGED end
   end
-  local sections, reason = self:_sections(items)
+  local sections, reason, focus = self:_sections(items)
   if not sections then
     self.step = nil
     return self:_setStatus(reason)
   end
   local mode = self:modeForGuide()
-  self.step = Guide.next(sections, self.destinations, mode)
-  self.remaining = Guide.remaining(sections, self.destinations, mode)
-  self:_setStatus(self.step and App.describe(self.step, self) or App.STATUS.DONE)
+  self.focus = focus
+  self.step = Guide.next(sections, self.destinations, mode, focus)
+  self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
+  local done = focus and (self:tabName(focus) .. " is organized. Open another tab to keep going.") or App.STATUS.DONE
+  self:_setStatus(self.step and App.describe(self.step, self) or done)
 end
 
 local function nameOf(app, id)
@@ -216,8 +282,7 @@ function App.describe(step, app)
   if step.kind == "new-tab" then
     return string.format("Drag %s onto the new-tab button to create Tab %d.", name, step.to)
   elseif step.kind == "to-tab" then
-    local where = step.to == 0 and "the Main section" or ("Tab " .. step.to)
-    return string.format("Drag %s onto %s.", name, where)
+    return string.format("Drag %s onto %s.", name, app:tabName(step.to))
   elseif step.kind == "insert" then
     local anchor = step.before and ("before " .. nameOf(app, step.before)) or ("after " .. nameOf(app, step.after))
     return string.format("Insert %s %s (%d left).", name, anchor, app.remaining or 0)
