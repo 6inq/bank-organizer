@@ -24,6 +24,21 @@ function Bank.slotsContainer()
   return container
 end
 
+Bank.KEY_STRIDE = 16777216
+
+function Bank.realId(key)
+  return key % Bank.KEY_STRIDE
+end
+
+local function keyer()
+  local seen = {}
+  return function(objectID)
+    local n = seen[objectID] or 0
+    seen[objectID] = n + 1
+    return objectID + n * Bank.KEY_STRIDE
+  end
+end
+
 local function isItemSlot(component)
   return component.type == ui.ComponentType.SPRITE and component.associatedObjectID ~= nil
     and component.associatedObjectID >= 0 and component.visible and not component.hidden
@@ -49,6 +64,8 @@ function Bank.scan()
     return false
   end)
   table.sort(slots, rowMajor)
+  local keyOf = keyer()
+  for _, slot in ipairs(slots) do slot.key = keyOf(slot.objectID) end
   return slots, nil, container
 end
 
@@ -158,12 +175,12 @@ function Bank.readItems()
   local ok, items = pcall(function()
     local inv = Inventory.Find(config.Inv.BANK)
     if not inv or not inv.isValid then return nil end
-    local list = {}
+    local list, keyOf = {}, keyer()
     for slot, entry in ipairs(inv:GetSlots() or {}) do
       local obj = entry and entry.obj
       if obj and obj.id and obj.id >= 0 then
         local info = Bank.info(obj.id)
-        list[#list + 1] = { slot = slot, id = obj.id, name = info.name, quantity = entry.count or 0, info = info }
+        list[#list + 1] = { slot = slot, id = keyOf(obj.id), objectId = obj.id, name = info.name, quantity = entry.count or 0, info = info }
       end
     end
     return list
@@ -201,7 +218,7 @@ end
 function Bank.componentsById()
   local slots, _, container = Bank.scan()
   local byId = {}
-  for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
+  for _, slot in ipairs(slots or {}) do byId[slot.key] = slot end
   return byId, container, slots
 end
 

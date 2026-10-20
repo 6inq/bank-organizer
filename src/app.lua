@@ -64,7 +64,7 @@ App.SCOPES = { bank = "Whole bank (follow my Tab Layout)", tabs = "My tabs (keep
 function App:_build(allItems)
   local items = {}
   for _, item in ipairs(allItems) do
-    if not self.store:isIgnored(item.id) then items[#items + 1] = item end
+    if not self.store:isIgnored(item.objectId or item.id) then items[#items + 1] = item end
   end
   local tagOf = function(item) return self:tagOf(item) end
   local mode = self.store:get("sort")
@@ -147,7 +147,7 @@ function App:_saveExport(items)
   local lines = { "slot\tid\tname\tcategory\tops\ttradeable\tquests\tstockmarket\ttab\ttag\tparams" }
   for _, item in ipairs(items) do
     local info = item.info or {}
-    lines[#lines + 1] = table.concat({ item.slot, item.id, tostring(item.name), tostring(info.category), opsText(info.ops),
+    lines[#lines + 1] = table.concat({ item.slot, item.objectId or item.id, tostring(item.name), tostring(info.category), opsText(info.ops),
       tostring(info.tradeable), tostring(info.quests), tostring(info.stockmarket), tostring(sectionOf[item.id]),
       self:tagOf(item), info.params or "" }, "\t")
   end
@@ -326,7 +326,7 @@ function App:_learnTabOrder()
   local slots = Bank.scan()
   if not slots then return end
   local displayIds = {}
-  for index, slot in ipairs(slots) do displayIds[index] = slot.objectID end
+  for index, slot in ipairs(slots) do displayIds[index] = slot.key end
   local order = TabOrder.learn(displayIds, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst))
   if order and self.store:setDisplayOrder(order) and self.items then
     self:_build(self.items)

@@ -35,7 +35,7 @@ end
 function Prices.attach(items)
   local source = Prices.source()
   for _, item in ipairs(items or {}) do
-    if item.info then item.info.price = source == "live" and Prices.of(item.id) or nil end
+    if item.info then item.info.price = source == "live" and Prices.of(item.objectId or item.id) or nil end
   end
   return source
 end

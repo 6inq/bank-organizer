@@ -11,6 +11,7 @@ local ITEMS = {
   { 104, "Air rune" }, { 105, "Grimy guam" }, { 106, "Mystery thing" }, { 107, "Prayer potion (4)", { "Drink" } },
   { 108, "Rune scimitar", { "Wield" } },
   { 109, "Dragon dagger", { "Wield" } },
+  { 110, "Ushabti" },
 }
 
 local function memoryDb()
@@ -940,6 +941,52 @@ function T.no_arrow_while_the_bank_settles_after_a_move()
   local labels = 0
   for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed then labels = labels + 1 end end
   A.eq(labels, 0, "no stale MOVE label either")
+  PluginShutdown()
+end
+
+function T.identical_unstacked_items_each_get_their_own_slot_key()
+  boot({ bank = { 110, 102, 110, 110 } })
+  local items = Bank.readItems()
+  A.eq(items[1].id, 110); A.eq(items[1].objectId, 110)
+  A.truthy(items[3].id ~= 110 and items[4].id ~= items[3].id, "each Ushabti is told apart")
+  A.eq(Bank.realId(items[3].id), 110); A.eq(items[4].objectId, 110)
+  A.eq(items[3].name, "Ushabti")
+  local slots = Bank.scan()
+  local keys = {}
+  for _, slot in ipairs(slots) do if slot.objectID == 110 then keys[#keys + 1] = slot.key end end
+  A.eq(#keys, 3); A.truthy(keys[1] ~= keys[2] and keys[2] ~= keys[3], "on screen too")
+  PluginShutdown()
+end
+
+function T.a_move_next_to_identical_items_goes_through()
+  local env = boot({ bank = { 103, 108, 110, 109, 110, 110 }, tabSizes = { 2 } })
+  var.VarPlayer.BANKINSERT = { value = 0 }
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Drag Dragon dagger onto Tab 2", 1, true), text)
+  env.bank = { 103, 108, 109, 110, 110, 110 }
+  var.VarPlayer.BANK_TAB2.value = 3
+  settle(env)
+  text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, text)
+  A.eq(text:find("Dragon dagger", 1, true), nil, text)
+  tick(env)
+  local tints = 0
+  for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.fill then tints = tints + 1 end end
+  A.eq(tints, 6, "every Ushabti slot is tinted, not just one")
+  PluginShutdown()
+end
+
+function T.ignoring_one_ushabti_ignores_them_all()
+  local env = boot({ bank = { 110, 102, 110 } })
+  local added = {}
+  local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 110 } } } } }
+  function menu:Add(label, fn) added[#added + 1] = { label = label, fn = fn } end
+  env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
+  added[1].fn()
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  A.truthy(texts(panel(env)):find("(1)", 1, true), "only the coins are planned: " .. texts(panel(env)))
   PluginShutdown()
 end
 

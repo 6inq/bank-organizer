@@ -82,9 +82,9 @@ end
 local function signatureOf(slots, app, tint, marks)
   local parts = { tostring(tint), tostring(app.store:get("opacity")), tostring(app.assigning), stepKey(activeStep(app)) }
   for _, slot in ipairs(slots) do
-    local d = app:destinationOfItem(slot.objectID)
-    local mark = marks[slot.objectID]
-    parts[#parts + 1] = slot.objectID .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
+    local d = app:destinationOfItem(slot.key)
+    local mark = marks[slot.key]
+    parts[#parts + 1] = slot.key .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
       .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "")
   end
   for _, key in ipairs({ "move", "target", "line" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
@@ -154,7 +154,7 @@ function Overlay:render(app)
   local tint = app.store:get("tint") or app.assigning
   local marks = activeStep(app) and stepMarks(app.step) or {}
   local byId = {}
-  for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
+  for _, slot in ipairs(slots or {}) do byId[slot.key] = slot end
   local key = stepKey(activeStep(app))
   if key ~= self.lastStep then self.lastSeen, self.lastStep = {}, key end
   local fromID, toID = stepEnds(activeStep(app))
@@ -172,13 +172,13 @@ function Overlay:render(app)
   self.container, self.signature = container, signature
   local opacity = app.store:get("opacity")
   for _, slot in ipairs(slots or {}) do
-    local d = app:destinationOfItem(slot.objectID)
+    local d = app:destinationOfItem(slot.key)
     if tint and d then
       self:_rect(slot, withAlpha(app:destinationColour(d), opacity))
     elseif tint and app:isIgnored(slot.objectID) then
       self:_rect(slot, IGNORED_OUTLINE, 1)
     end
-    local mark = marks[slot.objectID]
+    local mark = marks[slot.key]
     if mark then
       local colour = app.store:colour(mark[2])
       self:_rect(slot, colour, 3)

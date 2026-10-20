@@ -11,7 +11,7 @@ function Blueprint.smart(mode)
 end
 
 local function entryFor(item, tag, d, rank, mode)
-  local entry = { slot = item.slot, id = item.id, name = item.name, quantity = item.quantity, tag = tag, destination = d, rank = rank }
+  local entry = { slot = item.slot, id = item.id, objectId = item.objectId or item.id, name = item.name, quantity = item.quantity, tag = tag, destination = d, rank = rank }
   entry.keys = Sorting.keys(entry, item.info, mode)
   return entry
 end
@@ -136,7 +136,7 @@ end
 
 function Blueprint.resolver(corrections)
   return function(item)
-    local corrected = corrections and corrections[item.id]
+    local corrected = corrections and corrections[item.objectId or item.id]
     if corrected and Tags.isValid(corrected) then return corrected end
     return Classify.classify(item.info) or Tags.FALLBACK
   end

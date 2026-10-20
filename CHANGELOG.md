@@ -9,6 +9,7 @@
 - **Infinity first, then your tabs, from the top down**: the guide first empties the infinity tab, starting with the topmost item, each dropped onto its tab's button (or + for a new tab). Once infinity is done, it sorts inside your tabs. The moves-left count follows that exact order.
 
 ### Fixed
+- Items that do not stack and share one name, such as filled Ushabti, confused the guide. Each slot is now told apart, so they are tinted, moved and checked one by one; ignoring one still ignores them all.
 - Right after a move, the old arrow flashed for a moment from the item's new spot. The arrow and MOVE marks now wait until the bank has settled, then show the next step.
 - The guide arrow started below the bank when the bank was scrolled down. It now uses the bank's scroll position, so it starts at the item you are moving.
 - Daggers, longswords, battleaxes, spears and other melee weapons count as melee when the game gives them no weapon category.

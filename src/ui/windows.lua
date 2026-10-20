@@ -99,7 +99,7 @@ function Windows.blueprint(app)
     window:AddText(string.format("Tab %d of %d: %d items", index, #tabs, #entries))
     local objects = {}
     for i, entry in ipairs(entries) do
-      objects[i] = { object = objectOf(entry.id), quantity = entry.quantity, tooltip = entry.name .. " (" .. Tags.label(entry.tag) .. ")" }
+      objects[i] = { object = objectOf(entry.objectId or entry.id), quantity = entry.quantity, tooltip = entry.name .. " (" .. Tags.label(entry.tag) .. ")" }
     end
     window:AddItemGrid(objects, { columns = GRID_COLUMNS, rows = math.max(1, math.ceil(#objects / GRID_COLUMNS)) })
   end)
