@@ -96,8 +96,7 @@ local function boot(opts)
   }
   for key in pairs(package.loaded) do if key:match("^src/") then package.loaded[key] = nil end end
   if env.tabSizes then
-    require("src/game/bank").TAB_VARS.sizes = { "T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9" }
-    for i = 1, 9 do var.VarPlayer["T" .. i] = { value = env.tabSizes[i] or 0 } end
+    for i = 2, 15 do var.VarPlayer["BANK_TAB" .. i] = { value = env.tabSizes[i - 1] or 0 } end
   end
   dofile("main.lua")
   env.events["Content:bank-organizer:content"]({ component = { kind = "content", width = 300, height = 800 } })
@@ -179,6 +178,21 @@ function T.menu_entry_only_while_assigning_and_on_bank_items()
   find(panel(env), "AddSimpleButton", "Assign Categories").args[2]()
   env.events["Menu:bank-organizer:menu"]({ miniMenu = { entries = { { componentData = { component = { interfaceID = 9 } } } }, Add = menu.Add } })
   A.eq(added, 0, "not a bank item")
+  PluginShutdown()
+end
+
+function T.uses_the_real_rs3_tab_variables()
+  local Bank = require("src/game/bank")
+  A.eq(#Bank.TAB_VARS.sizes, 14, "custom tabs 2-15"); A.eq(Bank.TAB_VARS.sizes[1], "BANK_TAB2")
+  A.eq(Bank.TAB_VARS.insertMode, "BANKINSERT")
+end
+
+function T.analyze_logs_the_bank_model()
+  local env = boot({ tabSizes = { 2 } })
+  local lines = {}
+  _G.log = function(line) lines[#lines + 1] = line end
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  A.truthy(lines[1]:find("slots=7 tab=1 insert=nil sizes=2,0,0,0,0,0,0,0,0,0,0,0,0,0 main=Abyssal whip tab1=Shark", 1, true), lines[1])
   PluginShutdown()
 end
 

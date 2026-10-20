@@ -66,8 +66,31 @@ function App:analyze()
   self.items, self.signature = items, signatureOf(items)
   self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
   self.status = App.STATUS.ANALYZED
+  self:_logDiagnostics(items)
   self:_notify()
   return true
+end
+
+-- One console line to confirm the bank model in game: tab sizes, view, mode and the first
+-- item of each section as the plugin splits them.
+function App:_logDiagnostics(items)
+  if not log then return end
+  local sizes = Bank.tabSizes()
+  local parts = { "[bank-organizer] slots=" .. #items, "tab=" .. tostring(Bank.currentTab()),
+    "insert=" .. tostring(Bank.insertMode()), "sizes=" .. (sizes and table.concat(sizes, ",") or "unreadable") }
+  if sizes then
+    local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+    for s = 0, #sizes do
+      local first = sections[s] and sections[s][1]
+      if first then parts[#parts + 1] = (s == 0 and "main" or ("tab" .. s)) .. "=" .. self:_name(first) end
+    end
+  end
+  log(table.concat(parts, " "))
+end
+
+function App:_name(itemID)
+  for _, item in ipairs(self.items or {}) do if item.id == itemID then return item.name end end
+  return tostring(itemID)
 end
 
 -- Layout, preset or correction changed: rebuild from the last scan.

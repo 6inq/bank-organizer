@@ -98,8 +98,14 @@ function Bank.searchActive()
   return mode ~= nil and mode ~= false and mode ~= 0
 end
 
+function Bank.currentTab()
+  return varValue("VarPlayer", "BANK_CURRENT_TAB")
+end
+
+-- RS3's first (main) tab shows every item, like OSRS's All items view. Quest Helper's bank
+-- filter relies on the same value (1) for "the main bank tab".
 function Bank.isAllItemsTab()
-  return varValue("VarPlayer", "BANK_CURRENT_TAB") == ALL_ITEMS_TAB
+  return Bank.currentTab() == ALL_ITEMS_TAB
 end
 
 function Bank.viewSignature()
@@ -111,17 +117,21 @@ function Bank.viewSignature()
   }, ":")
 end
 
--- Bank tab variables. RS3's names are only visible in game (`pan VarPlayer`), so they are
--- filled in from that dump. Until then tabSizes() returns nil and the guide pauses rather
--- than guessing which tab an item is in.
+-- Bank tab variables, from the client's VarPlayer list (`pan VarPlayer`):
+-- Tab 1 is the main tab; BANK_TAB2..BANK_TAB15 hold the item counts of the 14 custom tabs.
+-- BANKINSERT is non-zero in Insert mode. tabsFirst: custom-tab items sit before the main
+-- tab's in the bank container (as in OSRS); confirmed by the log line Analyze prints.
 Bank.TAB_VARS = {
   group = "VarPlayer",
-  sizes = {},             -- e.g. { "BANK_TAB_1", ..., "BANK_TAB_9" } once confirmed
-  insertMode = nil,       -- var name whose non-zero value means Insert mode
-  tabsFirst = true,       -- flat bank order: numbered tabs first, then Main (as in OSRS)
+  sizes = {
+    "BANK_TAB2", "BANK_TAB3", "BANK_TAB4", "BANK_TAB5", "BANK_TAB6", "BANK_TAB7", "BANK_TAB8",
+    "BANK_TAB9", "BANK_TAB10", "BANK_TAB11", "BANK_TAB12", "BANK_TAB13", "BANK_TAB14", "BANK_TAB15",
+  },
+  insertMode = "BANKINSERT",
+  tabsFirst = true,
 }
 
--- Item counts of the numbered tabs, or nil when they cannot be read.
+-- Item counts of the custom tabs, or nil when they cannot be read.
 function Bank.tabSizes()
   local vars = Bank.TAB_VARS
   if #vars.sizes == 0 then return nil end
@@ -162,7 +172,7 @@ function Bank.readItems()
 end
 
 -- Split container-ordered items into sections: [0] = Main, [1..n] = numbered tabs.
----@param sizes integer[] item counts of tabs 1..9
+---@param sizes integer[] item counts of the custom tabs, in order
 function Bank.sections(items, sizes, tabsFirst)
   local sections, cursor = { [0] = {} }, 1
   local function take(count, into)
