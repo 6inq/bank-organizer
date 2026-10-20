@@ -132,19 +132,27 @@ local function pinChoicesFor(app, d)
 end
 
 local function tabLayout(app, window, changed)
-  window:AddText({ text = "Pin a kind of item to a tab and everything of that kind goes there. Unpinned kinds go to the tab that already holds most of them; anything else stays in Tab 1 (infinity).", height = 64 })
+  window:AddText({ text = "Pin a kind of item to a tab and everything of that kind goes there; to move a kind, pick it in another tab's dropdown. Remove sends it back to Tab 1 (infinity). Move left / right swaps whole tabs; the guide then walks you through moving the items.", height = 96 })
   if not app:myTabs() then
     window:AddText("Press Analyze Bank first.")
     return
   end
-  for _, d in ipairs(app:destinationList()) do
+  local list = app:destinationList()
+  for _, d in ipairs(list) do
     window:AddTitle(app:destinationLabel(d))
+    if d > 0 then
+      window:AddSimpleButton("Move left", function() if app:moveMyTab(d, -1) then changed() end end)
+      window:AddSimpleButton("Move right", function() if app:moveMyTab(d, 1) then changed() end end, { inline = true })
+    end
     for _, tag in ipairs(Tags.LIST) do
       local home, pinned = app:tabHomeOf(tag.key)
       if home == d then
         window:AddText(tag.label .. (pinned and "  (pinned)" or "  (auto)"))
         if pinned then
           window:AddSimpleButton("Unpin", function() app.store:clearTabHome(tag.key); changed() end, { inline = true })
+        end
+        if d > 0 then
+          window:AddSimpleButton("Remove", function() if app.store:setTabHome(tag.key, 0) then changed() end end, { inline = true })
         end
       end
     end
@@ -154,6 +162,7 @@ local function tabLayout(app, window, changed)
     end))
   end
   window:AddSimpleButton("Unpin all", function() app.store:resetTabHomes(); changed() end)
+  window:AddSimpleButton("Keep my tab order", function() app:resetMyTabOrder(); changed() end, { inline = true })
 end
 
 -- One tab of your own layout: name, position, delete, and the tags it collects in order.

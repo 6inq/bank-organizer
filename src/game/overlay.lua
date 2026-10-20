@@ -36,7 +36,12 @@ end
 
 function Overlay:_label(slot, text, rgba)
   local label = self:_track(ui.Text.new(self.container))
-  label:SetPos(slot.x - 4, slot.y - LABEL_HEIGHT)
+  -- Above the slot, except on the top row where that would sit under the tab bar.
+  local y, top = slot.y - LABEL_HEIGHT, slot.y
+  local ok, gy = pcall(function() return slot.component.xyGlobal.y end)
+  if ok and type(gy) == "number" then top = gy - select(2, Bank.globalXY(self.container)) end
+  if top < LABEL_HEIGHT then y = slot.y + slot.height - LABEL_HEIGHT end
+  label:SetPos(slot.x - 4, y)
   label:SetSize(slot.width + 8, LABEL_HEIGHT)
   label.font = id.Font.MUSEO_SANS_15PT_REGULAR
   label.content = text
@@ -127,16 +132,18 @@ local function globalBox(slot, container)
   return { x = cx + slot.x, y = cy + slot.y, width = slot.width, height = slot.height }
 end
 
--- Where a to-tab / new-tab step should be dropped, as a global box: the tab's button when it
--- can be found (RS3 shows a tab's first item on its button), else just above the slots.
+-- Where a to-tab / new-tab step should be dropped, as a global box: the tab's button (infinity
+-- is the first button, the new-tab "+" the last), else just above the slots.
 function Overlay:_tabTarget(app, step, container)
-  local section = app.sections and app.sections[step.to]
-  local first = step.kind == "to-tab" and step.to > 0 and section and section[1]
-  local icon = first and Bank.tabIcon(container, first)
-  if icon then return icon end
-  if first and log and not self.loggedMissing then
+  local tabs = 0
+  for s in pairs(app.sections or {}) do if s > tabs then tabs = s end end
+  local buttons = Bank.tabButtons(container)
+  if step.kind == "to-tab" and buttons[step.to + 1] and #buttons >= tabs + 1 then return buttons[step.to + 1] end
+  if step.kind == "new-tab" and #buttons >= tabs + 2 then return buttons[#buttons] end
+  if log and not self.loggedMissing then
     self.loggedMissing = true
-    log("[bank-organizer] tab button for " .. app:tabName(step.to) .. " not found; pointing at the tab row")
+    log("[bank-organizer] tab button for " .. app:tabName(step.to) .. " not found (" .. #buttons
+      .. " buttons for " .. tabs .. " tabs); pointing at the tab row")
   end
   local cx, cy = Bank.globalXY(container)
   return { x = cx + container.width / 2 - 8, y = cy - TAB_ROW_GAP, width = 16, height = 16 }

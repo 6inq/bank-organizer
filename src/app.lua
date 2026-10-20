@@ -67,8 +67,10 @@ function App:_build(items)
   if self.store:get("scope") == "tabs" then
     local sizes = Bank.tabSizes()
     if sizes then
+      local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
       self.destinations, self.bySlot, self.tabCounts, self.autoHomes = Blueprint.buildFromTabs(
-        items, Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst), tagOf, self.store.tabHomes)
+        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder)
+      self:_trackOrder(sections)
       return true
     end
     self.status = App.STATUS.NEED_TABS
@@ -182,8 +184,40 @@ function App:tabHomeOf(tag)
   local list = self:destinationList()
   if pin and pin <= list[#list] then return pin, true end
   local home = self.autoHomes and self.autoHomes[tag]
-  if home then return home.section, false end
+  if home then return (self.positionOf and self.positionOf[home.section]) or home.section, false end
   return nil, false
+end
+
+-- My tabs order in use: positionOf[current tab] and sectionAt[position] (identity by default).
+function App:_trackOrder(sections)
+  self.tabTotal = 0
+  for s in pairs(sections) do if s > self.tabTotal then self.tabTotal = s end end
+  self.positionOf = Blueprint.orderFor(self.store.tabOrder, self.tabTotal)
+  self.sectionAt = {}
+  for s, position in pairs(self.positionOf) do self.sectionAt[position] = s end
+end
+
+-- My tabs: swap a tab with its neighbour (-1 left, +1 right). What each tab holds and any pins
+-- travel with it; the guide then moves the items across.
+function App:moveMyTab(d, direction)
+  local other, total = d + direction, self.tabTotal or 0
+  if not self:myTabs() or d < 1 or other < 1 or d > total or other > total then return false end
+  local order = {}
+  for position = 1, total do order[position] = self.sectionAt[position] end
+  order[d], order[other] = order[other], order[d]
+  local identity = true
+  for position, s in ipairs(order) do if s ~= position then identity = false end end
+  for tag, pin in pairs(self.store.tabHomes) do
+    if pin == d then self.store.tabHomes[tag] = other elseif pin == other then self.store.tabHomes[tag] = d end
+  end
+  self.store:setTabOrder(not identity and order or nil)
+  self:rebuild()
+  return true
+end
+
+function App:resetMyTabOrder()
+  self.store:setTabOrder(nil)
+  self:rebuild()
 end
 
 -- Colours: a layout tab takes the colour of its first tag's category; in My tabs the main
@@ -203,9 +237,10 @@ end
 function App:destinationLabel(d)
   if self:myTabs() then
     if d == 0 then return "Tab 1 (infinity): misc catch-all" end
-    local kinds = {}
-    for _, entry in ipairs(Blueprint.profile(self.tabCounts, d, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
-    return "Tab " .. (d + 1) .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
+    local kinds, from = {}, self.sectionAt and self.sectionAt[d] or d
+    for _, entry in ipairs(Blueprint.profile(self.tabCounts, from, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
+    local moved = from ~= d and (" (now Tab " .. (from + 1) .. ")") or ""
+    return "Tab " .. (d + 1) .. moved .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
   end
   local layout = self.store.layout
   local names = {}

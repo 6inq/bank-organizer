@@ -252,21 +252,51 @@ local function visit(collection, skip, fn, depth)
   return found
 end
 
--- A bank tab button shows the tab's first item. Finds the visible sprite outside the slot area
--- showing itemID and returns its absolute box, or nil.
-function Bank.tabIcon(container, itemID)
+local BUTTON_MIN, BUTTON_MAX = 20, 72 -- tab button size range, interface units
+local ROW_REACH = 80 -- how far above the slots the tab row may sit
+
+local function isShown(component)
+  local ok, shown = pcall(function()
+    if component.hidden then return false end
+    if component.visibleGlobal ~= nil then return component.visibleGlobal end
+    return component.visible ~= false
+  end)
+  return ok and shown
+end
+
+-- The bank's tab buttons, left to right (infinity first), as absolute boxes. Tab buttons can
+-- show any icon, so they are found by shape: the row of same-sized boxes just above the slots.
+function Bank.tabButtons(container)
   local host = Bank.lineHost(container)
-  local box
+  local cx, cy = Bank.globalXY(container)
+  local byColumn = {}
   visit(host, container, function(component)
-    local match = component.type == ui.ComponentType.SPRITE and component.associatedObjectID == itemID
-      and component.visible and not component.hidden
-    if match then
-      local x, y = Bank.globalXY(component)
-      box = { x = x, y = y, width = component.width, height = component.height }
+    local w, h = component.width or 0, component.height or 0
+    if w < BUTTON_MIN or w > BUTTON_MAX or h < BUTTON_MIN or h > BUTTON_MAX or not isShown(component) then return false end
+    local x, y = Bank.globalXY(component)
+    local inRow = y + h <= cy + 4 and y + h >= cy - ROW_REACH and x >= cx - 24 and x <= cx + (container.width or 0)
+    if inRow then
+      local column = math.floor(x / 8 + 0.5)
+      local best = byColumn[column]
+      if not best or w * h > best.width * best.height then
+        byColumn[column] = { x = x, y = y, width = w, height = h }
+      end
     end
-    return match
+    return false
   end, 0)
-  return box
+  -- Keep the most common width (the buttons), drop odd boxes like scroll arrows.
+  local widths, common, most = {}, nil, 0
+  for _, box in pairs(byColumn) do
+    local key = math.floor(box.width / 4 + 0.5)
+    widths[key] = (widths[key] or 0) + 1
+    if widths[key] > most then common, most = key, widths[key] end
+  end
+  local buttons = {}
+  for _, box in pairs(byColumn) do
+    if math.floor(box.width / 4 + 0.5) == common then buttons[#buttons + 1] = box end
+  end
+  table.sort(buttons, function(a, b) return a.x < b.x end)
+  return buttons
 end
 
 return Bank

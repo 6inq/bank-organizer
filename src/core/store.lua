@@ -52,6 +52,29 @@ local function sanitizeTabHomes(raw)
   return homes
 end
 
+-- My tabs order: position N takes the contents of current custom tab order[N].
+local function isOrder(list)
+  if type(list) ~= "table" then return false end
+  local seen = {}
+  for index = 1, #list do
+    local value = list[index]
+    if math.type(value) ~= "integer" or value < 1 or value > #list or seen[value] then return false end
+    seen[value] = true
+  end
+  return #list <= Store.MAX_SECTION
+end
+
+local function sanitizeOrder(raw)
+  if type(raw) ~= "table" then return nil end
+  local list = {}
+  for index = 1, Store.MAX_SECTION do
+    local value = tonumber(raw[index] or raw[tostring(index)])
+    if not value then break end
+    list[index] = math.floor(value)
+  end
+  return isOrder(list) and #list > 0 and list or nil
+end
+
 local function sanitizeColours(raw)
   local colours = {}
   for key, colour in pairs(type(raw) == "table" and raw or {}) do
@@ -71,6 +94,7 @@ function Store.new(db)
   self.corrections = sanitizeCorrections(raw.corrections)
   self.colours = sanitizeColours(raw.colours)
   self.tabHomes = sanitizeTabHomes(raw.tabHomes)
+  self.tabOrder = sanitizeOrder(raw.tabOrder)
   self.settings = {}
   local saved = type(raw.settings) == "table" and raw.settings or {}
   for name, spec in pairs(SETTINGS) do
@@ -85,7 +109,7 @@ function Store:save()
   for id, tag in pairs(self.corrections) do corrections[tostring(id)] = tag end
   local data = {
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections,
-    colours = self.colours, settings = self.settings, tabHomes = self.tabHomes,
+    colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, tabOrder = self.tabOrder,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
@@ -146,6 +170,14 @@ end
 function Store:resetTabHomes()
   self.tabHomes = {}
   self:save()
+end
+
+---@param order integer[]? nil restores your tabs' own order
+function Store:setTabOrder(order)
+  if order ~= nil and not isOrder(order) then return false end
+  self.tabOrder = order
+  self:save()
+  return true
 end
 
 -- Colour for a category key or a highlight key ("move", "target", "done").

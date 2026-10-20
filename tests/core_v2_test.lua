@@ -347,4 +347,17 @@ function T.blueprint_follows_a_custom_tab_order()
   A.list(ids(d[1]), { 2 }); A.list(ids(d[2]), { 1 }); A.list(ids(d[0]), { 3 })
 end
 
+function T.my_tabs_order_moves_whole_tabs()
+  local items = { item(1, 1, "Shark", { ops = ops("eat") }), item(2, 2, "Lobster", { ops = ops("eat") }),
+    item(3, 3, "Abyssal whip", { ops = ops("wield") }), item(4, 4, "Monkfish", { ops = ops("eat") }) }
+  local sections = { [0] = { 4 }, [1] = { 1, 2 }, [2] = { 3 } }
+  local d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), {}, { 2, 1 })
+  A.list(ids(d[1]), { 3 }, "the gear tab is now first")
+  A.list(ids(d[2]), { 2, 4, 1 }, "food moved right, and Monkfish follows the food tab")
+  d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), {}, { 1, 1 })
+  A.list(ids(d[1]), { 2, 4, 1 }, "a broken order is ignored")
+  d = Blueprint.buildFromTabs(items, sections, Blueprint.resolver({}), {}, { 2, 1, 3 })
+  A.list(ids(d[1]), { 2, 4, 1 }, "an order for a different number of tabs is ignored")
+end
+
 return T

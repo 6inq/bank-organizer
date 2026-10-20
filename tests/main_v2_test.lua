@@ -473,17 +473,29 @@ end
 -- Whip sits in custom tab 1 (RS3 Tab 2); the scimitar in infinity belongs with it.
 local TAB_BANK = { bank = { 103, 108, 102, 104 }, tabSizes = { 1 } }
 
+-- The tab row above the slots (container at 100,100): infinity, Tab 2, "+". Each button holds a
+-- smaller icon sprite, and a small scroll arrow sits nearby; only the buttons count.
+local function tabRow()
+  local row = {}
+  for i = 0, 2 do
+    local x = 100 + i * 48
+    row[#row + 1] = { xyGlobal = { x = x, y = 60 }, width = 40, height = 40, visible = true }
+    row[#row + 1] = { xyGlobal = { x = x + 4, y = 64 }, width = 32, height = 32, visible = true }
+  end
+  row[#row + 1] = { xyGlobal = { x = 480, y = 84 }, width = 16, height = 16, visible = true }
+  return row
+end
+
 function T.guide_line_points_at_the_tab_button()
-  local icon = { type = 5, associatedObjectID = 103, visible = true, hidden = false, xyGlobal = { x = 500, y = 10 }, width = 30, height = 30 }
-  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = { icon } })
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   A.truthy(texts(panel(env)):find("Drag Rune scimitar onto Tab 2", 1, true), texts(panel(env)))
   tick(env)
   local line = liveLine(env)
   A.truthy(line, "a line for a drag-to-tab step")
   A.eq(line.parent, env.host, "drawn above the slot area so it can reach the tab row")
-  -- From the scimitar's slot centre (100+40+18, 100+0+16) to the tab button centre (515, 25).
-  A.eq(line.x, 158); A.eq(line.y, 25); A.eq(line.w, 357); A.eq(line.h, 91); A.eq(line.invert, true)
+  -- From the scimitar's slot centre (100+40+18, 100+0+16) to the second button's centre (168, 80).
+  A.eq(line.x, 158); A.eq(line.y, 80); A.eq(line.w, 10); A.eq(line.h, 36); A.eq(line.invert, true)
   PluginShutdown()
 end
 
@@ -501,8 +513,7 @@ function T.guide_line_falls_back_to_the_tab_row()
 end
 
 function T.guide_line_stays_while_the_item_is_dragged()
-  local icon = { type = 5, associatedObjectID = 103, visible = true, hidden = false, xyGlobal = { x = 500, y = 10 }, width = 30, height = 30 }
-  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = { icon } })
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   tick(env)
   env.hidden[108] = true -- picked up: its slot is empty while dragging
@@ -518,6 +529,76 @@ end
 local function layoutWindow(env)
   find(panel(env), "AddSimpleButton", "Tab Layout").args[2]()
   return env.windows[#env.windows]
+end
+
+function T.top_row_labels_stay_inside_the_slot_area()
+  local env = boot({ tabSizes = {}, bank = { 102, 104 } })
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  tick(env)
+  for _, c in ipairs(env.created) do
+    if c.kind == "text" and not c.destroyed then A.truthy(c.y >= 0, c.content .. " label at y=" .. tostring(c.y)) end
+  end
+  PluginShutdown()
+end
+
+-- My tabs: Remove and reordering --------------------------------------------------------
+
+-- Tab 2: two gear items; Tab 3: Shark + Prayer potion; infinity: Coins.
+local MY_BANK = { bank = { 103, 108, 101, 107, 102 }, tabSizes = { 2, 2 } }
+
+local function myTabsLayout(env)
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  find(panel(env), "AddSimpleButton", "Tab Layout").args[2]()
+  return env.windows[#env.windows]
+end
+
+function T.my_tabs_remove_sends_an_auto_kind_to_infinity()
+  local env = boot(MY_BANK)
+  local w = myTabsLayout(env)
+  A.truthy(texts(w):find("Combat Gear  (auto)", 1, true))
+  find(w, "AddSimpleButton", "Remove").args[2]()
+  A.eq(Store.new(PersistentDB).tabHomes.gear, 0, "removed = pinned to infinity")
+  A.truthy(texts(panel(env)):find("Tab 1 (infinity): misc catch-all  [3]", 1, true), texts(panel(env)))
+  PluginShutdown()
+end
+
+function T.my_tabs_swap_two_tabs()
+  local env = boot(MY_BANK)
+  local w = myTabsLayout(env)
+  find(w, "AddSimpleButton", "Move right").args[2]() -- Tab 2 (gear) moves right
+  A.list(Store.new(PersistentDB).tabOrder, { 2, 1 }, "saved")
+  local text = texts(panel(env))
+  A.truthy(text:find("Tab 2 (now Tab 3): Food & Drink, Potions", 1, true), text)
+  A.truthy(text:find("Tab 3 (now Tab 2): Combat Gear", 1, true), text)
+  var.VarPlayer.BANK_CURRENT_TAB.value = 2 -- viewing Tab 2 (the gear)
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  A.truthy(texts(panel(env)):find("Drag Abyssal whip onto Tab 3", 1, true), texts(panel(env)))
+  find(env.windows[#env.windows], "AddSimpleButton", "Keep my tab order").args[2]()
+  A.eq(Store.new(PersistentDB).tabOrder, nil, "order reset")
+  PluginShutdown()
+end
+
+function T.swapping_back_clears_the_order_and_pins_follow_their_tab()
+  local env = boot(MY_BANK)
+  local w = myTabsLayout(env)
+  pick(find(w, "AddComboBox"), "runes") -- the first dropdown is infinity's
+  local store = Store.new(PersistentDB)
+  A.eq(store.tabHomes.runes, 0)
+  w = env.windows[#env.windows]
+  local combos = {}
+  for _, c in ipairs(w) do if c.method == "AddComboBox" then combos[#combos + 1] = c end end
+  pick(combos[2], "clues") -- pin clues to Tab 2
+  w = env.windows[#env.windows]
+  find(w, "AddSimpleButton", "Move right").args[2]()
+  A.eq(Store.new(PersistentDB).tabHomes.clues, 2, "pin moved with its tab")
+  w = env.windows[#env.windows]
+  local lefts = {}
+  for _, c in ipairs(w) do if c.method == "AddSimpleButton" and c.args[1] == "Move left" then lefts[#lefts + 1] = c end end
+  lefts[2].args[2]() -- Tab 3 moves back left
+  A.eq(Store.new(PersistentDB).tabOrder, nil, "back to your own order")
+  A.eq(Store.new(PersistentDB).tabHomes.clues, 1)
+  PluginShutdown()
 end
 
 function T.tab_layout_adds_renames_moves_and_deletes_tabs()

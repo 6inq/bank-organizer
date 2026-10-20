@@ -125,9 +125,26 @@ function Blueprint.profile(counts, s, limit)
 end
 
 ---@param sections table { [0..n] = { id, ... } } the bank as it is now
----@param pinned table? { [tag] = section } the player's own choices
+-- A tab order is usable when it rearranges exactly the custom tabs 1..last.
+function Blueprint.orderFor(order, last)
+  local positionOf = {}
+  for s = 1, last do positionOf[s] = s end
+  if type(order) ~= "table" or #order ~= last then return positionOf, false end
+  local seen = {}
+  for position, s in ipairs(order) do
+    if s < 1 or s > last or seen[s] then
+      for t = 1, last do positionOf[t] = t end
+      return positionOf, false
+    end
+    seen[s], positionOf[s] = true, position
+  end
+  return positionOf, true
+end
+
+---@param pinned table? { [tag] = position } the player's own choices
+---@param order integer[]? position N takes the contents of current custom tab order[N]
 ---@return table destinations keyed 0..n with identity = true, table entry by slot, table counts, table homes
-function Blueprint.buildFromTabs(items, sections, tagOf, pinned)
+function Blueprint.buildFromTabs(items, sections, tagOf, pinned, order)
   local sectionOf, last = {}, 0
   for s, ids in pairs(sections) do
     if s > last then last = s end
@@ -135,16 +152,18 @@ function Blueprint.buildFromTabs(items, sections, tagOf, pinned)
   end
   local counts, tags = tagCounts(items, sectionOf, tagOf)
   local homes = Blueprint.tagHomes(counts)
+  local positionOf = Blueprint.orderFor(order, last)
+  positionOf[0] = 0
   local destinations, bySlot = { identity = true }, {}
   for s = 0, last do destinations[s] = {} end
   for _, item in ipairs(items) do
     local tag, here = tags[item.id], sectionOf[item.id] or 0
     local pin = pinned and pinned[tag]
-    local d = here
+    local d = positionOf[here] or here
     if pin and pin <= last then
       d = pin
     elseif here == 0 and homes[tag] then
-      d = homes[tag].section
+      d = positionOf[homes[tag].section]
     end
     local primary, secondary = sortKey(tag, item.name)
     local entry = {
