@@ -20,7 +20,7 @@ local function addSetup(app)
   local store = app.store
   choose(app, "Organize", { { label = app.SCOPES.bank, key = "bank" }, { label = app.SCOPES.tabs, key = "tabs" } },
     store:get("scope"), function(scope) return store:set("scope", scope) end)
-  choose(app, "Sort inside tabs", Sorting.MODES, store:get("sort"), function(mode) return store:set("sort", mode) end)
+  choose(app, "Sort inside tabs", Sorting.modes(app:valueSource()), store:get("sort"), function(mode) return store:set("sort", mode) end)
   if store:get("scope") ~= "tabs" then
     choose(app, "Starting layout", { { label = Layout.PRESETS.main, key = "main" }, { label = Layout.PRESETS.ironman, key = "ironman" } },
       store.preset, function(preset) return store:setPreset(preset) end)

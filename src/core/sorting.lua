@@ -6,10 +6,30 @@ Sorting.MODES = {
   { key = "smart", label = "Smart (style, slot, tier)" },
   { key = "name", label = "Name" },
   { key = "id", label = "Item ID" },
-  { key = "value", label = "Value (highest first)" },
+  { key = "value", label = "Value: item value (highest first)" },
   { key = "keep", label = "Keep my order (only move between tabs)" },
 }
 Sorting.DEFAULT = "smart"
+
+Sorting.VALUE_LABELS = {
+  live = "Value: GE price (highest first)",
+  loading = "Value: item value until GE prices load",
+  none = "Value: item value (highest first)",
+}
+
+function Sorting.modes(priceSource)
+  local modes = {}
+  for index, entry in ipairs(Sorting.MODES) do
+    local label = entry.key == "value" and Sorting.VALUE_LABELS[priceSource] or entry.label
+    modes[index] = { key = entry.key, label = label }
+  end
+  return modes
+end
+
+function Sorting.worth(info)
+  if not info then return 0 end
+  return tonumber(info.price) or tonumber(info.cost) or 0
+end
 
 function Sorting.isMode(mode)
   for _, entry in ipairs(Sorting.MODES) do if entry.key == mode then return true end end
@@ -299,7 +319,7 @@ function Sorting.keys(entry, info, mode)
   local name = (entry.name or ""):lower()
   if mode == "id" then return { entry.rank, entry.id } end
   if mode == "name" then return { entry.rank, name, entry.id } end
-  if mode == "value" then return { -(tonumber(info and info.cost) or 0), name, entry.id } end
+  if mode == "value" then return { -Sorting.worth(info), name, entry.id } end
   local keys = { entry.rank }
   for _, key in ipairs(smartKeys(entry.tag, name, info or {})) do keys[#keys + 1] = key end
   keys[#keys + 1] = name

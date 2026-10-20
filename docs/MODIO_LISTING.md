@@ -48,7 +48,7 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <p><strong>Whole bank</strong> follows your <strong>Tab Layout</strong>. Add, delete, rename and reorder tabs, and choose which kinds of item each one holds and in what order. <strong>Copy my current tabs</strong> starts you from the bank you already have.</p>
 
 <h3>Sorted the way you would sort it</h3>
-<p>Inside each tab, <strong>Smart</strong> sorting groups gear by combat style (melee, ranged, magic, necromancy), then by slot (weapon, off-hand, head, body, legs and so on), best items first. Herblore is grouped by recipe chain, so every overload ingredient sits together, herb next to its unfinished potion and the potion it makes. Outfits stay together as sets, runes follow the game's order, potions keep their doses side by side, food goes by healing tier, teleports by type and charges, tools by skill, and clues by tier. Smart is the default. Prefer something simpler? Sort by <strong>Name</strong>, <strong>Item ID</strong> or <strong>Value</strong>, or choose <strong>Keep my order</strong> to only move items between tabs.</p>
+<p>Inside each tab, <strong>Smart</strong> sorting groups gear by combat style (melee, ranged, magic, necromancy), then by slot (weapon, off-hand, head, body, legs and so on), best items first. Herblore is grouped by recipe chain, so every overload ingredient sits together, herb next to its unfinished potion and the potion it makes. Outfits stay together as sets, runes follow the game's order, potions keep their doses side by side, food goes by healing tier, teleports by type and charges, tools by skill, and clues by tier. Smart is the default. Prefer something simpler? Sort by <strong>Name</strong>, <strong>Item ID</strong> or <strong>Value</strong> (live Grand Exchange prices, or the game's own item value for items the GE does not trade), or choose <strong>Keep my order</strong> to only move items between tabs.</p>
 
 <h3>Share your layout</h3>
 <p><strong>Share or Load a Setup</strong> turns your whole bank setup into one line of text. Post it anywhere, and anyone can paste it in to use your layout.</p>
@@ -76,10 +76,10 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 </ol>
 
 <h2>Fair play</h2>
-<p>Bank Organizer never moves, withdraws or clicks anything for you. It only reads the items your bank is already showing and draws on top. Every move is made by you. No internet access, no chat access, no tracking.</p>
+<p>Bank Organizer never moves, withdraws or clicks anything for you. It only reads the items your bank is already showing and draws on top. Every move is made by you. Bank Organizer itself has no internet access, no chat access and no tracking. Live GE prices come from the GE Price Library, which downloads them from the RuneScape Wiki prices API.</p>
 
 <h2>Requires</h2>
-<p><strong>PrettyUI</strong> (installed automatically as a dependency).</p>
+<p><strong>PrettyUI</strong> and the <strong>GE Price Library</strong> (both installed automatically as dependencies).</p>
 
 <p>Created by <strong>6ing</strong>. Feedback and bug reports are welcome in the comments.</p>
 ```

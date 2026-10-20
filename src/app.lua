@@ -4,6 +4,7 @@ local Guide = require("src/core/guide")
 local Verify = require("src/core/verify")
 local TabOrder = require("src/core/tab_order")
 local Bank = require("src/game/bank")
+local Prices = require("src/game/prices")
 local Overlay = require("src/game/overlay")
 
 local App = {}
@@ -67,6 +68,7 @@ function App:_build(allItems)
   end
   local tagOf = function(item) return self:tagOf(item) end
   local mode = self.store:get("sort")
+  if mode == "value" then self.priceSource = Prices.attach(items) end
   self.tabCounts, self.noTabs = nil, false
   local sizes = self:tabSizes()
   local sections = sizes and self:_displaySections(allItems, sizes)
@@ -496,7 +498,21 @@ function App.describe(step, app)
   return string.format("Swap %s with %s%s.", name, nameOf(app, step.swapWith), App.left(app))
 end
 
+function App:valueSource()
+  return self.priceSource or Prices.source()
+end
+
+function App:_watchPrices()
+  if self.store:get("sort") ~= "value" then return end
+  local source = Prices.source()
+  if source == self.priceSource then return end
+  self.priceSource = source
+  self:rebuild()
+end
+
 function App:tick()
+  local watched, watchErr = pcall(function() self:_watchPrices() end)
+  if not watched and log then log("[bank-organizer] prices failed: " .. tostring(watchErr)) end
   local container = Bank.slotsContainer()
   self.bankOpen = container ~= nil
   if not self.bankOpen then
