@@ -926,4 +926,21 @@ function T.infinity_is_emptied_top_down_before_tabs_are_sorted()
   A.eq(#seen - 2, Guide.remaining({ [0] = {}, [1] = { 5, 4, 3, 1 } }, destinations, Guide.INSERT), "count matches the sorting that follows")
 end
 
+function T.no_arrow_while_the_bank_settles_after_a_move()
+  local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 }, tabIcons = tabRow4() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  tick(env)
+  A.truthy(liveLine(env), "arrow for the dagger")
+  env.bank = { 103, 108, 109, 101, 107, 102 }
+  var.VarPlayer.BANK_TAB2.value = 3
+  tick(env)
+  A.eq(liveLine(env), nil, "no stale arrow while the move settles")
+  local labels = 0
+  for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed then labels = labels + 1 end end
+  A.eq(labels, 0, "no stale MOVE label either")
+  PluginShutdown()
+end
+
 return T

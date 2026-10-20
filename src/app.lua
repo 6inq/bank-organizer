@@ -387,7 +387,8 @@ function App:_tickGuide()
     self.step = nil
     return self:_setStatus(reason)
   end
-  if not self:_settled(sections) then return end
+  self.settling = not self:_settled(sections)
+  if self.settling then return end
   local mode = self:modeForGuide()
   self.focus, self.sections = focus, sections
   if self:_checkMove(items, sections) == "resync" then

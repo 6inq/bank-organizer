@@ -70,13 +70,17 @@ local function stepMarks(step)
   return marks
 end
 
+local function activeStep(app)
+  return app.guiding and not app.settling and app.step or nil
+end
+
 local function stepKey(step)
   if not step then return "" end
   return table.concat({ step.kind, tostring(step.id or step.move), tostring(step.to or step.before or step.after or step.swapWith) }, ":")
 end
 
 local function signatureOf(slots, app, tint, marks)
-  local parts = { tostring(tint), tostring(app.store:get("opacity")), tostring(app.assigning), stepKey(app.guiding and app.step) }
+  local parts = { tostring(tint), tostring(app.store:get("opacity")), tostring(app.assigning), stepKey(activeStep(app)) }
   for _, slot in ipairs(slots) do
     local d = app:destinationOfItem(slot.objectID)
     local mark = marks[slot.objectID]
@@ -122,7 +126,7 @@ local function targetKind(step)
 end
 
 function Overlay:_guideLine(app, container, byId)
-  local step = app.guiding and app.step
+  local step = activeStep(app)
   local fromID, toID = stepEnds(step)
   if not fromID then return end
   local from = byId[fromID] and globalBox(byId[fromID], container) or self.lastSeen[fromID]
@@ -148,12 +152,12 @@ function Overlay:render(app)
   if not container then return self:clear() end
   if container ~= self.container then self:clear() end
   local tint = app.store:get("tint") or app.assigning
-  local marks = app.guiding and stepMarks(app.step) or {}
+  local marks = activeStep(app) and stepMarks(app.step) or {}
   local byId = {}
   for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
-  local key = stepKey(app.guiding and app.step)
+  local key = stepKey(activeStep(app))
   if key ~= self.lastStep then self.lastSeen, self.lastStep = {}, key end
-  local fromID, toID = stepEnds(app.guiding and app.step)
+  local fromID, toID = stepEnds(activeStep(app))
   for _, itemID in ipairs({ fromID or false, toID or false }) do
     if itemID and byId[itemID] then self.lastSeen[itemID] = globalBox(byId[itemID], container) end
   end
