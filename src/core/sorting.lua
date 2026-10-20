@@ -186,6 +186,7 @@ end
 
 local function herbloreKeys(tag, name)
   local group, member = Sorting.chain(name)
+  if hasWord(name, "incense") then group, member = #CHAINS, indexIn(HERB_ORDER, name) end
   return { group, member, HERBLORE_STAGE[tag], -(Classify.dose(name) or 0), (name:gsub("%s*%(%d%)%s*$", "")) }
 end
 
@@ -202,8 +203,79 @@ function Sorting.groupHerblore(entries)
   end
 end
 
+local FOOD_ORDER = {
+  "shrimps", "anchovies", "sardine", "herring", "mackerel", "trout", "cod", "pike", "salmon", "tuna", "lobster",
+  "bass", "swordfish", "monkfish", "shark", "sea turtle", "cavefish", "manta ray", "rocktail", "sailfish",
+  "blue blubber jellyfish", "green blubber jellyfish", "jellyfish", "potato", "pie", "pizza", "cake", "stew",
+  "curry", "kebab", "wine", "beer", "ale",
+}
+
+local GROUPS = {
+  teleports = {
+    { "tablet", "teleport to house" }, { "amulet", "necklace", "ring", "bracelet", "pendant", "medallion", "glory" },
+    { "cape", "boots", "gloves", "hood", "shield", "armour" }, { "scroll", "seed", "journal", "book", "orb", "sheet", "disk" },
+  },
+  currency = { { "coins" }, { "token", "tokens" }, { "ticket", "tickets" } },
+  tools = {
+    { "pickaxe" }, { "hatchet", "axe", "chainaxe" },
+    { "fishing rod", "fly fishing rod", "harpoon", "net", "lobster pot", "rod-o-matic", "fishing" },
+    { "trap", "snare", "noose", "butterfly net", "jar", "whistle" },
+    { "secateurs", "rake", "seed dibber", "spade", "watering can", "trowel", "farming" },
+    { "hammer", "chisel", "needle", "knife", "saw", "mould", "glassblowing", "crafting", "smithing" },
+    { "tinderbox", "firelighter", "cinder" },
+    { "mattock", "soil box", "tetracompass", "brush", "auger", "archaeological", "archaeology" },
+    { "gizmo", "augmentor", "divine charge", "dissolver", "siphon", "separator", "junk refiner", "capacitor", "screener", "invention" },
+    { "urn", "enhancer" },
+    { "ritual", "ghostly ink", "candle", "skull" },
+    { "porter", "grace" },
+  },
+  containers = {
+    { "rune pouch", "pouch" }, { "ore box" }, { "wood box", "log basket" }, { "herb bag" }, { "gem bag" },
+    { "seed box", "seed bag" }, { "coal bag" }, { "tackle box" }, { "loot bag" },
+  },
+  summoning = { { "spirit shards" }, { "charm" }, { "pouch" }, { "scroll" }, { "contract" }, { "spirit" } },
+  ["xp-items"] = {
+    { "knowledge bomb" }, { "lamp" }, { "star" }, { "wildcard" }, { "protean" }, { "skilling pack", "portable" },
+    { "dummy", "dummies" }, { "catalyst", "silverhawk", "core" }, { "cleaner" },
+  },
+  seeds = { { "sapling" }, { "seed", "seeds" }, { "spore", "spores" } },
+  produce = { { "compost" }, { "supercompost" }, { "ultracompost" }, { "manure" }, { "patch bomb" } },
+  ["ammo-components"] = { { "arrowheads", "arrow tips", "tips" }, { "bolt tips" }, { "shaft", "headless" }, { "feather", "feathers" } },
+  clues = { { "easy" }, { "medium" }, { "hard" }, { "elite" }, { "master" } },
+}
+
+local function groupOf(name, groups)
+  for index, words in ipairs(groups) do
+    if anyWord(name, words) then return index end
+  end
+  return #groups + 1
+end
+
+local function portion(name)
+  if name:find("1/3", 1, true) or name:find("1/2", 1, true) then return 2 end
+  if name:find("2/3", 1, true) or name:find("half", 1, true) then return 1 end
+  return 0
+end
+
+local function family(name)
+  return (name:gsub("%s*%(%d+%)", ""):gsub("%s+%d+$", ""))
+end
+
+local function charges(name)
+  return tonumber(name:match("%((%d+)%)") or name:match("%s(%d+)$")) or 0
+end
+
 local function smartKeys(tag, name, info)
   if Sorting.isHerblore(tag) then return herbloreKeys(tag, name) end
+  local groups = GROUPS[tag]
+  if tag == "food" then return { indexIn(FOOD_ORDER, name), portion(name), -(tonumber(info.cost) or 0) } end
+  if tag == "teleports" then return { groupOf(name, groups), family(name), -charges(name) } end
+  if tag == "ammo-components" then return { indexIn(TIERS, name), groupOf(name, groups), 0 } end
+  if tag == "clues" then
+    return { groupOf(name, groups), groupOf(name, { { "scroll" }, { "casket" }, { "puzzle", "box" } }), 0 }
+  end
+  if tag == "boss-loot" or tag == "alch" then return { 0, "", -(tonumber(info.cost) or 0) } end
+  if groups then return { groupOf(name, groups), "", 0 } end
   local category = info.category or ""
   local value = -(tonumber(info.cost) or 0)
   if tag == "gear" or tag == "ammunition" then

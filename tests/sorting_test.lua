@@ -142,4 +142,47 @@ function T.chains_pick_the_most_specific_name()
   A.truthy(Sorting.chain("Mystery") > group, "unknown items come after every chain")
 end
 
+local function smartOrder(tag, names, extra)
+  local items = {}
+  for slot, name in ipairs(names) do
+    local info = { name = name, ops = {} }
+    for k, v in pairs(extra and extra[name] or {}) do info[k] = v end
+    items[slot] = { slot = slot, id = slot, name = name, quantity = 1, info = info }
+  end
+  local layout = Layout.new("main")
+  local d = Blueprint.build(items, layout, function() return tag end, "smart")
+  local out = {}
+  for index, entry in ipairs(d[layout:destinationOf(tag)]) do out[index] = entry.name end
+  return out
+end
+
+function T.smart_covers_every_kind()
+  A.list(smartOrder("food", { "Shark", "1/3 blue blubber jellyfish", "Lobster", "Blue blubber jellyfish", "Rocktail" }),
+    { "Lobster", "Shark", "Rocktail", "Blue blubber jellyfish", "1/3 blue blubber jellyfish" }, "food by healing tier, full portions first")
+  A.list(smartOrder("teleports", { "Ring of kinship", "Varrock tablet", "Desert amulet 2", "Desert amulet 4", "Karamja gloves 4" }),
+    { "Varrock tablet", "Desert amulet 4", "Desert amulet 2", "Ring of kinship", "Karamja gloves 4" }, "tablets, jewellery by charges, then gear")
+  A.list(smartOrder("tools", { "Spade", "Augmented crystal hammer", "Fishing rod-o-matic", "Dragon pickaxe", "Augmentor" }),
+    { "Dragon pickaxe", "Fishing rod-o-matic", "Spade", "Augmented crystal hammer", "Augmentor" }, "tools by skill")
+  A.list(smartOrder("summoning", { "Binding contract (gargoyle)", "Pack yak pouch", "Gold charm", "Spirit shards", "Spirit sapphire" }),
+    { "Spirit shards", "Gold charm", "Pack yak pouch", "Binding contract (gargoyle)", "Spirit sapphire" }, "summoning by kind")
+  A.list(smartOrder("clues", { "Casket (elite)", "Clue scroll (easy)", "Clue scroll (elite)", "Reward casket (master)" }),
+    { "Clue scroll (easy)", "Clue scroll (elite)", "Casket (elite)", "Reward casket (master)" }, "clues by tier")
+  A.list(smartOrder("boss-loot", { "Cheap drop", "Big drop" }, { ["Big drop"] = { cost = 900 }, ["Cheap drop"] = { cost = 5 } }),
+    { "Big drop", "Cheap drop" }, "loot by value")
+end
+
+function T.incense_stays_out_of_the_potion_chains()
+  local group = Sorting.chain("Clean irit")
+  A.truthy(select(1, Sorting.chain("Irit incense sticks")) == group, "the herb name alone would match")
+  local items = {
+    { slot = 1, id = 1, name = "Irit incense sticks", quantity = 1, info = { name = "Irit incense sticks", ops = {} } },
+    { slot = 2, id = 2, name = "Super attack (4)", quantity = 1, info = { name = "Super attack (4)", ops = {} } },
+  }
+  local tags = { "herblore-other", "potions" }
+  local layout = Layout.new("main")
+  layout:moveTag("herblore-other", 2)
+  local d = Blueprint.build(items, layout, function(item) return tags[item.id] end, "smart")
+  A.eq(d[2][1].name, "Super attack (4)", "incense after the potions")
+end
+
 return T

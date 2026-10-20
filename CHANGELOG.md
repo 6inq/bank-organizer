@@ -4,6 +4,8 @@
 ### New
 - **Sort inside tabs**:
   - **Smart** groups gear by combat style (melee, ranged, magic, necromancy), then slot (weapon, off-hand, head, body, legs, hands, feet, cape, neck, ring, ammo, pocket), most valuable first. Herblore is grouped by recipe chain: everything that goes into overloads sits together (irit, super attack, avantoe, extreme attack, and so on up to the overload), then the prayer and restore chain, brews, antifires and more, each herb next to its unfinished potion and the potion it makes. Outfits stay together as sets, runes follow the game's order, potions keep their doses together, and resources sort by material and tier.
+  - Every other kind has its own smart order too: food by healing tier with full portions first, teleports as tablets then jewellery (most charges first) then gear, tools by skill, containers, summoning (shards, charms, pouches, scrolls, contracts), MTX & XP boosts, seeds, compost, ammo components by tier, clues by tier, and boss loot by value.
+  - **Smart is the default** for everyone, including existing setups.
   - Also **Name**, **Item ID**, or **Keep my order**, which only moves items between tabs and leaves each tab's order alone.
 - **Starting from no tabs**: in My tabs with nothing but the infinity tab, the guide follows your Tab Layout and shows which item to drop on the **+** button to start each new tab.
 - **Sidebar** reorganised into setup, actions, status and your tabs, with the sort choice up front.
@@ -16,6 +18,7 @@
   - Follows the bank as you scroll. If the item to move is scrolled out of view, a short arrow at the top or bottom edge shows which way to scroll.
   - Drawn above the bank so the tab row is never clipped.
 - **Tab buttons**: found by walking the bank window the documented way, so the arrow reaches the right tab and the + button.
+- Ground mud and miasma runes count as herblore secondaries, not runes.
 - **Colour settings** are named by kind of item (Combat Gear, Herblore) instead of tab number.
 
 ## 1.2.0 (2026-10-20)

@@ -191,6 +191,7 @@ function Classify.classify(info)
   if name == "coins" or has(name, " token") or name:match("tickets?$") then return "currency" end
   if has(name, "clue scroll") or has(name, "casket") or has(name, "puzzle box") or has(name, "scroll box") then return "clues" end
   if has(name, "override") or category:match("^COSMETIC") then return "cosmetics" end
+  if name:sub(1, 7) == "ground " then return "secondaries" end
   if name:match(" rune$") or name:match(" runes$") then return "runes" end
   if anyOp(ops, { "rub", "break" }) or anyOpContains(ops, "teleport") or has(name, "teleport") or has(name, "lodestone") then
     return "teleports"

@@ -164,6 +164,8 @@ local realCases = {
   { real("Platinum stone spirit", "MINING_STONE_SPIRIT"), "raw-resources" },
   { real("Primal ore box", "MINING_OREBOX"), "containers" },
   { real("Pirate spell sheet", "", { "braindeath-teleport" }), "teleports" },
+  { real("Ground mud runes", ""), "secondaries", "ground runes are a herblore ingredient" },
+  { real("Ground miasma rune", ""), "secondaries" },
 }
 
 function T.classifier_real_bank_cases()
