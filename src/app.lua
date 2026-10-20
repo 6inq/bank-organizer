@@ -493,9 +493,6 @@ function App.describe(step, app)
     return string.format("Drag %s onto %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "insert" then
     local anchor = step.before and ("before " .. nameOf(app, step.before)) or ("after " .. nameOf(app, step.after))
-    if step.from and step.from ~= step.section then
-      return string.format("Drag %s into %s, %s%s.", name, app:tabName(step.section, step.destination), anchor, App.left(app))
-    end
     return string.format("Insert %s %s%s.", name, anchor, App.left(app))
   end
   return string.format("Swap %s with %s%s.", name, nameOf(app, step.swapWith), App.left(app))

@@ -664,9 +664,7 @@ function T.focused_guide_only_drags_from_the_viewed_tab()
   local step = Guide.next(sections, destinations, Guide.INSERT, 2)
   A.eq(step, nil, "nothing to do in tab 2; item 2 must be dragged from infinity")
   step = Guide.next(sections, destinations, Guide.INSERT, 0)
-  A.eq(step.kind, "insert"); A.eq(step.move, 2); A.eq(step.section, 1); A.eq(step.after, 1); A.eq(step.from, 0)
-  step = Guide.next(sections, destinations, Guide.SWAP, 0)
-  A.eq(step.kind, "to-tab", "swap mode drops onto the tab button"); A.eq(step.id, 2); A.eq(step.to, 1)
+  A.eq(step.kind, "to-tab"); A.eq(step.id, 2); A.eq(step.to, 1)
 end
 
 function T.no_tabs_yet_starts_tabs_from_the_plus_button()
@@ -906,19 +904,26 @@ function T.share_and_load_a_setup_from_the_sidebar()
   PluginShutdown()
 end
 
-function T.infinity_view_drags_items_straight_into_place_top_down()
-  local env = boot({ bank = { 103, 108, 109, 101 }, tabSizes = { 2 } })
-  pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
-  local text = texts(panel(env))
-  A.truthy(text:find("Drag Dragon dagger into Tab 2, before Rune scimitar", 1, true), "straight into its spot: " .. text)
-  env.bank = { 103, 109, 108, 101 }
-  var.VarPlayer.BANK_TAB2.value = 3
-  settle(env)
-  text = texts(panel(env))
-  A.eq(text:find("Not quite", 1, true), nil, text)
-  A.eq(text:find("Dragon dagger", 1, true), nil, "placed in one move: " .. text)
-  PluginShutdown()
+function T.infinity_is_emptied_top_down_before_tabs_are_sorted()
+  local destinations = { identity = true, [0] = {}, [1] = { { id = 1 }, { id = 3 }, { id = 4 }, { id = 5 } } }
+  local sections = { [0] = { 3, 1 }, [1] = { 5, 4 } }
+  local seen = {}
+  for _ = 1, 10 do
+    local step = Guide.next(sections, destinations, Guide.INSERT)
+    if not step then break end
+    seen[#seen + 1] = step.kind .. ":" .. tostring(step.id or step.move)
+    if step.kind == "to-tab" then
+      for index, id in ipairs(sections[0]) do if id == step.id then table.remove(sections[0], index); break end end
+      table.insert(sections[1], step.id)
+    else
+      sections[1] = Order.apply(sections[1], step)
+    end
+  end
+  A.eq(seen[1], "to-tab:3", "the top item of infinity first, onto the tab button")
+  A.eq(seen[2], "to-tab:1", "then the next one down")
+  for index = 3, #seen do A.eq(seen[index]:sub(1, 7), "insert:", "only then sorting inside the tab") end
+  A.list(sections[1], { 1, 3, 4, 5 })
+  A.eq(#seen - 2, Guide.remaining({ [0] = {}, [1] = { 5, 4, 3, 1 } }, destinations, Guide.INSERT), "count matches the sorting that follows")
 end
 
 return T
