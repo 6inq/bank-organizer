@@ -72,6 +72,7 @@ local function boot(opts)
       return { kind = "host" }
     end },
     Rectangle = { new = function() return component("rect") end }, Text = { new = function() return component("text") end },
+    Line = { new = function() return component("line") end },
   }
   _G.id = { Component = { BANK__BANK_INV = 1001, TOPLEVEL_V2__PLUGIN_BUILD_LAYER_TOP = 7 }, Interface = { BANK = 517 },
     Font = { MUSEO_SANS_15PT_REGULAR = 1 }, Category = { FromID = function() return nil end } }
@@ -79,6 +80,7 @@ local function boot(opts)
     VarPlayer = { BANK_CURRENT_TAB = { value = env.allItems and 1 or 3 } },
     VarClient = { BANK_SEARCHMODE_CLIENT = { value = 0 } },
   }
+  _G.Vector4 = { new = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end }
   _G.PersistentDB = memoryDb()
   local function recorder(list)
     return setmetatable({ Destroy = function() end }, { __index = function(_, method)
@@ -303,6 +305,29 @@ function T.analyze_exports_item_facts_with_their_tab()
   A.truthy(lines[2]:find("eat", 1, true), "right-click ops")
   A.truthy(lines[2]:find("\t1\tfood$"), "in custom tab 1, classified as food")
   PluginShutdown()
+end
+
+function T.guide_line_joins_move_item_and_target()
+  -- All items already in Main in the wrong order: the first step is an in-tab insert.
+  local env = boot({ tabSizes = {}, bank = { 102, 104 } })
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  tick(env)
+  local line
+  for _, c in ipairs(env.created) do if c.kind == "line" and not c.destroyed then line = c end end
+  A.truthy(line, "a line is drawn")
+  A.eq(line.colour.r, 1); A.eq(line.colour.g, 1); A.eq(line.colour.b, 1)
+  A.eq(env.created[#env.created], line, "drawn last, on top")
+  PluginShutdown()
+end
+
+function T.line_box_covers_both_directions()
+  local Overlay = require("src/game/overlay")
+  local x, y, w, h, invert = Overlay.lineBox(10, 10, 50, 90)
+  A.eq(x, 10); A.eq(y, 10); A.eq(w, 40); A.eq(h, 80); A.eq(invert, false)
+  x, y, w, h, invert = Overlay.lineBox(50, 10, 10, 90)
+  A.eq(x, 10); A.eq(y, 10); A.eq(invert, true, "down-left needs invert")
+  x, y, w, h = Overlay.lineBox(10, 20, 90, 20)
+  A.eq(h, 1, "flat line keeps a 1px height")
 end
 
 return T

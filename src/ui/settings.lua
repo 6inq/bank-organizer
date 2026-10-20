@@ -7,7 +7,7 @@ local Settings = {}
 local EVENT_ID = "bank-organizer:settings"
 local view
 
-local HIGHLIGHTS = { { "move", "Item to move (MOVE)" }, { "target", "Drop target" } }
+local HIGHLIGHTS = { { "move", "Item to move (MOVE)" }, { "target", "Drop target" }, { "line", "Guide line" } }
 
 local function addColour(store, app, key, label)
   view:AddText(label)

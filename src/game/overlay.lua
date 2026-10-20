@@ -42,6 +42,39 @@ function Overlay:_label(slot, text, rgba)
   return label
 end
 
+local function unpackColour(rgba)
+  return ((rgba >> 24) & 0xFF) / 255, ((rgba >> 16) & 0xFF) / 255, ((rgba >> 8) & 0xFF) / 255, (rgba & 0xFF) / 255
+end
+
+-- A ui.Line runs from its top-left to its bottom-right (invert: bottom-left to top-right),
+-- so a line between two points is the box spanning them.
+function Overlay.lineBox(x1, y1, x2, y2)
+  local x, y = math.min(x1, x2), math.min(y1, y2)
+  local invert = (x2 - x1) * (y2 - y1) < 0
+  return x, y, math.max(1, math.abs(x2 - x1)), math.max(1, math.abs(y2 - y1)), invert
+end
+
+function Overlay:_line(from, to, rgba)
+  local x1, y1 = from.x + from.width / 2, from.y + from.height / 2
+  local x2, y2 = to.x + to.width / 2, to.y + to.height / 2
+  local x, y, w, h, invert = Overlay.lineBox(x1, y1, x2, y2)
+  local line = self:_track(ui.Line.new(self.container))
+  line:SetPos(x, y)
+  line:SetSize(w, h)
+  line.invert = invert
+  line.width = 3
+  line.colour = Vector4.new(unpackColour(rgba))
+  return line
+end
+
+-- The item the guide says to move, and the item it should land next to (insert/swap steps).
+local function stepEnds(step)
+  if not step then return nil end
+  if step.kind == "insert" then return step.move, step.before or step.after end
+  if step.kind == "swap" then return step.move, step.swapWith end
+  return nil
+end
+
 -- What the guide step highlights: { [itemID] = { text, colourKey } }.
 local function stepMarks(step)
   if not step then return {} end
@@ -67,7 +100,7 @@ local function signatureOf(slots, app, tint, marks)
     parts[#parts + 1] = slot.objectID .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
       .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "")
   end
-  for _, key in ipairs({ "move", "target" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
+  for _, key in ipairs({ "move", "target", "line" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
   return table.concat(parts, "|")
 end
 
@@ -83,6 +116,8 @@ function Overlay:render(app)
   self:clear()
   self.container, self.signature = container, signature
   local opacity = app.store:get("opacity")
+  local byId = {}
+  for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
   for _, slot in ipairs(slots or {}) do
     local d = app:destinationOfItem(slot.objectID)
     if tint and d then self:_rect(slot, withAlpha(app:destinationColour(d), opacity)) end
@@ -92,6 +127,11 @@ function Overlay:render(app)
       self:_rect(slot, colour, 3)
       self:_label(slot, mark[1], colour)
     end
+  end
+  -- Drawn last so it sits on top of the tints and highlights.
+  local fromID, toID = stepEnds(app.guiding and app.step)
+  if fromID and byId[fromID] and byId[toID] then
+    self:_line(byId[fromID], byId[toID], app.store:colour("line"))
   end
   return true
 end
