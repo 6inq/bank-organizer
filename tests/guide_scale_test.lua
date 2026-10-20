@@ -14,7 +14,11 @@ local function apply(sections, step)
     sections[step.to] = sections[step.to] or {}
     table.insert(sections[step.to], step.id)
   elseif step.kind == "insert" then
-    sections[step.section] = Order.apply(sections[step.section], step)
+    if step.from and step.from ~= step.section then
+      local from = sections[step.from]
+      for index, id in ipairs(from) do if id == step.move then table.remove(from, index); break end end
+    end
+    sections[step.section] = Order.apply(sections[step.section] or {}, step)
   else
     local list = sections[step.section]
     local a, b

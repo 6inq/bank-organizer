@@ -92,6 +92,8 @@ end
 function Verify.apply(sections, step)
   local out = Verify.copy(sections)
   if step.kind == "insert" then
+    local s, index = where(out, step.move)
+    if s and s ~= step.section then table.remove(out[s], index) end
     out[step.section] = Order.apply(out[step.section] or {}, step)
   elseif step.kind == "swap" then
     local sa, ia = where(out, step.move)

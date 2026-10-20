@@ -6,6 +6,12 @@
   - Prices load in the background, so the sidebar and the guide never wait for them. Until they arrive, Value sorts by item value, and once they do the blueprint is rebuilt once by GE price.
   - The sort choice says which is in use: **Value: GE price**, **Value: item value until GE prices load**, or **Value: item value** when GE prices are unavailable or price fetching is turned off.
   - Prices come from the **GE Price Library**, now installed automatically as a dependency. It downloads them from the RuneScape Wiki prices API; Bank Organizer itself still has no internet access.
+- **The guide works from the top down**: the next item is always the topmost one that needs moving.
+- **Drag straight into place**: in the infinity view, an item going to another tab is dragged straight to its spot in that tab's section ("Drag Dragon dagger into Tab 2, before Rune scimitar"), so it never needs a second move. The tab button (or +) is still used for a tab with nothing in it yet, in swap mode, and when you are viewing a single tab.
+
+### Fixed
+- The guide arrow started below the bank when the bank was scrolled down. It now uses the bank's scroll position, so it starts at the item you are moving.
+- Daggers, longswords, battleaxes, spears and other melee weapons count as melee when the game gives them no weapon category.
 
 ## 1.3.0 (2026-10-20)
 ### New

@@ -244,7 +244,11 @@ local function apply(sections, step)
     table.insert(sections[step.to], step.id)
     for s = #sections, 1, -1 do if #sections[s] == 0 and s == #sections then sections[s] = nil end end
   elseif step.kind == "insert" then
-    sections[step.section] = Order.apply(sections[step.section], step)
+    if step.from and step.from ~= step.section then
+      local from = sections[step.from]
+      for index, id in ipairs(from) do if id == step.move then table.remove(from, index); break end end
+    end
+    sections[step.section] = Order.apply(sections[step.section] or {}, step)
   elseif step.kind == "swap" then
     local list = sections[step.section]
     local a, b

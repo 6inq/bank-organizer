@@ -85,19 +85,39 @@ function Guide.swapCount(current, target)
   return n - cycles
 end
 
-local function crossMove(sections, destinations, map, focus)
+local function direct(mode, focus)
+  return mode ~= Guide.SWAP and (focus == nil or focus == 0)
+end
+
+local function crossMove(sections, destinations, map, focus, mode, targets)
   local where = locate(sections)
+  local tabs = tabCount(sections)
+  local best
   for d = 0, lastDestination(destinations) do
     local section = map[d]
     for _, entry in ipairs(section and destinations[d] or {}) do
       local here = where[entry.id]
-      if here and here.section ~= section and (focus == nil or here.section == focus) then
-        local kind = section > tabCount(sections) and "new-tab" or "to-tab"
-        return { kind = kind, id = entry.id, from = here.section, to = section, destination = d }
+      local reachable = section and section <= tabs + 1
+      if here and reachable and here.section ~= section and (focus == nil or here.section == focus) then
+        if not direct(mode, focus) and focus == nil then
+          if not best then best = { here = here, entry = entry, section = section, d = d } end
+        elseif not best or here.section < best.here.section
+          or (here.section == best.here.section and here.index < best.here.index) then
+          best = { here = here, entry = entry, section = section, d = d }
+        end
       end
     end
   end
-  return nil
+  if not best then return nil end
+  if direct(mode, focus) and best.section <= tabs then
+    local anchor = Order.anchorFor(sections[best.section] or {}, targets[best.section], best.entry.id)
+    if anchor then
+      return { kind = "insert", section = best.section, move = best.entry.id, before = anchor.before, after = anchor.after,
+        from = best.here.section, to = best.section, destination = best.d }
+    end
+  end
+  local kind = best.section > tabs and "new-tab" or "to-tab"
+  return { kind = kind, id = best.entry.id, from = best.here.section, to = best.section, destination = best.d }
 end
 
 local function orderMove(current, target, mode, s)
@@ -128,7 +148,7 @@ end
 function Guide.next(sections, destinations, mode, focus)
   sections = onlyPlanned(sections, destinations)
   local targets, map = Guide.targetSections(destinations)
-  local cross = crossMove(sections, destinations, map, focus)
+  local cross = crossMove(sections, destinations, map, focus, mode, targets)
   if cross then return cross, "moving" end
   local order = {}
   for s in pairs(targets) do
@@ -142,9 +162,31 @@ function Guide.next(sections, destinations, mode, focus)
   return nil, "done"
 end
 
+local function directRemaining(sections, targets, map, destinations, focus)
+  local where, total = locate(sections), 0
+  local targetSectionOf = {}
+  for dest, section in pairs(map) do
+    for _, entry in ipairs(destinations[dest] or {}) do targetSectionOf[entry.id] = section end
+  end
+  for id, here in pairs(where) do
+    local target = targetSectionOf[id]
+    if target and target ~= here.section and (focus == nil or here.section == focus) then total = total + 1 end
+  end
+  for s, target in pairs(targets) do
+    if focus == nil or s == focus then
+      local inPlace = {}
+      for _, id in ipairs(sections[s] or {}) do if targetSectionOf[id] == s then inPlace[#inPlace + 1] = id end end
+      local move = Order.nextMove(inPlace, target)
+      total = total + (move and move.remaining or 0)
+    end
+  end
+  return total
+end
+
 function Guide.remaining(sections, destinations, mode, focus)
   sections = onlyPlanned(sections, destinations)
   local targets, map = Guide.targetSections(destinations)
+  if direct(mode, focus) then return directRemaining(sections, targets, map, destinations, focus) end
   local where, total = locate(sections), 0
   local after, targetSectionOf = {}, {}
   for s in pairs(targets) do after[s] = {} end

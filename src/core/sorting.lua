@@ -81,7 +81,8 @@ local STYLE_WORDS = {
     "chinchompa", "elven", "quiver" } },
   { 1, { "plate", "full helm", "torva", "bandos", "malevolent", "masterwork", "kyzaj", "scimitar", "sword",
     "whip", "scourge", "mace", "maul", "claws", "defender", "dharok", "verac", "torag", "guthan", "tassets",
-    "chestplate", "greaves", "gauntlets", "cuirass", "warpriest", "trials" } },
+    "chestplate", "greaves", "gauntlets", "cuirass", "warpriest", "trials", "dagger", "longsword", "battleaxe",
+    "warhammer", "halberd", "spear", "hasta", "rapier", "khopesh", "flail", "scythe", "claw" } },
 }
 
 local SLOT_NAMES = { "main hand", "off hand", "head", "body", "legs", "hands", "feet", "cape", "neck", "ring", "ammo", "pocket", "other" }

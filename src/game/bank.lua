@@ -209,6 +209,12 @@ function Bank._resetCache()
   infoCache = {}
 end
 
+function Bank.scroll(container)
+  local ok, x, y = pcall(function() return container.scrollX, container.scrollY end)
+  if ok then return tonumber(x) or 0, tonumber(y) or 0 end
+  return 0, 0
+end
+
 function Bank.globalXY(component)
   local ok, x, y = pcall(function()
     local xy = component.xyGlobal

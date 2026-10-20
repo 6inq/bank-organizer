@@ -43,7 +43,10 @@ function Order.nextMove(currentIDs, targetIDs, skipped)
 
   local moveIndex
   for i = 1, #ids do
-    if not inLis[i] and (moveIndex == nil or ranks[i] < ranks[moveIndex]) then moveIndex = i end
+    if not inLis[i] then
+      moveIndex = i
+      break
+    end
   end
 
   local beforeIndex
@@ -56,9 +59,27 @@ function Order.nextMove(currentIDs, targetIDs, skipped)
   if beforeIndex then
     return { move = ids[moveIndex], before = ids[beforeIndex], remaining = remaining }
   end
-  local lastIndex = #ids
-  if lastIndex == moveIndex then lastIndex = lastIndex - 1 end
+  local lastIndex
+  for i = 1, #ids do if inLis[i] then lastIndex = i end end
   return { move = ids[moveIndex], after = ids[lastIndex], remaining = remaining }
+end
+
+function Order.anchorFor(currentIDs, targetIDs, itemID)
+  local rank
+  for index, id in ipairs(targetIDs or {}) do if id == itemID then rank = index break end end
+  if not rank then return nil end
+  local ids, ranks = rankedSequence(currentIDs or {}, targetIDs, { [itemID] = true })
+  local inLis = lisIndexes(ranks)
+  local before, after
+  for i = 1, #ids do
+    if inLis[i] then
+      if ranks[i] > rank and (before == nil or ranks[i] < ranks[before]) then before = i end
+      if ranks[i] < rank and (after == nil or ranks[i] > ranks[after]) then after = i end
+    end
+  end
+  if before then return { before = ids[before] } end
+  if after then return { after = ids[after] } end
+  return nil
 end
 
 function Order.apply(currentIDs, move)

@@ -49,7 +49,11 @@ local function boot(opts)
     for i, id in ipairs(env.bank) do slots[i] = { obj = { id = id }, count = 1 } end
     return { isValid = true, GetSlots = function() return slots end }
   end }
-  local container = { visibleGlobal = true, width = 400, height = 600, xyGlobal = { x = 100, y = 100 } }
+  local container = setmetatable({ visibleGlobal = true, width = 400, height = 600, xyGlobal = { x = 100, y = 100 } },
+    { __index = function(_, key)
+      if key == "scrollY" then return env.scroll or 0 end
+      if key == "scrollX" then return 0 end
+    end })
   env.layer = { kind = "layer", xyGlobal = { x = 0, y = 0 } }
   local function bankStatic(staticID)
     if staticID == 0 then return container end
@@ -61,7 +65,7 @@ local function boot(opts)
       for index, shown in ipairs(env.display or {}) do if shown == id then position = index end end
       local x, y = ((position - 1) % 8) * 40, ((position - 1) // 8) * 40
       if not env.hidden[id] and fn({ type = 5, associatedObjectID = id, visible = true, hidden = false, x = x, y = y,
-        xyGlobal = { x = 100 + x, y = 100 + y - (env.scroll or 0) },
+        xyGlobal = { x = 100 + x, y = 100 + y },
         width = 36, height = 32, associatedObjectQuantity = 1, interfaceID = 517 }) then return end
     end
   end
@@ -499,6 +503,7 @@ end
 
 function T.guide_line_points_at_the_tab_button()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   A.truthy(texts(panel(env)):find("Drag Rune scimitar onto Tab 2", 1, true), texts(panel(env)))
   tick(env)
@@ -515,6 +520,7 @@ end
 
 function T.guide_line_falls_back_to_the_tab_row()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   local lines = {}
   _G.log = function(text) lines[#lines + 1] = text end
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
@@ -528,6 +534,7 @@ end
 
 function T.guide_line_stays_while_the_item_is_dragged()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   tick(env)
   env.hidden[108] = true
@@ -657,7 +664,9 @@ function T.focused_guide_only_drags_from_the_viewed_tab()
   local step = Guide.next(sections, destinations, Guide.INSERT, 2)
   A.eq(step, nil, "nothing to do in tab 2; item 2 must be dragged from infinity")
   step = Guide.next(sections, destinations, Guide.INSERT, 0)
-  A.eq(step.kind, "to-tab"); A.eq(step.id, 2); A.eq(step.to, 1)
+  A.eq(step.kind, "insert"); A.eq(step.move, 2); A.eq(step.section, 1); A.eq(step.after, 1); A.eq(step.from, 0)
+  step = Guide.next(sections, destinations, Guide.SWAP, 0)
+  A.eq(step.kind, "to-tab", "swap mode drops onto the tab button"); A.eq(step.id, 2); A.eq(step.to, 1)
 end
 
 function T.no_tabs_yet_starts_tabs_from_the_plus_button()
@@ -686,6 +695,7 @@ end
 
 function T.arrow_follows_the_bank_when_it_scrolls()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   tick(env)
   A.eq(liveLine(env).y, 100, "starts at the scimitar")
@@ -698,6 +708,7 @@ end
 
 function T.offscreen_item_gets_a_scroll_pointer_instead_of_a_line()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   env.scroll = 300
   tick(env)
@@ -812,6 +823,7 @@ end
 
 function T.a_right_move_is_not_judged_while_the_game_is_mid_update()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   local text = texts(panel(env))
@@ -829,6 +841,7 @@ end
 
 function T.a_right_move_is_accepted_when_the_games_tab_sizes_never_catch_up()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   env.bank = { 103, 108, 109, 101, 107, 102 }
@@ -853,6 +866,7 @@ end
 
 function T.tabs_shown_in_a_different_order_than_stored()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 }, tabIcons = tabRow4() })
+  var.VarPlayer.BANKINSERT = { value = 0 }
   env.display = { 109, 102, 101, 107, 103, 108 }
   pick(comboWith(panel(env), "tabs"), "tabs")
   tick(env)
@@ -889,6 +903,21 @@ function T.share_and_load_a_setup_from_the_sidebar()
   A.truthy(texts(env.windows[#env.windows]):find("Loaded a setup with 1 tab after infinity", 1, true))
   local store = Store.new(PersistentDB)
   A.eq(store:get("scope"), "tabs"); A.eq(store:get("sort"), "name"); A.eq(store.layout.names[1], "Weapons")
+  PluginShutdown()
+end
+
+function T.infinity_view_drags_items_straight_into_place_top_down()
+  local env = boot({ bank = { 103, 108, 109, 101 }, tabSizes = { 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Drag Dragon dagger into Tab 2, before Rune scimitar", 1, true), "straight into its spot: " .. text)
+  env.bank = { 103, 109, 108, 101 }
+  var.VarPlayer.BANK_TAB2.value = 3
+  settle(env)
+  text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, text)
+  A.eq(text:find("Dragon dagger", 1, true), nil, "placed in one move: " .. text)
   PluginShutdown()
 end
 

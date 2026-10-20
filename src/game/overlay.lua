@@ -34,10 +34,9 @@ end
 
 function Overlay:_label(slot, text, rgba)
   local label = self:_track(ui.Text.new(self.container))
-  local y, top = slot.y - LABEL_HEIGHT, slot.y
-  local ok, gy = pcall(function() return slot.component.xyGlobal.y end)
-  if ok and type(gy) == "number" then top = gy - select(2, Bank.globalXY(self.container)) end
-  if top < LABEL_HEIGHT then y = slot.y + slot.height - LABEL_HEIGHT end
+  local y = slot.y - LABEL_HEIGHT
+  local _, scrolled = Bank.scroll(self.container)
+  if slot.y - scrolled < LABEL_HEIGHT then y = slot.y + slot.height - LABEL_HEIGHT end
   label:SetPos(slot.x - 4, y)
   label:SetSize(slot.width + 8, LABEL_HEIGHT)
   label.font = id.Font.MUSEO_SANS_15PT_REGULAR
@@ -89,13 +88,9 @@ local function signatureOf(slots, app, tint, marks)
 end
 
 local function globalBox(slot, container)
-  local ok, box = pcall(function()
-    local xy = slot.component.xyGlobal
-    return { x = xy.x, y = xy.y, width = slot.width, height = slot.height }
-  end)
-  if ok and box then return box end
   local cx, cy = Bank.globalXY(container)
-  return { x = cx + slot.x, y = cy + slot.y, width = slot.width, height = slot.height }
+  local sx, sy = Bank.scroll(container)
+  return { x = cx + slot.x - sx, y = cy + slot.y - sy, width = slot.width, height = slot.height }
 end
 
 function Overlay:_buttons(container, tabs)
