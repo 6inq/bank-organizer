@@ -1,141 +1,131 @@
--- Persistent tags and settings. The db is injectable for tests.
-local Categories = require("src/core/categories")
+-- Persistent state: preset, tab layout, your category corrections and settings. Pure; the
+-- db is injectable for tests and defaults to the client's PersistentDB.
+local Tags = require("src/core/tags")
+local Layout = require("src/core/layout")
 
 local Store = {}
 Store.__index = Store
 
-Store.TAGS_KEY = "bank-organizer:tags"
-Store.SETTINGS_KEY = "bank-organizer:settings"
+Store.KEY = "bank-organizer:v2"
 
-local DEFAULTS = {
-  sortMode = "id",
-  overlays = true,
-  filter = "all",
-  highlightUntagged = false,
-  tagging = false,
-  opacity = 0.35,
+local DEFAULT_COLOURS = {}
+for _, category in ipairs(Tags.CATEGORIES) do DEFAULT_COLOURS[category.key] = category.colour end
+Store.HIGHLIGHT_DEFAULTS = { move = 0x3CE03CFF, target = 0xF2C94CFF, done = 0x3CE03C55 }
+
+local function isBool(v) return type(v) == "boolean" end
+local function isColour(v) return type(v) == "number" and v == math.floor(v) and v >= 0 and v <= 0xFFFFFFFF end
+
+local SETTINGS = {
+  tint = { default = true, valid = isBool },
+  opacity = { default = 0.35, valid = function(v) return type(v) == "number" and v >= 0 and v <= 1 end },
+  mode = { default = "insert", valid = function(v) return v == "insert" or v == "swap" end },
 }
 
-local VALIDATORS = {
-  sortMode = function(v) return v == "id" or v == "name" end,
-  overlays = function(v) return type(v) == "boolean" end,
-  filter = function(v) return v == "all" or Categories.isValid(v) end,
-  highlightUntagged = function(v) return type(v) == "boolean" end,
-  tagging = function(v) return type(v) == "boolean" end,
-  opacity = function(v) return type(v) == "number" and v >= 0 and v <= 1 end,
-}
-
--- Accept integral floats: structured data may round-trip numbers as floats.
-local function isColour(v)
-  return type(v) == "number" and v == math.floor(v) and v >= 0 and v <= 0xFFFFFFFF
-end
-
--- Highlight colours the player can change, alongside the category colours.
-Store.HIGHLIGHT_DEFAULTS = { move = 0x3CE03CFF, target = 0xF2C94CFF, dim = 0x000000AA }
--- "untagged" has no default: the outline follows each item's category colour until set.
-Store.UNTAGGED = "untagged"
-
-local function isColourKey(key)
-  return Categories.isValid(key) or Store.HIGHLIGHT_DEFAULTS[key] ~= nil or key == Store.UNTAGGED
-end
-
-local function readTable(db, key)
-  if db == nil then return {} end
-  local ok, value = pcall(db.GetStructuredData, db, key)
+local function read(db)
+  if not db then return {} end
+  local ok, value = pcall(db.GetStructuredData, db, Store.KEY)
   if ok and type(value) == "table" then return value end
   return {}
 end
 
-local function sanitizeTags(raw)
-  local tags = {}
-  for id, key in pairs(raw) do
+local function sanitizeCorrections(raw)
+  local corrections = {}
+  for id, tag in pairs(type(raw) == "table" and raw or {}) do
     local numeric = tonumber(id)
-    if numeric and Categories.isValid(key) then tags[tostring(math.floor(numeric))] = key end
+    if numeric and Tags.isValid(tag) then corrections[math.floor(numeric)] = tag end
   end
-  return tags
+  return corrections
 end
 
-local function sanitizeSettings(raw)
-  local settings = {}
-  for name, default in pairs(DEFAULTS) do
-    local value = raw[name]
-    if VALIDATORS[name](value) then settings[name] = value else settings[name] = default end
+local function sanitizeColours(raw)
+  local colours = {}
+  for key, colour in pairs(type(raw) == "table" and raw or {}) do
+    if (Tags.categoryByKey[key] or Store.HIGHLIGHT_DEFAULTS[key]) and isColour(colour) then
+      colours[key] = math.floor(colour)
+    end
   end
-  settings.colours = {}
-  for key, colour in pairs(type(raw.colours) == "table" and raw.colours or {}) do
-    if isColourKey(key) and isColour(colour) then settings.colours[key] = math.floor(colour) end
-  end
-  return settings
+  return colours
 end
 
----@param db table? defaults to the global PersistentDB
 function Store.new(db)
   local self = setmetatable({}, Store)
   self.db = db or rawget(_G, "PersistentDB")
-  self.tags = sanitizeTags(readTable(self.db, Store.TAGS_KEY))
-  self.settings = sanitizeSettings(readTable(self.db, Store.SETTINGS_KEY))
+  local raw = read(self.db)
+  self.preset = Layout.PRESETS[raw.preset] and raw.preset or "main"
+  self.layout = Layout.new(self.preset, raw.layout)
+  self.corrections = sanitizeCorrections(raw.corrections)
+  self.colours = sanitizeColours(raw.colours)
+  self.settings = {}
+  local saved = type(raw.settings) == "table" and raw.settings or {}
+  for name, spec in pairs(SETTINGS) do
+    if spec.valid(saved[name]) then self.settings[name] = saved[name] else self.settings[name] = spec.default end
+  end
   return self
 end
 
-function Store:_save(key, value)
-  if self.db == nil then return end
-  local ok, err = pcall(self.db.SetStructuredData, self.db, key, value)
+function Store:save()
+  if not self.db then return end
+  local corrections = {}
+  for id, tag in pairs(self.corrections) do corrections[tostring(id)] = tag end
+  local data = {
+    preset = self.preset, layout = self.layout:serialize(), corrections = corrections,
+    colours = self.colours, settings = self.settings,
+  }
+  local ok, err = pcall(self.db.SetStructuredData, self.db, Store.KEY, data)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
 end
 
-function Store:getTag(objectID)
-  return self.tags[tostring(objectID)]
-end
-
-function Store:setTag(objectID, key)
-  if not Categories.isValid(key) then return false end
-  self.tags[tostring(objectID)] = key
-  self:_save(Store.TAGS_KEY, self.tags)
-  return true
-end
-
-function Store:clearTag(objectID)
-  self.tags[tostring(objectID)] = nil
-  self:_save(Store.TAGS_KEY, self.tags)
-end
-
-function Store:clearAllTags()
-  self.tags = {}
-  self:_save(Store.TAGS_KEY, self.tags)
-end
-
-function Store:get(name)
-  return self.settings[name]
-end
+function Store:get(name) return self.settings[name] end
 
 function Store:set(name, value)
-  local validate = VALIDATORS[name]
-  if not validate or not validate(value) then return false end
+  local spec = SETTINGS[name]
+  if not spec or not spec.valid(value) then return false end
   self.settings[name] = value
-  self:_save(Store.SETTINGS_KEY, self.settings)
+  self:save()
   return true
 end
 
--- Custom colour, else the default. Returns nil only for an unset "untagged" outline.
-function Store:colour(key)
-  local custom = self.settings.colours[key]
-  if custom then return custom end
-  if key == Store.UNTAGGED then return nil end
-  if Store.HIGHLIGHT_DEFAULTS[key] then return Store.HIGHLIGHT_DEFAULTS[key] end
-  local entry = Categories.byKey[key] or Categories.byKey[Categories.DEFAULT]
-  return entry.colour
+-- Switching preset restores that preset's default layout (Bank Architect behaviour).
+function Store:setPreset(preset)
+  if not Layout.PRESETS[preset] then return false end
+  self.preset = preset
+  self.layout = Layout.new(preset)
+  self:save()
+  return true
 end
 
-function Store:resetColours()
-  self.settings.colours = {}
-  self:_save(Store.SETTINGS_KEY, self.settings)
+function Store:correct(itemID, tag)
+  if not Tags.isValid(tag) then return false end
+  self.corrections[itemID] = tag
+  self:save()
+  return true
+end
+
+function Store:clearCorrection(itemID)
+  self.corrections[itemID] = nil
+  self:save()
+end
+
+function Store:resetCorrections()
+  self.corrections = {}
+  self:save()
+end
+
+-- Colour for a category key or a highlight key ("move", "target", "done").
+function Store:colour(key)
+  return self.colours[key] or DEFAULT_COLOURS[key] or Store.HIGHLIGHT_DEFAULTS[key] or 0xFFFFFFFF
 end
 
 function Store:setColour(key, colour)
-  if not isColourKey(key) or not isColour(colour) then return false end
-  self.settings.colours[key] = colour
-  self:_save(Store.SETTINGS_KEY, self.settings)
+  if not (Tags.categoryByKey[key] or Store.HIGHLIGHT_DEFAULTS[key]) or not isColour(colour) then return false end
+  self.colours[key] = math.floor(colour)
+  self:save()
   return true
+end
+
+function Store:resetColours()
+  self.colours = {}
+  self:save()
 end
 
 return Store

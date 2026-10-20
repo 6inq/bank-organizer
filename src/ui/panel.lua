@@ -1,68 +1,85 @@
--- Ribbon panel: how-to steps, the Start/Stop Organizing button and live status.
+-- Sidebar (ribbon panel), laid out like Bank Architect's: preset chooser, then
+-- Analyze Bank, Open Blueprint, Sorting Guide, Assign Categories, Tab Layout, and the legend.
+local Tags = require("src/core/tags")
+local Layout = require("src/core/layout")
+local Windows = require("src/ui/windows")
+
 local Panel = {}
 
 local EVENT_ID = "bank-organizer:content"
 local LISTENER = "panel"
-local view
+local parent, view
 
-Panel.START_LABEL = "Start Organizing"
-Panel.STOP_LABEL = "Stop Organizing"
-Panel.STEPS = {
-  "1. Open your bank.",
-  "2. Enable the plugin.",
-  "3. Go through the settings (gear icon) and set everything how you want it.",
-  "4. Click Start Organizing.",
-}
-
-local function setContent(label, text)
-  if label then pcall(function() label.content = text end) end
+local function onSelected(handler)
+  return function(_, entryID, _, eventType)
+    if eventType ~= nil and eventType ~= ui.SelectionChangeEvent.SELECTED then return end
+    if entryID ~= nil then handler(entryID) end
+  end
 end
 
-local function addSteps(target)
-  target:AddTitle("How to use")
-  for _, step in ipairs(Panel.STEPS) do target:AddText({ text = step, height = 40 }) end
-  target:AddText({ text = "To change settings, click Stop Organizing first.", height = 40 })
+local function addPreset(app)
+  view:AddComboBox({
+    entries = { { label = Layout.PRESETS.main, id = "main" }, { label = Layout.PRESETS.ironman, id = "ironman" } },
+    selectedID = app.store.preset,
+    onChange = onSelected(function(preset)
+      if preset ~= app.store.preset and app.store:setPreset(preset) then app:rebuild() end
+    end),
+  })
 end
 
-local function addControls(target, app)
-  local toggle = target:AddFancyButton(Panel.START_LABEL, function() app:toggleOrganizing() end)
-  local skip = target:AddSimpleButton("Skip item", function() app:skipCurrent() end)
-  local status = target:AddText({ text = app.status, height = 48 })
-  local hint = target:AddText({ text = app.hint, height = 48 })
-  app:onChange(LISTENER, function(state)
-    pcall(toggle.SetText, toggle, state.organizing and Panel.STOP_LABEL or Panel.START_LABEL)
-    pcall(skip.SetDisabled, skip, not state.organizing)
-    setContent(status, state.status)
-    setContent(hint, state.hint)
+local function addActions(app)
+  view:AddFancyButton("Analyze Bank", function() app:analyze() end)
+  view:AddSimpleButton("Open Blueprint", function() Windows.blueprint(app) end)
+  view:AddSimpleButton(app.guiding and "Stop Sorting Guide" or "Sorting Guide", function()
+    if app.guiding then app:stopGuide() else app:startGuide() end
   end)
+  view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
+    app:setAssigning(not app.assigning)
+  end)
+  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end)
 end
 
-local function mount(parent, app)
-  Panel.destroy(app)
-  view = prettyui.SimpleView.new(parent, { width = parent.width, height = parent.height })
+local function addLegend(app)
+  view:AddTitle("Legend")
+  for d = 0, Tags.DESTINATIONS - 1 do
+    local count = app.destinations and #app.destinations[d] or 0
+    local label = view:AddText({ text = app:destinationLabel(d) .. (app.destinations and ("  [" .. count .. "]") or ""), height = 36 })
+    if label then pcall(function() label.rgba = app:destinationColour(d) end) end
+  end
+end
+
+local function build(app)
   view:AddTitle("Bank Organizer")
   view:AddText("by 6ing")
-  addSteps(view)
-  view:AddDivider()
-  addControls(view, app)
+  addPreset(app)
+  addActions(app)
+  view:AddText({ text = app.status, height = 56 })
+  if app.assigning then
+    view:AddText({ text = "Right-click any bank item and choose Assign category to correct it.", height = 40 })
+  end
+  addLegend(app)
+end
+
+local function render(app)
+  if not parent then return end
+  if view then pcall(view.Destroy, view) end
+  view = prettyui.SimpleView.new(parent, { width = parent.width, height = parent.height })
+  local ok, err = pcall(build, app)
+  if not ok and log then log("[bank-organizer] panel failed: " .. tostring(err)) end
 end
 
 function Panel.start(app)
   Event.ContentLayerReady.Subscribe(EVENT_ID, function(event)
-    local ok, err = pcall(mount, event.component, app)
-    if not ok and log then log("[bank-organizer] panel failed: " .. tostring(err)) end
+    parent = event.component
+    app:onChange(LISTENER, function() render(app) end)
   end)
-end
-
-function Panel.destroy(app)
-  if app then app:onChange(LISTENER, nil) end
-  if view then pcall(view.Destroy, view) end
-  view = nil
 end
 
 function Panel.stop(app)
   pcall(Event.ContentLayerReady.Unsubscribe, EVENT_ID)
-  Panel.destroy(app)
+  if app then app:onChange(LISTENER, nil) end
+  if view then pcall(view.Destroy, view) end
+  view, parent = nil, nil
 end
 
 return Panel

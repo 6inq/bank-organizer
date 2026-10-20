@@ -4,6 +4,7 @@ local App = require("src/app")
 local Tagging = require("src/game/tagging")
 local Panel = require("src/ui/panel")
 local Settings = require("src/ui/settings")
+local Windows = require("src/ui/windows")
 
 local store = Store.new()
 local app = App.new(store)
@@ -15,12 +16,13 @@ function PluginShutdown()
   stopped = true
   Tagging.stop()
   Panel.stop(app)
-  Settings.stop(app)
+  Settings.stop()
+  Windows.closeAll()
   app:stop()
 end
 
 app:start()
-Tagging.start(store, function() app:invalidate() end, function() return app.organizing end)
+Tagging.start(app, function(itemID) Windows.picker(app, itemID) end)
 Panel.start(app)
 Settings.start(store, app)
 

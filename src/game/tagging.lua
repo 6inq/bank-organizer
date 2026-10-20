@@ -1,13 +1,16 @@
--- Adds a "Bank Organizer >" submenu to right-click menus on bank items.
-local Categories = require("src/core/categories")
+-- Assign Categories: while it is on, right-clicking a bank item offers
+-- "Assign category (Bank Organizer)", which opens a small picker for that item.
+-- Uses the game's own MiniMenu:Add, so it works with any PrettyUI version. It only records
+-- your choice locally; it performs no bank action.
+local Tags = require("src/core/tags")
 
 local Tagging = {}
 
 local EVENT_ID = "bank-organizer:menu"
-local SUBMENU_LABEL = "Bank Organizer"
+Tagging.LABEL = "Assign category (Bank Organizer)"
 
--- Returns the object id of the bank item the menu was opened on, if any.
-local function bankObjectID(miniMenu)
+-- The bank item the menu was opened on: id and name, or nil.
+function Tagging.bankItem(miniMenu)
   local ok, found = pcall(function()
     local bankInterface = id.Interface.BANK
     for _, entry in ipairs(miniMenu.entries) do
@@ -15,7 +18,7 @@ local function bankObjectID(miniMenu)
       local component = data and data.component
       if component and component.interfaceID == bankInterface
         and component.associatedObjectID and component.associatedObjectID >= 0 then
-        return component.associatedObjectID
+        return { id = component.associatedObjectID }
       end
     end
     return nil
@@ -24,41 +27,30 @@ local function bankObjectID(miniMenu)
   return nil
 end
 
-local function buildChildren(objectID, store, onChange)
-  local children = {}
-  for _, category in ipairs(Categories.list) do
-    children[#children + 1] = {
-      label = "Set: " .. category.label,
-      action = function() store:setTag(objectID, category.key); onChange() end,
-    }
+-- Entries for the picker: automatic first, then every tag grouped by category.
+function Tagging.choices()
+  local list = { { label = "Use automatic classification", id = "auto" } }
+  for _, tag in ipairs(Tags.LIST) do
+    local category = Tags.categoryByKey[tag.category]
+    list[#list + 1] = { label = tag.label .. "  (" .. category.main .. ")", id = tag.key }
   end
-  if store:getTag(objectID) then
-    children[#children + 1] = {
-      label = "Clear tag",
-      action = function() store:clearTag(objectID); onChange() end,
-    }
-  end
-  return children
+  return list
 end
 
----@param store table Store instance
----@param onChange fun() called after a tag changes
----@param isLocked fun(): boolean tags cannot change while organizing
-function Tagging.start(store, onChange, isLocked)
+---@param app table App (assigning flag, store, rebuild)
+---@param openPicker fun(itemID: integer) shows the picker window
+function Tagging.start(app, openPicker)
   Event.MiniMenuReady.Subscribe(EVENT_ID, function(event)
-    if not store:get("tagging") or (isLocked and isLocked()) then return end
-    local miniMenu = event and event.miniMenu
-    if miniMenu == nil then return end
-    local objectID = bankObjectID(miniMenu)
-    if objectID == nil then return end
-    local ok, err = pcall(prettyui.MiniMenu.AddSubmenu, miniMenu, SUBMENU_LABEL,
-      buildChildren(objectID, store, onChange))
-    if not ok and log then log("[bank-organizer] submenu failed: " .. tostring(err)) end
+    if not app.assigning then return end
+    local menu = event and event.miniMenu
+    local item = menu and Tagging.bankItem(menu)
+    if not item then return end
+    pcall(menu.Add, menu, Tagging.LABEL, function() openPicker(item.id) end)
   end)
 end
 
 function Tagging.stop()
-  Event.MiniMenuReady.Unsubscribe(EVENT_ID)
+  pcall(Event.MiniMenuReady.Unsubscribe, EVENT_ID)
 end
 
 return Tagging

@@ -3,9 +3,6 @@ local Order = require("src/core/order")
 
 local T = {}
 
-local function item(objectID, category, name)
-  return { objectID = objectID, category = category, name = name or ("item" .. objectID) }
-end
 
 -- Applies nextMove until done; returns final list and number of moves.
 local function solve(current, target, skipped, limit)
@@ -19,30 +16,6 @@ local function solve(current, target, skipped, limit)
   end
   return current, moves, first
 end
-
--- buildTarget
-function T.target_category_order()
-  local ids = Order.buildTarget({ item(1, "misc"), item(2, "food"), item(3, "teleports"), item(4, "combat") })
-  A.list(ids, { 3, 4, 2, 1 })
-end
-
-function T.target_id_sort_within_category()
-  A.list(Order.buildTarget({ item(30, "food"), item(10, "food"), item(20, "food") }, "id"), { 10, 20, 30 })
-end
-
-function T.target_name_sort_with_tiebreak()
-  local ids = Order.buildTarget({
-    item(5, "food", "Shark"), item(3, "food", "anchovies"), item(9, "food", "Shark"), item(1, "food", "Rocktail"),
-  }, "name")
-  A.list(ids, { 3, 1, 5, 9 })
-end
-
-function T.target_unknown_category_sorts_as_misc()
-  A.list(Order.buildTarget({ item(1, "bogus"), item(2, "currency"), item(3, "misc") }), { 2, 1, 3 })
-end
-
-function T.target_empty() A.list(Order.buildTarget({}), {}) end
-function T.target_nil() A.list(Order.buildTarget(nil), {}) end
 
 -- nextMove: terminal states
 function T.sorted_returns_nil() A.eq(Order.nextMove({ 1, 2, 3 }, { 1, 2, 3 }), nil) end

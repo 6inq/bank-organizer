@@ -64,5 +64,4 @@ python tools/build.py
 The output is `dist/bank-organizer-<version>.zip`.
 
 ## Notes
-- Jagex had not published plugin docs at the time of writing. The API was reverse-engineered from the plugins already live on mod.io (see `RS3_API_NOTES.md` in the hub repo). Test in the live client before each release.
 - Requires [PrettyUI](https://mod.io/g/runescape) (installed automatically as a dependency).

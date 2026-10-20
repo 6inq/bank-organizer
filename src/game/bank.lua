@@ -67,11 +67,20 @@ local function readOps(obj)
   return ops
 end
 
+local function count(list)
+  local n = 0
+  for _ in pairs(type(list) == "table" and list or {}) do n = n + 1 end
+  return n
+end
+
 local function lookup(objectID)
   local obj = config.Obj.FromID(objectID)
   if obj == nil then return nil end
-  local categoryName = obj.category and id.Category.FromID(obj.category) or nil
-  return { id = objectID, name = obj.name, category = categoryName, ops = readOps(obj) }
+  local categoryName = obj.category and obj.category >= 0 and id.Category.FromID(obj.category) or nil
+  return {
+    id = objectID, name = obj.name, category = categoryName, ops = readOps(obj),
+    quests = count(obj.quests), tradeable = obj.isTradeable, stockmarket = obj.isStockmarket, cost = obj.cost,
+  }
 end
 
 ---@return table { id, name, category, ops }
@@ -100,6 +109,92 @@ function Bank.viewSignature()
     tostring(varValue("VarClient", "BANK_SEARCHMODE_CLIENT")),
     tostring(varValue("VarClient", "BANK_LASTSEARCHSTRING")),
   }, ":")
+end
+
+-- Bank tab variables. RS3's names are only visible in game (`pan VarPlayer`), so they are
+-- filled in from that dump. Until then tabSizes() returns nil and the guide pauses rather
+-- than guessing which tab an item is in.
+Bank.TAB_VARS = {
+  group = "VarPlayer",
+  sizes = {},             -- e.g. { "BANK_TAB_1", ..., "BANK_TAB_9" } once confirmed
+  insertMode = nil,       -- var name whose non-zero value means Insert mode
+  tabsFirst = true,       -- flat bank order: numbered tabs first, then Main (as in OSRS)
+}
+
+-- Item counts of the numbered tabs, or nil when they cannot be read.
+function Bank.tabSizes()
+  local vars = Bank.TAB_VARS
+  if #vars.sizes == 0 then return nil end
+  local sizes = {}
+  for index, name in ipairs(vars.sizes) do
+    local value = varValue(vars.group, name)
+    if type(value) ~= "number" or value < 0 then return nil end
+    sizes[index] = value
+  end
+  return sizes
+end
+
+function Bank.insertMode()
+  local name = Bank.TAB_VARS.insertMode
+  if not name then return nil end
+  local value = varValue(Bank.TAB_VARS.group, name)
+  if value == nil then return nil end
+  return value ~= 0
+end
+
+-- Every occupied bank slot, in container order, with item facts for the classifier.
+function Bank.readItems()
+  local ok, items = pcall(function()
+    local inv = Inventory.Find(config.Inv.BANK)
+    if not inv or not inv.isValid then return nil end
+    local list = {}
+    for slot, entry in ipairs(inv:GetSlots() or {}) do
+      local obj = entry and entry.obj
+      if obj and obj.id and obj.id >= 0 then
+        local info = Bank.info(obj.id)
+        list[#list + 1] = { slot = slot, id = obj.id, name = info.name, quantity = entry.count or 0, info = info }
+      end
+    end
+    return list
+  end)
+  if ok then return items end
+  return nil
+end
+
+-- Split container-ordered items into sections: [0] = Main, [1..n] = numbered tabs.
+---@param sizes integer[] item counts of tabs 1..9
+function Bank.sections(items, sizes, tabsFirst)
+  local sections, cursor = { [0] = {} }, 1
+  local function take(count, into)
+    for _ = 1, count do
+      local item = items[cursor]
+      if not item then return end
+      table.insert(into, item.id)
+      cursor = cursor + 1
+    end
+  end
+  if tabsFirst ~= false then
+    for tab, size in ipairs(sizes) do
+      if size > 0 then sections[tab] = {}; take(size, sections[tab]) end
+    end
+    while items[cursor] do table.insert(sections[0], items[cursor].id); cursor = cursor + 1 end
+  else
+    local tabbed = 0
+    for _, size in ipairs(sizes) do tabbed = tabbed + size end
+    take(#items - tabbed, sections[0])
+    for tab, size in ipairs(sizes) do
+      if size > 0 then sections[tab] = {}; take(size, sections[tab]) end
+    end
+  end
+  return sections
+end
+
+-- Bank item components by item id, for drawing highlights on the visible slots.
+function Bank.componentsById()
+  local slots, _, container = Bank.scan()
+  local byId = {}
+  for _, slot in ipairs(slots or {}) do byId[slot.objectID] = slot end
+  return byId, container, slots
 end
 
 -- Test hook.

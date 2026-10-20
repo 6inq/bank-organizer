@@ -1,36 +1,7 @@
 -- Target ordering and a minimal-move planner.
 -- Each "insert X before Y" move grows the longest in-order run (LIS) by one,
 -- so the number of moves needed is exactly n - LIS.
-local Categories = require("src/core/categories")
-
 local Order = {}
-
-local function compareBy(sortMode)
-  return function(a, b)
-    local ra, rb = Categories.rank(a.category), Categories.rank(b.category)
-    if ra ~= rb then return ra < rb end
-    if sortMode == "name" then
-      local na, nb = (a.name or ""):lower(), (b.name or ""):lower()
-      if na ~= nb then return na < nb end
-    end
-    if a.objectID ~= b.objectID then return a.objectID < b.objectID end
-    return a.index < b.index
-  end
-end
-
----@param items table[] { objectID, name, category }
----@param sortMode string? "id" (default) or "name"
----@return integer[] objectIDs in target order
-function Order.buildTarget(items, sortMode)
-  local copy = {}
-  for index, item in ipairs(items or {}) do
-    copy[index] = { objectID = item.objectID, name = item.name, category = item.category, index = index }
-  end
-  table.sort(copy, compareBy(sortMode))
-  local ids = {}
-  for index, item in ipairs(copy) do ids[index] = item.objectID end
-  return ids
-end
 
 -- Keep ids present in both lists and not skipped, preserving current order.
 local function rankedSequence(currentIDs, targetIDs, skipped)

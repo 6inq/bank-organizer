@@ -1,5 +1,8 @@
--- Draws category tints and move highlights on top of native bank slots.
--- Everything is clickthrough so the player can still drag items underneath.
+-- Draws on top of the real bank slots: each item tinted with the colour of the tab it is
+-- planned for, plus the current guide step (MOVE and its drop target). Every shape is
+-- clickthrough, so the player can still drag items underneath. Draws only; never acts.
+local Bank = require("src/game/bank")
+
 local Overlay = {}
 Overlay.__index = Overlay
 
@@ -39,68 +42,62 @@ function Overlay:_label(slot, text, rgba)
   return label
 end
 
-local function signatureOf(slots, view)
-  local parts = {
-    tostring(view.overlays), view.filter, tostring(view.highlightUntagged), tostring(view.opacity),
-    view.move and (view.move.move .. ">" .. tostring(view.move.before or view.move.after)) or "-",
-    tostring(view.colourOf("move")), tostring(view.colourOf("target")), tostring(view.colourOf("dim")),
-    tostring(view.colourOf("untagged")),
-  }
-  for _, slot in ipairs(slots) do
-    local key = view.categoryOf(slot.objectID)
-    parts[#parts + 1] = slot.objectID .. "@" .. slot.x .. "," .. slot.y .. "=" .. key
-      .. ":" .. view.colourOf(key) .. (view.isTagged(slot.objectID) and "t" or "")
+-- What the guide step highlights: { [itemID] = { text, colourKey } }.
+local function stepMarks(step)
+  if not step then return {} end
+  local marks = {}
+  if step.kind == "insert" then
+    marks[step.move] = { "MOVE", "move" }
+    if step.before then marks[step.before] = { "INSERT BEFORE", "target" } end
+    if step.after then marks[step.after] = { "AFTER", "target" } end
+  elseif step.kind == "swap" then
+    marks[step.move] = { "SWAP", "move" }
+    marks[step.swapWith] = { "WITH", "target" }
+  else
+    marks[step.id] = { "MOVE", "move" }
   end
+  return marks
+end
+
+local function signatureOf(slots, app, tint, marks)
+  local parts = { tostring(tint), tostring(app.store:get("opacity")), tostring(app.assigning) }
+  for _, slot in ipairs(slots) do
+    local d = app:destinationOfItem(slot.objectID)
+    local mark = marks[slot.objectID]
+    parts[#parts + 1] = slot.objectID .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
+      .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "")
+  end
+  for _, key in ipairs({ "move", "target" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
   return table.concat(parts, "|")
 end
 
-function Overlay:_drawCategories(slots, view)
-  for _, slot in ipairs(slots) do
-    local key = view.categoryOf(slot.objectID)
-    local matches = view.filter == "all" or view.filter == key
-    if matches then
-      self:_rect(slot, withAlpha(view.colourOf(key), view.opacity))
-    else
-      self:_rect(slot, view.colourOf("dim"))
-    end
-    if view.highlightUntagged and not view.isTagged(slot.objectID) then
-      self:_rect(slot, view.colourOf("untagged") or withAlpha(view.colourOf(key), 1), 2)
-    end
-  end
-end
-
-function Overlay:_drawMove(slots, move, view)
-  local anchor = move.before or move.after
-  local moveColour, targetColour = view.colourOf("move"), view.colourOf("target")
-  for _, slot in ipairs(slots) do
-    if slot.objectID == move.move then
-      self:_rect(slot, moveColour, 3)
-      self:_label(slot, "MOVE", moveColour)
-    elseif slot.objectID == anchor then
-      self:_rect(slot, targetColour, 3)
-      self:_label(slot, move.before and "INSERT BEFORE" or "AFTER", targetColour)
-    end
-  end
-end
-
----@param container ui.ComponentCollection
----@param slots table[] from Bank.scan
----@param view table { overlays, filter, highlightUntagged, opacity, categoryOf, colourOf, isTagged, move }
-function Overlay:render(container, slots, view)
+function Overlay:render(app)
+  if not app.destinations then return self:clear() end
+  local _, container, slots = Bank.componentsById()
+  if not container then return self:clear() end
   if container ~= self.container then self:clear() end
-  local signature = signatureOf(slots, view)
+  local tint = app.store:get("tint") or app.assigning
+  local marks = app.guiding and stepMarks(app.step) or {}
+  local signature = signatureOf(slots or {}, app, tint, marks)
   if signature == self.signature then return false end
   self:clear()
   self.container, self.signature = container, signature
-  if view.overlays then self:_drawCategories(slots, view) end
-  if view.move then self:_drawMove(slots, view.move, view) end
+  local opacity = app.store:get("opacity")
+  for _, slot in ipairs(slots or {}) do
+    local d = app:destinationOfItem(slot.objectID)
+    if tint and d then self:_rect(slot, withAlpha(app:destinationColour(d), opacity)) end
+    local mark = marks[slot.objectID]
+    if mark then
+      local colour = app.store:colour(mark[2])
+      self:_rect(slot, colour, 3)
+      self:_label(slot, mark[1], colour)
+    end
+  end
   return true
 end
 
 function Overlay:clear()
-  for _, component in ipairs(self.components) do
-    pcall(component.Destroy, component)
-  end
+  for _, component in ipairs(self.components) do pcall(component.Destroy, component) end
   self.components, self.signature, self.container = {}, nil, nil
 end
 

@@ -114,6 +114,6 @@ This listing has two parts:
 ## Before you submit (checklist)
 
 - [ ] Confirm `contactEmailAddress` in `plugin.json` (set to im6ing@gmail.com).
-- [ ] Test in the live client, then fix anything the reverse-engineered API got wrong.
+- [ ] Test in the beta world (see the testing steps), including the Sorting Guide.
 - [ ] Upload `dist/bank-organizer-1.1.0.zip` as the plugin file.
 - [ ] Upload your listing image.

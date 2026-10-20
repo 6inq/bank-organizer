@@ -1,162 +1,196 @@
--- Plugin state and the scan -> classify -> plan -> render loop.
-local Classify = require("src/core/classify")
-local Order = require("src/core/order")
+-- Bank Organizer 2: Analyze -> Blueprint -> (tint, preview) -> Sorting Guide, with your
+-- corrections and tab layout. Read-only: it never moves, clicks or withdraws anything.
+local Tags = require("src/core/tags")
+local Blueprint = require("src/core/blueprint")
+local Guide = require("src/core/guide")
 local Bank = require("src/game/bank")
 local Overlay = require("src/game/overlay")
 
 local App = {}
 App.__index = App
 
-local EVENT_ID = "bank-organizer:logic"
-local OPEN_INTERVAL, CLOSED_INTERVAL = 3, 25
+local EVENT_ID = "bank-organizer:tick"
 
 App.STATUS = {
-  CLOSED = "Open your bank.",
-  READY = "Ready. Check your settings, then press Start Organizing.",
-  SEARCH = "Clear the bank search to keep organizing.",
-  DONE = "Done! Everything here is organized.",
+  CLOSED = "Open your bank, then press Analyze Bank.",
+  NOT_ANALYZED = "Press Analyze Bank to build your blueprint.",
+  ANALYZED = "Blueprint ready. Open Blueprint to review it, or start the Sorting Guide.",
+  NEED_ALL = "Open the All items view and clear the bank search to continue the guide.",
+  NO_TABS = "This client does not expose bank tab sizes yet, so the guide is paused.",
+  DONE = "Your bank matches the blueprint.",
+  CHANGED = "Your bank changed, so the blueprint was rebuilt.",
 }
-App.ALL_ITEMS_HINT = "You are organizing All items, so items may move between tabs. Open a single tab to keep your tabs intact."
 
 function App.new(store)
   return setmetatable({
-    store = store, overlay = Overlay.new(), organizing = false, skipped = {},
-    move = nil, status = App.STATUS.CLOSED, hint = "", dirty = true, bankOpen = false,
-    listeners = {}, autoCategory = {}, notified = nil,
+    store = store, overlay = Overlay.new(), listeners = {},
+    items = nil, destinations = nil, bySlot = nil, signature = nil,
+    guiding = false, assigning = false, step = nil, remaining = nil,
+    status = App.STATUS.CLOSED, bankOpen = false,
   }, App)
 end
 
--- Manual tag wins; the automatic guess is pure per item id, so it is cached.
-function App:categoryOf(objectID)
-  local tag = self.store:getTag(objectID)
-  if tag then return tag end
-  local guess = self.autoCategory[objectID]
-  if guess == nil then
-    guess = Classify.classify(Bank.info(objectID))
-    self.autoCategory[objectID] = guess
-  end
-  return guess
-end
-
-function App:nameOf(objectID)
-  return Bank.info(objectID).name or ("Item " .. tostring(objectID))
-end
-
--- Listeners receive the app whenever status, hint or organizing state changes.
 function App:onChange(key, fn)
   self.listeners[key] = fn
   if fn then pcall(fn, self) end
 end
 
 function App:_notify()
-  local signature = self.status .. "\n" .. self.hint .. "\n" .. tostring(self.organizing)
-  if signature == self.notified then return end
-  self.notified = signature
   for _, fn in pairs(self.listeners) do pcall(fn, self) end
 end
 
-function App:_setStatus(status, hint)
-  self.status, self.hint = status, hint or ""
+function App:_setStatus(status)
+  if status == self.status then return end
+  self.status = status
   self:_notify()
 end
 
-function App:invalidate()
-  self.dirty = true
+-- Tag for an item: your correction, then the classifier, then Storage & Cleanup.
+function App:tagOf(item)
+  return Blueprint.resolver(self.store.corrections)(item)
 end
 
-function App:_describe(move)
-  local name = self:nameOf(move.move)
-  local steps = move.remaining == 1 and "1 move left" or (move.remaining .. " moves left")
-  if move.before then
-    return "Insert " .. name .. " before " .. self:nameOf(move.before) .. " (" .. steps .. ")"
-  end
-  return "Move " .. name .. " to the end, after " .. self:nameOf(move.after) .. " (" .. steps .. ")"
+local function signatureOf(items)
+  local parts = {}
+  for index, item in ipairs(items) do parts[index] = item.id .. "x" .. item.quantity end
+  return table.concat(parts, ",")
 end
 
-function App:_plan(slots)
-  if Bank.searchActive() then
-    self.move = nil
-    return App.STATUS.SEARCH
+-- Scan the open bank and rebuild the blueprint.
+function App:analyze()
+  local items = Bank.readItems()
+  if not items then
+    self:_setStatus(App.STATUS.CLOSED)
+    return false
   end
-  local items, current = {}, {}
-  for index, slot in ipairs(slots) do
-    current[index] = slot.objectID
-    items[index] = { objectID = slot.objectID, name = self:nameOf(slot.objectID), category = self:categoryOf(slot.objectID) }
-  end
-  local target = Order.buildTarget(items, self.store:get("sortMode"))
-  self.move = Order.nextMove(current, target, self.skipped)
-  if self.move == nil then
-    self.organizing, self.idleStatus = false, App.STATUS.DONE
-    return self.idleStatus
-  end
-  return self:_describe(self.move)
+  self.items, self.signature = items, signatureOf(items)
+  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
+  self.status = App.STATUS.ANALYZED
+  self:_notify()
+  return true
 end
 
-function App:_view()
-  return {
-    overlays = self.store:get("overlays"), filter = self.store:get("filter"),
-    highlightUntagged = self.store:get("highlightUntagged"), opacity = self.store:get("opacity"),
-    move = self.organizing and self.move or nil,
-    categoryOf = function(objectID) return self:categoryOf(objectID) end,
-    colourOf = function(key) return self.store:colour(key) end,
-    isTagged = function(objectID) return self.store:getTag(objectID) ~= nil end,
-  }
+-- Layout, preset or correction changed: rebuild from the last scan.
+function App:rebuild()
+  if self.items then
+    self.destinations, self.bySlot = Blueprint.build(self.items, self.store.layout, function(item) return self:tagOf(item) end)
+  end
+  self:_notify()
 end
 
-function App:refresh()
-  self.dirty = false
-  local slots, reason, container = Bank.scan()
-  self.bankOpen = slots ~= nil
-  if not slots then
+function App:destinationOfItem(itemID)
+  if not self.destinations then return nil end
+  for d = 0, Tags.DESTINATIONS - 1 do
+    for _, entry in ipairs(self.destinations[d]) do
+      if entry.id == itemID then return d, entry end
+    end
+  end
+  return nil
+end
+
+function App:destinationColour(d)
+  local category = Tags.CATEGORIES[d + 1]
+  return self.store:colour(category and category.key or "storage-cleanup")
+end
+
+function App:destinationLabel(d)
+  local names = {}
+  for _, tag in ipairs(self.store.layout.destinations[d]) do names[#names + 1] = Tags.label(tag) end
+  return Tags.destinationName(d) .. ": " .. (#names > 0 and table.concat(names, ", ") or "empty")
+end
+
+function App:setAssigning(on)
+  self.assigning = on == true
+  self:_notify()
+end
+
+function App:startGuide()
+  if not self.destinations and not self:analyze() then return end
+  self.guiding = true
+  self:_tickGuide()
+  self:_notify()
+end
+
+function App:stopGuide()
+  self.guiding, self.step, self.remaining = false, nil, nil
+  self:_notify()
+end
+
+-- Current bank state for the guide, or nil + reason when it must pause (fails closed).
+function App:_sections(items)
+  if Bank.searchActive() or not Bank.isAllItemsTab() then return nil, App.STATUS.NEED_ALL end
+  local sizes = Bank.tabSizes()
+  if not sizes then return nil, App.STATUS.NO_TABS end
+  return Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
+end
+
+function App:modeForGuide()
+  local insert = Bank.insertMode()
+  if insert == nil then return self.store:get("mode") end
+  return insert and Guide.INSERT or Guide.SWAP
+end
+
+function App:_tickGuide()
+  local items = Bank.readItems()
+  if not items then return self:_setStatus(App.STATUS.CLOSED) end
+  if signatureOf(items) ~= self.signature then
+    -- Deposits, withdrawals and moves all change the scan; rebuild so the plan matches the bank.
+    local before = self.signature
+    self.items, self.signature = items, signatureOf(items)
+    self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, function(item) return self:tagOf(item) end)
+    if before and #before ~= #self.signature then self.status = App.STATUS.CHANGED end
+  end
+  local sections, reason = self:_sections(items)
+  if not sections then
+    self.step = nil
+    return self:_setStatus(reason)
+  end
+  local mode = self:modeForGuide()
+  self.step = Guide.next(sections, self.destinations, mode)
+  self.remaining = Guide.remaining(sections, self.destinations, mode)
+  self:_setStatus(self.step and App.describe(self.step, self) or App.STATUS.DONE)
+end
+
+local function nameOf(app, id)
+  for _, item in ipairs(app.items or {}) do
+    if item.id == id then return item.name end
+  end
+  return "item " .. tostring(id)
+end
+
+-- Plain-English instruction for a guide step.
+function App.describe(step, app)
+  local name = nameOf(app, step.id or step.move)
+  if step.kind == "new-tab" then
+    return string.format("Drag %s onto the new-tab button to create Tab %d.", name, step.to)
+  elseif step.kind == "to-tab" then
+    local where = step.to == 0 and "the Main section" or ("Tab " .. step.to)
+    return string.format("Drag %s onto %s.", name, where)
+  elseif step.kind == "insert" then
+    local anchor = step.before and ("before " .. nameOf(app, step.before)) or ("after " .. nameOf(app, step.after))
+    return string.format("Insert %s %s (%d left).", name, anchor, app.remaining or 0)
+  end
+  return string.format("Swap %s with %s (%d left).", name, nameOf(app, step.swapWith), app.remaining or 0)
+end
+
+function App:tick()
+  local container = Bank.slotsContainer()
+  self.bankOpen = container ~= nil
+  if not self.bankOpen then
     self.overlay:clear()
-    self:_setStatus(reason)
     return
   end
-  local status, hint = self.idleStatus or App.STATUS.READY, ""
-  if self.organizing then
-    status = self:_plan(slots)
-    if self.organizing and Bank.isAllItemsTab() then hint = App.ALL_ITEMS_HINT end
-  end
-  self:_setStatus(status, hint)
-  self.overlay:render(container, slots, self:_view())
-end
-
-function App:startOrganizing()
-  self.organizing, self.skipped, self.move, self.idleStatus = true, {}, nil, nil
-  self:refresh()
-end
-
-function App:stopOrganizing()
-  self.organizing, self.move, self.idleStatus = false, nil, nil
-  self:refresh()
-end
-
-function App:toggleOrganizing()
-  if self.organizing then self:stopOrganizing() else self:startOrganizing() end
-end
-
-function App:skipCurrent()
-  if self.organizing and self.move then self.skipped[self.move.move] = true end
-  self:refresh()
-end
-
-function App:_onLogic(event)
-  local tick = event and event.logicTick or 0
-  local interval = self.bankOpen and OPEN_INTERVAL or CLOSED_INTERVAL
-  if self.dirty or tick % interval == 0 then self:refresh() end
+  if self.guiding then self:_tickGuide() end
+  local ok, err = pcall(self.overlay.render, self.overlay, self)
+  if not ok and log then log("[bank-organizer] overlay failed: " .. tostring(err)) end
 end
 
 function App:start()
-  Event.Logic.Subscribe(EVENT_ID, function(event) self:_onLogic(event) end)
-  Event.InventoryUpdated.Subscribe(EVENT_ID, function(event)
-    local bankType = config.Inv.BANK
-    if event and event.inv and bankType and event.inv.id == bankType.id then self:invalidate() end
-  end)
+  Event.ServerLogic.Subscribe(EVENT_ID, function() self:tick() end)
 end
 
 function App:stop()
-  pcall(Event.Logic.Unsubscribe, EVENT_ID)
-  pcall(Event.InventoryUpdated.Unsubscribe, EVENT_ID)
+  pcall(Event.ServerLogic.Unsubscribe, EVENT_ID)
   self.overlay:clear()
   self.listeners = {}
 end
