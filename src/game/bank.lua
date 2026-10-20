@@ -212,4 +212,61 @@ function Bank._resetCache()
   infoCache = {}
 end
 
+-- Absolute (screen) position of a component, or 0, 0 when the client does not report it.
+function Bank.globalXY(component)
+  local ok, x, y = pcall(function()
+    local xy = component.xyGlobal
+    return xy.x, xy.y
+  end)
+  if ok and type(x) == "number" and type(y) == "number" then return x, y end
+  return 0, 0
+end
+
+-- The outermost bank component above the slots (so a guide line can reach the tab row without
+-- being clipped by the slot area), with its absolute position.
+function Bank.lineHost(container)
+  local host = container
+  pcall(function()
+    local depth = 0
+    while host.parent and depth < 12 do
+      host, depth = host.parent, depth + 1
+    end
+  end)
+  local x, y = Bank.globalXY(host)
+  return host, x, y
+end
+
+local function visit(collection, skip, fn, depth)
+  if depth > 10 or collection == skip then return false end
+  local found = false
+  local function each(component)
+    if found then return true end
+    if component ~= skip then
+      if fn(component) then found = true return true end
+      found = visit(component, skip, fn, depth + 1)
+    end
+    return found
+  end
+  pcall(function() collection:IterateStaticComponents(each) end)
+  if not found then pcall(function() collection:IterateDynamicComponents(each) end) end
+  return found
+end
+
+-- A bank tab button shows the tab's first item. Finds the visible sprite outside the slot area
+-- showing itemID and returns its absolute box, or nil.
+function Bank.tabIcon(container, itemID)
+  local host = Bank.lineHost(container)
+  local box
+  visit(host, container, function(component)
+    local match = component.type == ui.ComponentType.SPRITE and component.associatedObjectID == itemID
+      and component.visible and not component.hidden
+    if match then
+      local x, y = Bank.globalXY(component)
+      box = { x = x, y = y, width = component.width, height = component.height }
+    end
+    return match
+  end, 0)
+  return box
+end
+
 return Bank

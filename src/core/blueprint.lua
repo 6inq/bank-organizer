@@ -1,4 +1,4 @@
--- Builds the blueprint: the ordered contents of Main and Tabs 1-9 for the items you own. Pure.
+-- Builds the blueprint: the ordered contents of each tab in your layout for the items you own. Pure.
 -- Never invents items or empty slots: only real bank slots (including placeholders) are placed.
 local Tags = require("src/core/tags")
 local Classify = require("src/core/classify")
@@ -60,7 +60,8 @@ end
 ---@return table { [0..9] = { entries } }, table entry by slot
 function Blueprint.build(items, layout, tagOf)
   local destinations, bySlot = {}, {}
-  for d = 0, Tags.DESTINATIONS - 1 do destinations[d] = {} end
+  local last = layout:last()
+  for d = 0, last do destinations[d] = {} end
   for _, item in ipairs(items) do
     local tag = tagOf(item)
     local d, rank = layout:rankOf(tag)
@@ -72,7 +73,7 @@ function Blueprint.build(items, layout, tagOf)
     table.insert(destinations[d], entry)
     bySlot[item.slot] = entry
   end
-  for d = 0, Tags.DESTINATIONS - 1 do table.sort(destinations[d], Blueprint.compare) end
+  for d = 0, last do table.sort(destinations[d], Blueprint.compare) end
   return destinations, bySlot
 end
 
@@ -171,8 +172,10 @@ end
 -- an empty tab), keeping its number and name for display.
 function Blueprint.usedDestinations(destinations)
   local used = {}
-  for d = 0, Tags.DESTINATIONS - 1 do
+  local d = 0
+  while destinations[d] do
     if #destinations[d] > 0 then used[#used + 1] = d end
+    d = d + 1
   end
   return used
 end

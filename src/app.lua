@@ -58,7 +58,7 @@ local function signatureOf(items)
   return table.concat(parts, ",")
 end
 
-App.SCOPES = { bank = "Whole bank (Bank Architect layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
+App.SCOPES = { bank = "Whole bank (follow my Tab Layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
 
 -- Blueprint for the chosen scope: Bank Architect destinations, or the player's own tabs.
 function App:_build(items)
@@ -84,7 +84,7 @@ function App:destinationList()
     if type(d) == "number" then list[#list + 1] = d end
   end
   table.sort(list)
-  if #list == 0 then for d = 0, Tags.DESTINATIONS - 1 do list[#list + 1] = d end end
+  if #list == 0 then for d = 0, self.store.layout:last() do list[#list + 1] = d end end
   return list
 end
 
@@ -186,7 +186,7 @@ function App:tabHomeOf(tag)
   return nil, false
 end
 
--- Colours: Bank Architect destinations use their category colour; in My tabs the main
+-- Colours: a layout tab takes the colour of its first tag's category; in My tabs the main
 -- (catch-all) tab is grey and custom tabs cycle through the palette.
 function App:destinationColour(d)
   if self:myTabs() then
@@ -194,7 +194,8 @@ function App:destinationColour(d)
     local category = Tags.CATEGORIES[((d - 1) % (#Tags.CATEGORIES - 1)) + 1]
     return self.store:colour(category.key)
   end
-  local category = Tags.CATEGORIES[d + 1]
+  local first = (self.store.layout.destinations[d] or {})[1]
+  local category = first and Tags.categoryOf(first)
   return self.store:colour(category and category.key or "storage-cleanup")
 end
 
@@ -206,14 +207,41 @@ function App:destinationLabel(d)
     for _, entry in ipairs(Blueprint.profile(self.tabCounts, d, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
     return "Tab " .. (d + 1) .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
   end
+  local layout = self.store.layout
   local names = {}
-  for _, tag in ipairs(self.store.layout.destinations[d] or {}) do names[#names + 1] = Tags.label(tag) end
-  return Tags.destinationName(d) .. ": " .. (#names > 0 and table.concat(names, ", ") or "empty")
+  for _, tag in ipairs(layout.destinations[d] or {}) do names[#names + 1] = Tags.label(tag) end
+  local title = Tags.destinationName(d) .. (layout.names[d] and (" " .. layout.names[d]) or "")
+  return title .. ": " .. (#names > 0 and table.concat(names, ", ") or "empty")
 end
 
-function App:tabName(section)
-  if self:myTabs() then return section == 0 and "Tab 1 (infinity)" or ("Tab " .. (section + 1)) end
-  return section == 0 and "the Main section" or ("Tab " .. section)
+-- A bank section (0 = infinity, N = custom tab N) the way RS3 numbers it, plus the layout's
+-- name for the destination when there is one.
+function App:tabName(section, destination)
+  local name = Tags.destinationName(section)
+  local custom = not self:myTabs() and destination and self.store.layout.names[destination]
+  return custom and (name .. " (" .. custom .. ")") or name
+end
+
+-- Tab Layout from the bank you already have: one tab per custom tab, in your order, named after
+-- what it mostly holds. Needs an analyzed bank with readable tab sizes.
+function App:copyCurrentTabs()
+  local sizes = self.items and Bank.tabSizes()
+  if not sizes then return false end
+  local tagOf = function(item) return self:tagOf(item) end
+  local sections = Bank.sections(self.items, sizes, Bank.TAB_VARS.tabsFirst)
+  local _, _, counts, homes = Blueprint.buildFromTabs(self.items, sections, tagOf)
+  local last = 0
+  for s in pairs(sections) do if s > last then last = s end end
+  local sectionOf, names = {}, {}
+  for tag, home in pairs(homes) do sectionOf[tag] = home.section end
+  for s = 1, last do
+    local top = Blueprint.profile(counts, s, 1)[1]
+    names[s] = top and Tags.label(top.tag) or nil
+  end
+  self.store.layout:copyTabs(last, sectionOf, names)
+  self.store:save()
+  self:rebuild()
+  return true
 end
 
 function App:setAssigning(on)
@@ -272,7 +300,7 @@ function App:_tickGuide()
     return self:_setStatus(reason)
   end
   local mode = self:modeForGuide()
-  self.focus = focus
+  self.focus, self.sections = focus, sections
   self.step = Guide.next(sections, self.destinations, mode, focus)
   self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
   local done = focus and (self:tabName(focus) .. " is organized. Open another tab to keep going.") or App.STATUS.DONE
@@ -290,9 +318,9 @@ end
 function App.describe(step, app)
   local name = nameOf(app, step.id or step.move)
   if step.kind == "new-tab" then
-    return string.format("Drag %s onto the new-tab button to create Tab %d.", name, step.to)
+    return string.format("Drag %s onto the new-tab button to create %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "to-tab" then
-    return string.format("Drag %s onto %s.", name, app:tabName(step.to))
+    return string.format("Drag %s onto %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "insert" then
     local anchor = step.before and ("before " .. nameOf(app, step.before)) or ("after " .. nameOf(app, step.after))
     return string.format("Insert %s %s (%d left).", name, anchor, app.remaining or 0)

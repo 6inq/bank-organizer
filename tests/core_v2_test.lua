@@ -62,6 +62,48 @@ function T.saved_layout_round_trips_and_repairs()
   A.eq(count, #Tags.LIST, "every tag exactly once")
 end
 
+function T.tabs_can_be_added_moved_renamed_and_removed()
+  local layout = Layout.new("main")
+  A.eq(layout:last(), 9)
+  for _ = 1, 5 do A.eq(layout:addTab(), true) end
+  A.eq(layout:last(), 14); A.eq(layout:addTab(), false, "RS3 has 14 custom tabs at most")
+  A.eq(layout:rename(3, "Herbs"), true); A.eq(layout:name(3), "Herbs")
+  A.eq(layout:rename(3, "   "), true); A.eq(layout:name(3), "Tab 4", "blank name falls back to the RS3 number")
+  A.eq(layout:moveTab(0, 1), false, "infinity stays first")
+  A.eq(layout:moveTab(1, -1), false); A.eq(layout:moveTab(14, 1), false)
+  A.eq(layout:moveTab(1, 1), true); A.eq(layout:destinationOf("gear"), 2)
+  A.eq(layout:removeTab(0), false); A.eq(layout:removeTab(15), false)
+  A.eq(layout:removeTab(2), true); A.eq(layout:destinationOf("gear"), 0, "tags of a deleted tab go to infinity")
+  A.eq(layout:last(), 13)
+  local count = 0
+  for d = 0, layout:last() do count = count + #layout.destinations[d] end
+  A.eq(count, #Tags.LIST, "never loses a tag")
+end
+
+function T.custom_layout_round_trips_and_old_saves_load()
+  local layout = Layout.new("main")
+  layout:addTab("Extra"); layout:moveTag("runes", 10); layout:rename(1, "Combat")
+  local again = Layout.new("main", layout:serialize())
+  A.eq(again:last(), 10); A.eq(again:destinationOf("runes"), 10)
+  A.eq(again.names[10], "Extra"); A.eq(again.names[1], "Combat")
+  -- Saves from before custom tabs: string keys "0".."9", no count.
+  local old = { ["0"] = { "runes" }, ["4"] = { "gear" } }
+  local loaded = Layout.new("main", old)
+  A.eq(loaded:last(), 9); A.eq(loaded:destinationOf("gear"), 4); A.eq(loaded:destinationOf("food"), 2, "missing tags restored")
+  -- A tag whose default tab no longer exists lands in infinity.
+  local short = Layout.new("main", { count = 2, tabs = { ["0"] = {}, ["1"] = { "gear" } } })
+  A.eq(short:last(), 1); A.eq(short:destinationOf("food"), 0)
+end
+
+function T.copy_tabs_builds_a_layout_from_the_bank()
+  local layout = Layout.new("main")
+  layout:copyTabs(3, { ["xp-items"] = 1, gear = 3, runes = 9 }, { [1] = "MTX" })
+  A.eq(layout:last(), 3)
+  A.list(layout.destinations[1], { "xp-items" }); A.list(layout.destinations[3], { "gear" })
+  A.eq(layout:destinationOf("runes"), 0, "a home past the last tab falls back to infinity")
+  A.eq(layout.names[1], "MTX")
+end
+
 -- Classifier -------------------------------------------------------------------------
 
 local cases = {
@@ -294,6 +336,15 @@ function T.already_sorted_bank_is_done()
   local sections = Guide.targetSections(destinations)
   local step, status = Guide.next(sections, destinations, Guide.INSERT)
   A.eq(step, nil); A.eq(status, "done"); A.eq(Guide.remaining(sections, destinations, Guide.INSERT), 0)
+end
+
+function T.blueprint_follows_a_custom_tab_order()
+  local layout = Layout.new("main")
+  layout:copyTabs(2, { gear = 1, food = 2 })
+  local items = { item(1, 1, "Shark", { ops = ops("eat") }), item(2, 2, "Abyssal whip", { ops = ops("wield") }), item(3, 3, "Coins") }
+  local d = Blueprint.build(items, layout, Blueprint.resolver({}))
+  A.eq(d[3], nil, "only as many tabs as the layout has")
+  A.list(ids(d[1]), { 2 }); A.list(ids(d[2]), { 1 }); A.list(ids(d[0]), { 3 })
 end
 
 return T

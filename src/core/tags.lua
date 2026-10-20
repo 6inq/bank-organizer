@@ -81,9 +81,10 @@ function Tags.categoryOf(key)
 end
 
 -- "Main" for destination 0, "Tab N" otherwise.
+-- RS3 numbering: the infinity (main) tab is Tab 1, so destination N is Tab N+1.
 function Tags.destinationName(destination)
-  if destination == 0 then return "Main" end
-  return "Tab " .. destination
+  if destination == 0 then return "Tab 1 (infinity)" end
+  return "Tab " .. (destination + 1)
 end
 
 return Tags

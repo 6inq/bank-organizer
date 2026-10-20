@@ -6,6 +6,8 @@ local Combo = require("src/ui/combo")
 local Windows = {}
 
 local open = {} -- name -> PrettyUI window
+local blueprintTab = nil -- destination the Blueprint window is showing
+local layoutNote = nil -- one-off message for the Tab Layout window
 
 local function host()
   local ok, layer = pcall(function()
@@ -50,29 +52,63 @@ end
 
 local GRID_COLUMNS = 8
 
--- Blueprint: Main then Tabs 1-9, each with the items planned for it (empty ones skipped).
+-- Destinations with items, in bank order.
+local function filledTabs(app)
+  local list = {}
+  for _, d in ipairs(app:destinationList()) do
+    if #(app.destinations[d] or {}) > 0 then list[#list + 1] = d end
+  end
+  return list
+end
+
+local function indexOf(list, value)
+  for index, item in ipairs(list) do if item == value then return index end end
+  return nil
+end
+
+-- Blueprint: one tab at a time (big banks are thousands of slots), picked from a dropdown or
+-- stepped through with Previous / Next.
 function Windows.blueprint(app)
   return create("blueprint", { title = "Blueprint", width = 470, height = 560, x = 60, y = 60 }, function(window)
     if not app.destinations then
       window:AddText("Press Analyze Bank first.")
       return
     end
-    for _, d in ipairs(app:destinationList()) do
-      local entries = app.destinations[d] or {}
-      if #entries > 0 then
-        window:AddTitle(app:destinationLabel(d))
-        local objects = {}
-        for index, entry in ipairs(entries) do
-          objects[index] = { object = objectOf(entry.id), quantity = entry.quantity, tooltip = entry.name .. " (" .. Tags.label(entry.tag) .. ")" }
-        end
-        window:AddItemGrid(objects, { columns = GRID_COLUMNS, rows = math.max(1, math.ceil(#objects / GRID_COLUMNS)) })
-      end
+    local tabs = filledTabs(app)
+    if #tabs == 0 then
+      window:AddText("Your bank is empty.")
+      return
     end
+    local index = indexOf(tabs, blueprintTab) or 1
+    blueprintTab = tabs[index]
+    local choices = {}
+    for i, d in ipairs(tabs) do
+      choices[i] = { label = app:destinationLabel(d) .. "  [" .. #app.destinations[d] .. "]", key = d }
+    end
+    window:AddComboBox(Combo.options(choices, blueprintTab, function(d)
+      blueprintTab = d
+      Windows.blueprint(app)
+    end))
+    window:AddSimpleButton("Previous", function()
+      blueprintTab = tabs[index > 1 and index - 1 or #tabs]
+      Windows.blueprint(app)
+    end)
+    window:AddSimpleButton("Next", function()
+      blueprintTab = tabs[index < #tabs and index + 1 or 1]
+      Windows.blueprint(app)
+    end, { inline = true })
+    local entries = app.destinations[blueprintTab]
+    window:AddText(string.format("Tab %d of %d: %d items", index, #tabs, #entries))
+    local objects = {}
+    for i, entry in ipairs(entries) do
+      objects[i] = { object = objectOf(entry.id), quantity = entry.quantity, tooltip = entry.name .. " (" .. Tags.label(entry.tag) .. ")" }
+    end
+    window:AddItemGrid(objects, { columns = GRID_COLUMNS, rows = math.max(1, math.ceil(#objects / GRID_COLUMNS)) })
   end)
 end
 
 local function tagChoicesFor(layout, d)
-  local list = {}
+  local list = { { label = "Add a tag here...", key = "none" } }
   for _, tag in ipairs(Tags.LIST) do
     local current = layout:destinationOf(tag.key)
     if current ~= d then
@@ -120,8 +156,52 @@ local function tabLayout(app, window, changed)
   window:AddSimpleButton("Unpin all", function() app.store:resetTabHomes(); changed() end)
 end
 
--- Tab Layout: what sits on Main and Tabs 1-9 (or, in My tabs, what each of your tabs
--- collects); changes save and rebuild immediately.
+-- One tab of your own layout: name, position, delete, and the tags it collects in order.
+local function layoutTab(window, layout, d, changed)
+  window:AddTitle(Tags.destinationName(d) .. (layout.names[d] and (" " .. layout.names[d]) or ""))
+  window:AddTextField({
+    text = layout.names[d] or "", placeholder = "Name this tab, then press Enter",
+    onSubmit = function(_, content) if layout:rename(d, content) then changed() end end,
+  })
+  if d > 0 then
+    window:AddSimpleButton("Move left", function() if layout:moveTab(d, -1) then changed() end end)
+    window:AddSimpleButton("Move right", function() if layout:moveTab(d, 1) then changed() end end, { inline = true })
+    window:AddSimpleButton("Delete tab", function() if layout:removeTab(d) then changed() end end, { inline = true })
+  end
+  for _, key in ipairs(layout.destinations[d]) do
+    window:AddText(Tags.label(key))
+    window:AddSimpleButton("Up", function() if layout:shiftTag(key, -1) then changed() end end, { inline = true })
+    window:AddSimpleButton("Down", function() if layout:shiftTag(key, 1) then changed() end end, { inline = true })
+    window:AddSimpleButton("Remove", function() if layout:removeTag(key) then changed() end end, { inline = true })
+  end
+  window:AddComboBox(Combo.options(tagChoicesFor(layout, d), "none", function(key)
+    if key ~= "none" and layout:moveTag(key, d) then changed() end
+  end))
+end
+
+-- Whole-bank layout: your tabs in bank order. Start from the Bank Architect default or copy the
+-- tabs you already have, then add, delete, rename, reorder and fill them.
+local function bankLayout(app, window, changed)
+  local layout = app.store.layout
+  window:AddText({ text = "Your tabs in bank order, left to right. Name them, move them, and choose which kinds of item each one holds. Remove sends a kind to wherever Storage & Cleanup lives.", height = 64 })
+  if layoutNote then
+    window:AddText({ text = layoutNote, height = 40 })
+    layoutNote = nil
+  end
+  window:AddSimpleButton("Copy my current tabs", function()
+    if not app:copyCurrentTabs() then layoutNote = "Open your bank and press Analyze Bank first, so your tabs can be read." end
+    changed()
+  end)
+  window:AddSimpleButton("Add tab", function()
+    if not layout:addTab() then layoutNote = "RS3 banks have at most 14 custom tabs." end
+    changed()
+  end, { inline = true })
+  window:AddSimpleButton("Reset to default", function() layout:reset(); changed() end, { inline = true })
+  for d = 0, layout:last() do layoutTab(window, layout, d, changed) end
+end
+
+-- Tab Layout: your tab order and contents (whole bank), or what each of your existing tabs
+-- collects (My tabs); changes save and rebuild immediately.
 function Windows.layout(app)
   local function changed()
     app.store:save()
@@ -134,24 +214,7 @@ function Windows.layout(app)
     end)
   end
   return create("layout", { title = "Tab Layout", width = 470, height = 600, x = 120, y = 60 }, function(window)
-    local layout = app.store.layout
-    window:AddText({ text = "Choose what goes on each tab. Arrows set the order; the remove button sends a tag to Storage & Cleanup.", height = 48 })
-    for d = 0, Tags.DESTINATIONS - 1 do
-      window:AddTitle(Tags.destinationName(d))
-      for _, key in ipairs(layout.destinations[d]) do
-        window:AddText(Tags.label(key))
-        window:AddSimpleButton("Up", function() if layout:shiftTag(key, -1) then changed() end end, { inline = true })
-        window:AddSimpleButton("Down", function() if layout:shiftTag(key, 1) then changed() end end, { inline = true })
-        window:AddSimpleButton("Remove", function() if layout:removeTag(key) then changed() end end, { inline = true })
-      end
-      window:AddComboBox(Combo.options(
-        { { label = "Add a tag here...", key = "none" }, table.unpack(tagChoicesFor(layout, d)) },
-        "none",
-        function(key)
-          if key ~= "none" and layout:moveTag(key, d) then changed() end
-        end))
-    end
-    window:AddSimpleButton("Reset to default", function() layout:reset(); changed() end)
+    bankLayout(app, window, changed)
   end)
 end
 
