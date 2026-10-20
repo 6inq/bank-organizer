@@ -18,7 +18,7 @@ end
 function Windows.close(name)
   local window = open[name]
   open[name] = nil
-  if window then pcall(window.Destroy, window) end
+  if window then pcall(function() return window:Destroy() end) end
 end
 
 function Windows.closeAll()

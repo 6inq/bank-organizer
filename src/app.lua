@@ -298,7 +298,7 @@ function App:tick()
     return
   end
   if self.guiding then self:_tickGuide() end
-  local ok, err = pcall(self.overlay.render, self.overlay, self)
+  local ok, err = pcall(function() return self.overlay:render(self) end)
   if not ok and log then log("[bank-organizer] overlay failed: " .. tostring(err)) end
 end
 
@@ -307,7 +307,7 @@ function App:start()
 end
 
 function App:stop()
-  pcall(Event.ServerLogic.Unsubscribe, EVENT_ID)
+  pcall(function() return Event.ServerLogic.Unsubscribe(EVENT_ID) end)
   self.overlay:clear()
   self.listeners = {}
 end

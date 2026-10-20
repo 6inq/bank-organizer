@@ -59,12 +59,12 @@ function Settings.start(store, app)
 end
 
 function Settings.destroy()
-  if view then pcall(view.Destroy, view) end
+  if view then pcall(function() return view:Destroy() end) end
   view = nil
 end
 
 function Settings.stop()
-  pcall(Event.SettingsLayerReady.Unsubscribe, EVENT_ID)
+  pcall(function() return Event.SettingsLayerReady.Unsubscribe(EVENT_ID) end)
   Settings.destroy()
 end
 

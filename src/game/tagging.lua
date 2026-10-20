@@ -45,12 +45,12 @@ function Tagging.start(app, openPicker)
     local menu = event and event.miniMenu
     local item = menu and Tagging.bankItem(menu)
     if not item then return end
-    pcall(menu.Add, menu, Tagging.LABEL, function() openPicker(item.id) end)
+    pcall(function() return menu:Add(Tagging.LABEL, function() openPicker(item.id) end) end)
   end)
 end
 
 function Tagging.stop()
-  pcall(Event.MiniMenuReady.Unsubscribe, EVENT_ID)
+  pcall(function() return Event.MiniMenuReady.Unsubscribe(EVENT_ID) end)
 end
 
 return Tagging

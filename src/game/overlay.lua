@@ -137,7 +137,7 @@ function Overlay:render(app)
 end
 
 function Overlay:clear()
-  for _, component in ipairs(self.components) do pcall(component.Destroy, component) end
+  for _, component in ipairs(self.components) do pcall(function() return component:Destroy() end) end
   self.components, self.signature, self.container = {}, nil, nil
 end
 
