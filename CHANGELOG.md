@@ -12,7 +12,7 @@
   - If you swap instead of insert, drop on the wrong spot, or move a different item, it says **Not quite** and walks you back one move at a time, then shows the original move again.
   - **Continue from here** accepts the new layout instead.
   - Deposits and withdrawals are never treated as mistakes.
-  - A move is only judged once the game has finished updating your bank (item order and tab sizes can arrive a moment apart), so a correct drag onto a tab is never mistaken for a wrong one.
+  - Moves are judged from the bank's full item order, which the game updates straight away, rather than its tab sizes, which can lag behind. A correct drag onto a tab is never mistaken for a wrong one, and the plugin uses the tab sizes the move produced until the game catches up.
 - **Ignore items**:
   - Right-click any bank item and choose **Ignore (Bank Organizer)** to leave it out of organizing. It is never moved, everything else sorts around it, and it gets a thin grey outline instead of a tint.
   - **Stop ignoring** on the same menu brings it back.

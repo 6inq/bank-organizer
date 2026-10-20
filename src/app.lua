@@ -67,7 +67,7 @@ function App:_build(allItems)
   local tagOf = function(item) return self:tagOf(item) end
   local mode = self.store:get("sort")
   self.tabCounts, self.noTabs = nil, false
-  local sizes = Bank.tabSizes()
+  local sizes = self:tabSizes()
   local sections = sizes and Bank.sections(allItems, sizes, Bank.TAB_VARS.tabsFirst)
   if self.store:get("scope") == "tabs" then
     if not sizes then
@@ -305,8 +305,16 @@ function App:stopGuide()
   self:_notify()
 end
 
+function App:tabSizes()
+  local raw = Bank.tabSizes()
+  local override = self.sizeOverride
+  if raw and override and override.game == table.concat(raw, ",") then return override.sizes end
+  self.sizeOverride = nil
+  return raw
+end
+
 function App:_sections(items)
-  local sizes = Bank.tabSizes()
+  local sizes = self:tabSizes()
   if not sizes then return nil, App.STATUS.NO_TABS end
   if Bank.searchActive() then return nil, App.STATUS.NO_SEARCH end
   local sections = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
@@ -339,7 +347,7 @@ end
 function App:_tickGuide()
   local items = Bank.readItems()
   if not items then return self:_setStatus(App.STATUS.CLOSED) end
-  local sizes = table.concat(Bank.tabSizes() or {}, ",")
+  local sizes = table.concat(self:tabSizes() or {}, ",")
   if signatureOf(items) ~= self.signature or sizes ~= self.sizesKey then
     local before = self.signature
     self.items, self.signature, self.sizesKey = items, signatureOf(items), sizes
@@ -354,7 +362,12 @@ function App:_tickGuide()
   if not self:_settled(sections) then return end
   local mode = self:modeForGuide()
   self.focus, self.sections = focus, sections
-  self:_checkMove(sections)
+  if self:_checkMove(items, sections) == "resync" then
+    self:_build(items)
+    sections, reason, focus = self:_sections(items)
+    if not sections then return self:_setStatus(reason) end
+    self.focus, self.sections, self.lastRead, self.reads = focus, sections, Verify.copy(sections), App.SETTLE_READS
+  end
   if self:_correcting(sections, mode) then return end
   self.step = Guide.next(sections, self.destinations, mode, focus)
   self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
@@ -363,13 +376,38 @@ function App:_tickGuide()
   self:_setStatus(self.step and App.describe(self.step, self) or done)
 end
 
-function App:_checkMove(sections)
+local function flatIds(items)
+  local flat = {}
+  for index, item in ipairs(items) do flat[index] = item.id end
+  return flat
+end
+
+function App:_checkMove(items, sections)
   local pending = self.pending
   if not pending or self.correction then return end
-  if Verify.check(pending.before, sections, pending.step) == "mistake" then
+  local flat = flatIds(items)
+  local verdict, expected = Verify.check(pending.before, flat, sections, pending.step, Bank.TAB_VARS.tabsFirst)
+  if verdict == "done" and expected and not Verify.same(expected, sections) then
+    local game = Bank.tabSizes()
+    if game then
+      self.sizeOverride = { game = table.concat(game, ","), sizes = Verify.sizes(expected, #game) }
+      return "resync"
+    end
+  elseif verdict == "mistake" then
     self.correction = { target = pending.before, step = pending.step }
     self.pending = nil
+    self:_recordMistake(Verify.describe(Verify.flatten(pending.before, Bank.TAB_VARS.tabsFirst), flat, pending.step)
+      .. " sizes=" .. table.concat(Bank.tabSizes() or {}, ","))
   end
+end
+
+function App:_recordMistake(line)
+  if log then log("[bank-organizer] move check: " .. line) end
+  self.mistakes = self.mistakes or {}
+  table.insert(self.mistakes, line)
+  while #self.mistakes > 20 do table.remove(self.mistakes, 1) end
+  local db = rawget(_G, "PersistentDB")
+  if db then pcall(function() return db:SetString("bank-organizer-debug", table.concat(self.mistakes, "\n")) end) end
 end
 
 function App:_correcting(sections, mode)

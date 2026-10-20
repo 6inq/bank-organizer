@@ -1,4 +1,5 @@
 local Guide = require("src/core/guide")
+local Order = require("src/core/order")
 
 local Verify = {}
 
@@ -18,14 +19,6 @@ local function last(sections)
   return high
 end
 
-local function locate(sections)
-  local where = {}
-  for s, ids in pairs(sections) do
-    for index, id in ipairs(ids) do where[id] = { section = s, index = index } end
-  end
-  return where
-end
-
 local function listsEqual(a, b)
   if #a ~= #b then return false end
   for index = 1, #a do if a[index] ~= b[index] then return false end end
@@ -39,61 +32,94 @@ function Verify.same(a, b)
   return true
 end
 
-function Verify.sameItems(a, b)
+local function countIds(lists)
   local count = {}
-  for _, ids in pairs(a) do for _, id in ipairs(ids) do count[id] = (count[id] or 0) + 1 end end
-  for _, ids in pairs(b) do for _, id in ipairs(ids) do count[id] = (count[id] or 0) - 1 end end
-  for _, value in pairs(count) do if value ~= 0 then return false end end
+  for _, ids in pairs(lists) do for _, id in ipairs(ids) do count[id] = (count[id] or 0) + 1 end end
+  return count
+end
+
+function Verify.sameItems(a, b)
+  local left, right = countIds(a), countIds(b)
+  for id, n in pairs(left) do if right[id] ~= n then return false end end
+  for id, n in pairs(right) do if left[id] ~= n then return false end end
   return true
 end
 
-local function without(sections, itemID)
-  local out = {}
+function Verify.flatten(sections, tabsFirst)
+  local order = {}
+  if tabsFirst ~= false then
+    for s = 1, last(sections) do order[#order + 1] = s end
+    order[#order + 1] = 0
+  else
+    order[1] = 0
+    for s = 1, last(sections) do order[#order + 1] = s end
+  end
+  local flat = {}
+  for _, s in ipairs(order) do
+    for _, id in ipairs(sections[s] or {}) do flat[#flat + 1] = id end
+  end
+  return flat
+end
+
+function Verify.sizes(sections, count)
+  local sizes = {}
+  for s = 1, math.max(count or 0, last(sections)) do sizes[s] = #(sections[s] or {}) end
+  return sizes
+end
+
+local function where(sections, itemID)
   for s, ids in pairs(sections) do
-    local list = {}
-    for _, id in ipairs(ids) do if id ~= itemID then list[#list + 1] = id end end
-    if #list > 0 then out[s] = list end
+    for index, id in ipairs(ids) do if id == itemID then return s, index end end
+  end
+  return nil
+end
+
+function Verify.apply(sections, step)
+  local out = Verify.copy(sections)
+  if step.kind == "insert" then
+    out[step.section] = Order.apply(out[step.section] or {}, step)
+  elseif step.kind == "swap" then
+    local sa, ia = where(out, step.move)
+    local sb, ib = where(out, step.swapWith)
+    if sa and sb then out[sa][ia], out[sb][ib] = step.swapWith, step.move end
+  else
+    local s, index = where(out, step.id)
+    if s then table.remove(out[s], index) end
+    out[step.to] = out[step.to] or {}
+    table.insert(out[step.to], step.id)
   end
   return out
 end
 
-local function othersUnchanged(before, after, itemID)
-  return Verify.same(without(before, itemID), without(after, itemID))
+local function without(list, itemID)
+  local out = {}
+  for _, id in ipairs(list) do if id ~= itemID then out[#out + 1] = id end end
+  return out
 end
 
-local function insertDone(before, after, step)
-  local where = locate(after)
-  local moved, anchor = where[step.move], where[step.before or step.after]
-  if not moved or not anchor or moved.section ~= step.section or anchor.section ~= step.section then return false end
-  return math.abs(moved.index - anchor.index) == 1 and othersUnchanged(before, after, step.move)
+local function indexOf(list, itemID)
+  for index, id in ipairs(list) do if id == itemID then return index end end
+  return nil
 end
 
-local function swapDone(before, after, step)
-  local expected = Verify.copy(before)
-  local where = locate(expected)
-  local a, b = where[step.move], where[step.swapWith]
-  if not a or not b then return false end
-  expected[a.section][a.index], expected[b.section][b.index] = step.swapWith, step.move
-  return Verify.same(expected, after)
+local function insertLanded(beforeFlat, afterFlat, step)
+  local moved, anchor = indexOf(afterFlat, step.move), indexOf(afterFlat, step.before or step.after)
+  return moved ~= nil and anchor ~= nil and math.abs(moved - anchor) == 1
+    and listsEqual(without(beforeFlat, step.move), without(afterFlat, step.move))
 end
 
-local function tabDone(before, after, step)
-  local moved = locate(after)[step.id]
-  return moved ~= nil and moved.section == step.to and othersUnchanged(before, after, step.id)
-end
-
-function Verify.check(before, after, step)
-  if not Verify.sameItems(before, after) then return "changed" end
-  if Verify.same(before, after) then return "waiting" end
-  local done
-  if step.kind == "insert" then
-    done = insertDone(before, after, step)
-  elseif step.kind == "swap" then
-    done = swapDone(before, after, step)
-  else
-    done = tabDone(before, after, step)
+function Verify.check(before, afterFlat, after, step, tabsFirst)
+  local beforeFlat = Verify.flatten(before, tabsFirst)
+  if not Verify.sameItems({ beforeFlat }, { afterFlat }) then return "changed" end
+  local expected = Verify.apply(before, step)
+  local expectedFlat = Verify.flatten(expected, tabsFirst)
+  local unmoved = listsEqual(afterFlat, beforeFlat)
+  if listsEqual(afterFlat, expectedFlat) and not (unmoved and Verify.same(after, before)) then
+    return "done", expected
   end
-  return done and "done" or "mistake"
+  if unmoved then return "waiting" end
+  if step.kind == "insert" and insertLanded(beforeFlat, afterFlat, step) then return "done", nil end
+  return "mistake", expected
 end
 
 function Verify.restoreStep(current, target, mode)
@@ -104,6 +130,17 @@ function Verify.restoreStep(current, target, mode)
     destinations[s] = entries
   end
   return Guide.next(current, destinations, mode)
+end
+
+function Verify.describe(beforeFlat, afterFlat, step)
+  local parts = { "step=" .. tostring(step.kind) .. ":" .. tostring(step.id or step.move) .. "->" .. tostring(step.to or step.before or step.after or step.swapWith) }
+  for index = 1, math.max(#beforeFlat, #afterFlat) do
+    if beforeFlat[index] ~= afterFlat[index] then
+      parts[#parts + 1] = "first change at " .. index .. ": " .. tostring(beforeFlat[index]) .. " -> " .. tostring(afterFlat[index])
+      break
+    end
+  end
+  return table.concat(parts, " ")
 end
 
 return Verify

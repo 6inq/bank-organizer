@@ -819,4 +819,28 @@ function T.a_right_move_is_not_judged_while_the_game_is_mid_update()
   PluginShutdown()
 end
 
+function T.a_right_move_is_accepted_when_the_games_tab_sizes_never_catch_up()
+  local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  env.bank = { 103, 108, 109, 101, 107, 102 }
+  settle(env); settle(env); settle(env)
+  local text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, text)
+  A.eq(text:find("Dragon dagger", 1, true), nil, "no loop back to the dagger: " .. text)
+  PluginShutdown()
+end
+
+function T.a_mistake_is_logged_for_diagnosis()
+  local env = boot(MISTAKE_BANK)
+  local lines = {}
+  _G.log = function(line) lines[#lines + 1] = line end
+  guideOnTab(env)
+  env.bank = { 103, 101, 108 }
+  settle(env)
+  A.truthy(table.concat(lines, " | "):find("move check: step=insert", 1, true), table.concat(lines, " | "))
+  A.truthy(PersistentDB.data["bank-organizer-debug"], "saved for PluginData.db")
+  PluginShutdown()
+end
+
 return T
