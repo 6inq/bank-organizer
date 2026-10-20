@@ -6,7 +6,7 @@ local Settings = {}
 local EVENT_ID = "bank-organizer:settings"
 local view
 
-local HIGHLIGHTS = { { "move", "Item to move (MOVE)" }, { "target", "Drop target" }, { "line", "Guide line" } }
+local HIGHLIGHTS = { { "move", "Item to move (MOVE)" }, { "target", "Drop target" }, { "line", "Guide line" }, { "done", "Sorted tabs" } }
 
 local function addColour(store, app, key, label)
   view:AddText(label)
@@ -28,6 +28,11 @@ local function mount(parent, store, app)
     min = 0, max = 100, step = 5, value = math.floor(store:get("opacity") * 100 + 0.5),
     onChange = function(_, value) store:set("opacity", value / 100); app:rebuild() end,
   })
+  view:AddText("Tabs that are sorted")
+  view:AddComboBox(Combo.options(
+    { { label = "Green", key = "green" }, { label = "No overlay", key = "clear" }, { label = "Keep tab colour", key = "tint" } },
+    store:get("sortedLook"),
+    function(key) store:set("sortedLook", key); app:rebuild() end))
   view:AddText({ text = "Rearrange mode (used when the game does not report it)", height = 40 })
   view:AddComboBox(Combo.options(
     { { label = "Insert (fewer moves)", key = "insert" }, { label = "Swap", key = "swap" } },

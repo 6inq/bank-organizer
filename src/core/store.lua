@@ -20,6 +20,7 @@ local SETTINGS = {
   mode = { default = "insert", valid = function(v) return v == "insert" or v == "swap" end },
   scope = { default = "bank", valid = function(v) return v == "bank" or v == "tabs" end },
   sort = { default = Sorting.DEFAULT, valid = Sorting.isMode },
+  sortedLook = { default = "green", valid = function(v) return v == "green" or v == "clear" or v == "tint" end },
 }
 
 local function read(db)

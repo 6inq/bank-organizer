@@ -316,6 +316,35 @@ function App:_displaySections(items, sizes)
   return self.displaySections
 end
 
+function App:sortedSections()
+  if not self.destinations or not self.displaySections then return {}, {} end
+  local key = tostring(self.signature) .. "|" .. tostring(self.sizesKey) .. "|" .. tostring(self.destinations) .. "|" .. tostring(self.displaySections)
+  if key == self.sortedKey then return self.sorted, self.sectionOfKey end
+  local targets = Guide.targetSections(self.destinations)
+  local planned = {}
+  for _, target in pairs(targets) do for _, id in ipairs(target) do planned[id] = true end end
+  local sorted, sectionOfKey = {}, {}
+  for s, keys in pairs(self.displaySections) do
+    local list = {}
+    for _, k in ipairs(keys) do
+      sectionOfKey[k] = s
+      if planned[k] then list[#list + 1] = k end
+    end
+    local target = targets[s] or {}
+    local same = #target > 0 and #list == #target
+    for index = 1, #target do if list[index] ~= target[index] then same = false end end
+    sorted[s] = same
+  end
+  self.sorted, self.sectionOfKey, self.sortedKey = sorted, sectionOfKey, key
+  return sorted, sectionOfKey
+end
+
+function App:isSortedSlot(key)
+  local sorted, sectionOfKey = self:sortedSections()
+  local s = sectionOfKey[key]
+  return s ~= nil and sorted[s] == true
+end
+
 function App:assignSlotKeys(slots)
   local shown = self.displaySections
   if not shown then return end

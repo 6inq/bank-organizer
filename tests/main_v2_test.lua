@@ -1040,4 +1040,36 @@ function T.identical_copies_are_matched_within_each_tab_on_screen()
   PluginShutdown()
 end
 
+local function fills(env)
+  local list = {}
+  for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.fill then list[#list + 1] = c end end
+  return list
+end
+
+function T.a_sorted_tab_turns_green_and_can_be_cleared()
+  local env = boot({ bank = { 103, 108, 101, 102 }, tabSizes = { 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  tick(env)
+  local green = Store.HIGHLIGHT_DEFAULTS.done
+  local greens = 0
+  for _, c in ipairs(fills(env)) do if c.rgba == green then greens = greens + 1 end end
+  A.eq(greens, 2, "the gear tab is already in order, so its two items are green")
+  A.eq(#fills(env), 4, "the rest keep their tab colour")
+  env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
+  pick(comboWith(env.settings[#env.settings], "clear"), "clear")
+  tick(env)
+  A.eq(#fills(env), 2, "No overlay: the sorted tab is left plain")
+  PluginShutdown()
+end
+
+function T.an_unsorted_tab_keeps_its_colour()
+  local env = boot({ bank = { 108, 103, 101, 102 }, tabSizes = { 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  tick(env)
+  for _, c in ipairs(fills(env)) do A.truthy(c.rgba ~= Store.HIGHLIGHT_DEFAULTS.done, "nothing green yet") end
+  PluginShutdown()
+end
+
 return T

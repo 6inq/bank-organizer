@@ -6,6 +6,7 @@
   - Prices load in the background, so the sidebar and the guide never wait for them. Until they arrive, Value sorts by item value, and once they do the blueprint is rebuilt once by GE price.
   - The sort choice says which is in use: **Value: GE price**, **Value: item value until GE prices load**, or **Value: item value** when GE prices are unavailable or price fetching is turned off.
   - Prices come from the **GE Price Library**, now installed automatically as a dependency. It downloads them from the RuneScape Wiki prices API; Bank Organizer itself still has no internet access.
+- **Sorted tabs light up**: once a tab holds exactly the right items in the right order, its items turn green, so you can see your progress. Settings has **Tabs that are sorted**: Green (default), No overlay, or Keep tab colour, plus a colour picker for the green.
 - **Infinity first, then your tabs, from the top down**: the guide first empties the infinity tab, starting with the topmost item, each dropped onto its tab's button (or + for a new tab). Once infinity is done, it sorts inside your tabs. The moves-left count follows that exact order.
 
 ### Fixed

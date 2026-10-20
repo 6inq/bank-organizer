@@ -34,6 +34,7 @@ Part of [6ing's RS3 plugins](https://github.com/6inq/rs3-plugins).
   - Plans one safe manual move at a time.
   - Re-plans from your real bank after every move, and uses the fewest moves in insert mode.
   - Supports insert and swap mode (it follows your bank's own setting).
+- **Sorted tabs light up**: a tab that is fully sorted turns green (or plain, or keeps its colour, your choice in settings).
 - **Every colour is yours**: each tab colour, the MOVE highlight, the drop target and the guide line, with a reset.
 
 ## Fair play

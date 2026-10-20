@@ -85,9 +85,10 @@ local function signatureOf(slots, app, tint, marks)
     local d = app:destinationOfItem(slot.key)
     local mark = marks[slot.key]
     parts[#parts + 1] = slot.key .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
-      .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "")
+      .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "") .. (app:isSortedSlot(slot.key) and "S" or "")
   end
-  for _, key in ipairs({ "move", "target", "line" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
+  for _, key in ipairs({ "move", "target", "line", "done" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
+  parts[#parts + 1] = tostring(app.store:get("sortedLook"))
   return table.concat(parts, "|")
 end
 
@@ -181,7 +182,10 @@ function Overlay:render(app)
   local opacity = app.store:get("opacity")
   for _, slot in ipairs(slots or {}) do
     local d = app:destinationOfItem(slot.key)
-    if tint and d then
+    local look = app:isSortedSlot(slot.key) and app.store:get("sortedLook") or "tint"
+    if tint and d and look == "green" then
+      self:_rect(slot, app.store:colour("done"))
+    elseif tint and d and look == "tint" then
       self:_rect(slot, withAlpha(app:destinationColour(d), opacity))
     elseif tint and app:isIgnored(slot.objectID) then
       self:_rect(slot, IGNORED_OUTLINE, 1)
