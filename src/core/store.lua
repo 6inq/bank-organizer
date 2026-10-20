@@ -6,7 +6,7 @@ local Layout = require("src/core/layout")
 local Store = {}
 Store.__index = Store
 
-Store.KEY = "bank-organizer:v2"
+Store.KEY = "bank-organizer-v2"
 
 local DEFAULT_COLOURS = {}
 for _, category in ipairs(Tags.CATEGORIES) do DEFAULT_COLOURS[category.key] = category.colour end
@@ -23,7 +23,7 @@ local SETTINGS = {
 
 local function read(db)
   if not db then return {} end
-  local ok, value = pcall(db.GetStructuredData, db, Store.KEY)
+  local ok, value = pcall(function() return db:GetStructuredData(Store.KEY) end)
   if ok and type(value) == "table" then return value end
   return {}
 end
@@ -71,7 +71,7 @@ function Store:save()
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections,
     colours = self.colours, settings = self.settings,
   }
-  local ok, err = pcall(self.db.SetStructuredData, self.db, Store.KEY, data)
+  local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
 end
 
