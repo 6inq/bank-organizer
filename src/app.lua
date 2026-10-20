@@ -295,7 +295,7 @@ end
 
 function App:startGuide()
   if not self.destinations and not self:analyze() then return end
-  self.guiding, self.pending, self.correction = true, nil, nil
+  self.guiding, self.pending, self.correction, self.step, self.lastRead = true, nil, nil, nil, nil
   self:_tickGuide()
   self:_notify()
 end
@@ -325,12 +325,24 @@ function App:modeForGuide()
   return insert and Guide.INSERT or Guide.SWAP
 end
 
+App.SETTLE_READS = 2
+
+function App:_settled(sections)
+  if self.lastRead and Verify.same(self.lastRead, sections) then
+    self.reads = self.reads + 1
+  else
+    self.lastRead, self.reads = Verify.copy(sections), 1
+  end
+  return self.reads >= App.SETTLE_READS or self.step == nil
+end
+
 function App:_tickGuide()
   local items = Bank.readItems()
   if not items then return self:_setStatus(App.STATUS.CLOSED) end
-  if signatureOf(items) ~= self.signature then
+  local sizes = table.concat(Bank.tabSizes() or {}, ",")
+  if signatureOf(items) ~= self.signature or sizes ~= self.sizesKey then
     local before = self.signature
-    self.items, self.signature = items, signatureOf(items)
+    self.items, self.signature, self.sizesKey = items, signatureOf(items), sizes
     self:_build(items)
     if before and #before ~= #self.signature then self.status = App.STATUS.CHANGED end
   end
@@ -339,6 +351,7 @@ function App:_tickGuide()
     self.step = nil
     return self:_setStatus(reason)
   end
+  if not self:_settled(sections) then return end
   local mode = self:modeForGuide()
   self.focus, self.sections = focus, sections
   self:_checkMove(sections)

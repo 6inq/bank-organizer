@@ -10,6 +10,7 @@ local ITEMS = {
   { 101, "Shark", { "Eat" } }, { 102, "Coins" }, { 103, "Abyssal whip", { "Wield" } },
   { 104, "Air rune" }, { 105, "Grimy guam" }, { 106, "Mystery thing" }, { 107, "Prayer potion (4)", { "Drink" } },
   { 108, "Rune scimitar", { "Wield" } },
+  { 109, "Dragon dagger", { "Wield" } },
 }
 
 local function memoryDb()
@@ -701,6 +702,8 @@ function T.offscreen_item_gets_a_scroll_pointer_instead_of_a_line()
   PluginShutdown()
 end
 
+local function settle(env) tick(env); tick(env) end
+
 local MISTAKE_BANK = { bank = { 108, 101, 103 }, tabSizes = { 3 } }
 
 local function guideOnTab(env)
@@ -715,12 +718,12 @@ function T.a_wrong_move_is_caught_and_walked_back()
   local first = guideOnTab(env)
   A.truthy(first:find("Insert Abyssal whip before Rune scimitar", 1, true), first)
   env.bank = { 103, 101, 108 }
-  tick(env)
+  settle(env)
   local text = texts(panel(env))
   A.truthy(text:find("Not quite", 1, true), "mistake noticed: " .. text)
   A.truthy(find(panel(env), "AddSimpleButton", "Continue from here"), "can accept the new layout")
   env.bank = { 108, 101, 103 }
-  tick(env)
+  settle(env)
   text = texts(panel(env))
   A.truthy(text:find("Insert Abyssal whip before Rune scimitar", 1, true), "back to the original move: " .. text)
   A.eq(find(panel(env), "AddSimpleButton", "Continue from here"), nil)
@@ -731,7 +734,7 @@ function T.the_right_move_moves_on()
   local env = boot(MISTAKE_BANK)
   guideOnTab(env)
   env.bank = { 103, 108, 101 }
-  tick(env)
+  settle(env)
   local text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, text)
   A.truthy(text:find("Tab 2 is organized", 1, true), text)
@@ -742,7 +745,7 @@ function T.continue_from_here_accepts_the_new_layout()
   local env = boot(MISTAKE_BANK)
   guideOnTab(env)
   env.bank = { 103, 101, 108 }
-  tick(env)
+  settle(env)
   find(panel(env), "AddSimpleButton", "Continue from here").args[2]()
   local text = texts(panel(env))
   A.eq(text:find("Not quite", 1, true), nil, "planning from the bank as it is now: " .. text)
@@ -797,6 +800,23 @@ function T.ignore_list_survives_a_restart()
   A.list(db.data["bank-organizer-v2"].ignored, { 101, 103, 108 }, "saved as a plain sorted list")
   store:resetIgnored()
   A.eq(Store.new(db):ignoredCount(), 0)
+end
+
+function T.a_right_move_is_not_judged_while_the_game_is_mid_update()
+  local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
+  pick(comboWith(panel(env), "tabs"), "tabs")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  local text = texts(panel(env))
+  A.truthy(text:find("Drag Dragon dagger onto Tab 2", 1, true), text)
+  env.bank = { 103, 108, 109, 101, 107, 102 }
+  tick(env)
+  var.VarPlayer.BANK_TAB2.value = 3
+  tick(env)
+  tick(env)
+  text = texts(panel(env))
+  A.eq(text:find("Not quite", 1, true), nil, "the tab sizes caught up a tick later: " .. text)
+  A.eq(text:find("Dragon dagger", 1, true), nil, "the dagger is home: " .. text)
+  PluginShutdown()
 end
 
 return T
