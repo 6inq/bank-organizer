@@ -11,9 +11,9 @@ Copy each field into the mod.io "Create Plugin" form. You're making the listing 
 Bank Organizer
 ```
 
-**Summary** (250 character max; this is 235)
+**Summary** (250 character max; this is 244)
 ```
-Colour-codes your bank by category and guides you through sorting it, one move at a time. Works on a single tab or your whole bank. Highlights which item to drag and where to drop it. You make every move; nothing is automated. By 6ing.
+Works out where everything in your bank belongs, tints each item with its tab's colour, and guides you through sorting it one drag at a time, with a line to where it goes. Keep your own tabs or design a new layout. You make every move. By 6ing.
 ```
 
 **Homepage**
@@ -37,38 +37,31 @@ https://mod.io/g/runescape/m/bank-organizer
 The editor accepts HTML. Click the `<>` (source code) button in the toolbar and paste this:
 
 ```html
-<p>Bank Organizer colour-codes your bank by category and guides you through sorting it, one move at a time. Works on a single tab or your entire bank.</p>
+<p>Bank Organizer works out where everything in your bank belongs, tints each item with the colour of its tab, and guides you through sorting it, one drag at a time. You make every move.</p>
 
 <h2>Features</h2>
-<h3>Category overlays</h3>
-<p>Every bank slot gets tinted by category: <strong>Teleports, Combat, Potions, Food, Skilling, Materials, Currency</strong> and <strong>Misc</strong>. Pick one category in the filter to dim everything else, so you can see at a glance what belongs together.</p>
+<h3>Analyze, Blueprint, Sorting Guide</h3>
+<p>Press <strong>Analyze Bank</strong> and every item is tinted with the colour of the tab it belongs in. <strong>Open Blueprint</strong> shows the plan tab by tab. <strong>Sorting Guide</strong> then marks the item to <strong>MOVE</strong> and draws a white line to where it goes: the item to drop it next to, or the tab button to drop it on. It re-plans from your real bank after every move.</p>
 
-<h3>Smart auto-categorize</h3>
-<p>Items are sorted into categories automatically using their in-game category and right-click options (Eat, Drink, Wield, Rub, Break and so on). Anything it gets wrong, you can fix in one click.</p>
+<h3>Keep your tabs, or design new ones</h3>
+<p><strong>My tabs</strong> keeps the tabs you already have. Tab 1 (infinity) is the misc catch-all, and loose items go to the tab that already holds most of their kind. Pin any kind of item to a tab, remove it, or swap whole tabs around.</p>
+<p><strong>Whole bank</strong> follows your <strong>Tab Layout</strong>. Add, delete, rename and reorder tabs, and choose which kinds of item each one holds and in what order. <strong>Copy my current tabs</strong> starts you from the bank you already have.</p>
 
-<h3>Right-click tagging</h3>
-<p>Turn on <em>Tag items via right-click</em>, then right-click any bank item and choose <strong>Bank Organizer &gt; Set: Food</strong> (or any category). Your tags are saved and always override the automatic guess. <em>Highlight untagged</em> outlines everything you haven't confirmed yet.</p>
-
-<h3>Guided ordering</h3>
-<p>Press <strong>Start Organizing</strong> and the plugin works out the shortest sequence of moves to put the tab in order: by category, then by item ID or by name. It highlights the item to move in green and the drop target in yellow, with a step like <em>"Insert Shark before Rocktail"</em> and a count of moves remaining. Drag the item yourself and the next step appears instantly. Use <strong>Skip item</strong> to leave something where it is.</p>
-
-<h3>Your tab, or your whole bank</h3>
-<p>Bank Organizer works on whatever your bank is showing. Open a tab to organize just that tab, or open <em>All items</em> to organize everything. (Tip: ordering in All items can move items between tabs, so organize tab by tab to keep your tabs intact.)</p>
+<h3>Smart classification</h3>
+<p>About 30 kinds of item, including Runes, Summoning, MTX &amp; XP Boosts, Skilling Outfits, Potions and Herbs. Items are recognised from the game's own item categories, their right-click options and their names. Anything it gets wrong, fix with <strong>Assign Categories</strong>: right-click the item and pick its kind. Your choice always wins.</p>
 
 <h3>Customizable</h3>
-<p>Every option lives in the settings panel: sort order, overlays, category filter, opacity and right-click tagging. Every colour is yours to change: each category, the MOVE highlight, the drop target, the filter dim and the untagged outline. You can reset all your tags at any time.</p>
+<p>Every tab colour, the MOVE highlight, the drop target and the guide line can be changed, along with tint opacity and insert or swap mode.</p>
 
 <h2>How to use</h2>
 <ol>
-<li>Open your bank.</li>
-<li>Enable the plugin.</li>
-<li>Go through the settings (gear icon) and make sure everything is how you want it to be.</li>
-<li>Click <strong>Start Organizing</strong>, then follow the highlighted moves.</li>
+<li>Open your bank and enable the plugin.</li>
+<li>Choose <strong>My tabs</strong> or <strong>Whole bank</strong> in the sidebar.</li>
+<li>Press <strong>Analyze Bank</strong>, check the <strong>Blueprint</strong>, then press <strong>Sorting Guide</strong> and follow the line.</li>
 </ol>
-<p>Want to change something? Click <strong>Stop Organizing</strong> (the Start button turns into this while it runs), edit your settings, then start again. Settings are locked while organizing so nothing shifts under you.</p>
 
 <h2>Fair play</h2>
-<p>Bank Organizer never moves, withdraws or clicks anything for you. It only reads the items your bank is already showing and draws highlights on top. Every move is made by you. No internet access, no chat access, no tracking.</p>
+<p>Bank Organizer never moves, withdraws or clicks anything for you. It only reads the items your bank is already showing and draws on top. Every move is made by you. No internet access, no chat access, no tracking.</p>
 
 <h2>Requires</h2>
 <p><strong>PrettyUI</strong> (installed automatically as a dependency).</p>
@@ -114,6 +107,6 @@ This listing has two parts:
 ## Before you submit (checklist)
 
 - [ ] Confirm `contactEmailAddress` in `plugin.json` (set to im6ing@gmail.com).
-- [ ] Test in the beta world (see the testing steps), including the Sorting Guide.
-- [ ] Upload `dist/bank-organizer-1.1.0.zip` as the plugin file.
+- [ ] Test in the beta world (see the testing steps): Analyze, Blueprint, Sorting Guide line, Tab Layout.
+- [ ] Upload `dist/bank-organizer-1.2.0.zip` as the plugin file.
 - [ ] Upload your listing image.

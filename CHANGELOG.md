@@ -1,0 +1,36 @@
+# Changelog: Bank Organizer
+
+## 1.2.0 (2026-10-20)
+Rebuilt around the Bank Architect workflow: **Analyze Bank, Open Blueprint, Sorting Guide**.
+
+### New
+- **Two ways to organize**:
+  - **My tabs** keeps the tabs you already have. Tab 1 (infinity) is the misc catch-all, and loose items go to the tab that already holds most of their kind.
+  - **Whole bank** follows your Tab Layout.
+- **Tab Layout (Whole bank)**: add, delete, rename and reorder tabs, and choose which kinds of item each one holds and in what order. **Copy my current tabs** builds a layout from your bank.
+- **Tab Layout (My tabs)**: pin any kind of item to a tab, Remove it back to infinity, or swap whole tabs with Move left / Move right.
+- **Guide line**: a white line from the item to MOVE to where it goes, either the item to drop it next to or the tab button to drop it on. It stays put while you drag.
+- **Blueprint window**: shows the plan one tab at a time, with a tab picker and Previous / Next.
+- **Assign Categories**: right-click any bank item to set its kind; your choice always wins.
+- **New kinds**: Summoning (pouches, scrolls, binding contracts, spirit gems), MTX & XP Boosts (knowledge bombs, wildcards, protean items, portable packs, Treasure Hunter rewards), and skillcapes as Skilling Outfits.
+- Tabs are numbered the way RS3 numbers them (infinity is Tab 1).
+
+### Improved
+- **Classification** now uses the game's own item categories first. On a real 1,304-item bank, items left in Storage & Cleanup dropped from 452 to 197. Fixes include:
+  - urns, Invention and Archaeology gear
+  - Treasure Hunter skilling outfits
+  - farming produce
+  - boss drops and pet unlocks
+- The guide plans one safe move at a time, re-plans from your real bank after every move, and follows your bank's insert or swap setting.
+- Guide labels on the top row of slots no longer hide under the tab bar.
+
+### Fixed
+- The client could crash when the plugin was turned on or off.
+- Herbs no longer match inside other words ("spirit" was read as the herb "irit").
+- Dropdowns failed to open in the live client.
+
+## 1.1.0 (2026-10-17)
+- Every colour is configurable: each category, the MOVE highlight, the drop target, the filter dim and the untagged outline.
+
+## 1.0.0 (2026-10-17)
+- First release: category overlays, automatic classification, right-click tagging, and a guided fewest-moves sort.
