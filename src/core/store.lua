@@ -119,10 +119,11 @@ function Store.new(db)
   self.corrections = sanitizeCorrections(raw.corrections)
   self.ignored = sanitizeIgnored(raw.ignored)
   self.marks = sanitizeMarks(raw.marks)
+  self.noDecant = sanitizeIgnored(raw.noDecant)
   self.displayOrder = sanitizeOrder(raw.displayOrder)
   self.colours = sanitizeColours(raw.colours)
   self.tabHomes = sanitizeTabHomes(raw.tabHomes)
-  self.tabOrder = sanitizeOrder(raw.tabOrder)
+  self.arrangement = sanitizeOrder(raw.arrangement)
   self.settings = {}
   local saved = type(raw.settings) == "table" and raw.settings or {}
   for name, spec in pairs(SETTINGS) do
@@ -140,10 +141,13 @@ function Store:save()
   table.sort(ignored)
   local marks = {}
   for id, mark in pairs(self.marks) do marks[tostring(id)] = mark end
+  local noDecant = {}
+  for id in pairs(self.noDecant) do noDecant[#noDecant + 1] = id end
+  table.sort(noDecant)
   local data = {
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections, ignored = ignored,
-    colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, tabOrder = self.tabOrder,
-    displayOrder = self.displayOrder, marks = marks,
+    colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, arrangement = self.arrangement,
+    displayOrder = self.displayOrder, marks = marks, noDecant = noDecant,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
@@ -181,6 +185,17 @@ function Store:setDisplayOrder(order)
   for index = 1, #order do if current[index] ~= order[index] then changed = true end end
   if not changed then return false end
   self.displayOrder = order
+  self:save()
+  return true
+end
+
+function Store:isNoDecant(itemID)
+  return self.noDecant[itemID] == true
+end
+
+function Store:setNoDecant(itemID, on)
+  if type(itemID) ~= "number" then return false end
+  self.noDecant[itemID] = on and true or nil
   self:save()
   return true
 end
@@ -259,9 +274,9 @@ function Store:resetTabHomes()
   self:save()
 end
 
-function Store:setTabOrder(order)
+function Store:setArrangement(order)
   if order ~= nil and not isOrder(order) then return false end
-  self.tabOrder = order
+  self.arrangement = order
   self:save()
   return true
 end

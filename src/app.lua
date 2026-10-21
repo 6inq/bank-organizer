@@ -74,8 +74,10 @@ function App:_build(allItems)
   self.itemByKey = {}
   for _, item in ipairs(allItems) do self.itemByKey[item.id] = item end
   local tagged = {}
-  for index, item in ipairs(items) do
-    tagged[index] = { id = item.id, name = item.name, quantity = item.quantity, tag = self:tagOf(item) }
+  for _, item in ipairs(items) do
+    if not self.store:isNoDecant(item.objectId or item.id) then
+      tagged[#tagged + 1] = { id = item.id, name = item.name, quantity = item.quantity, tag = self:tagOf(item) }
+    end
   end
   self.decant = Sorting.decantInfo(tagged)
   local opts = self:_buildOptions()
@@ -89,8 +91,8 @@ function App:_build(allItems)
       self.noTabs = true
     else
       self.destinations, self.bySlot, self.tabCounts, self.autoHomes = Blueprint.buildFromTabs(
-        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder, mode, opts)
-      self:_trackOrder(sections)
+        items, sections, tagOf, self.store.tabHomes, nil, mode, opts)
+      self.tabTotal = App.countTabs(sections)
       self:_keepOrder(sections)
       return true
     end
@@ -214,38 +216,12 @@ function App:tabHomeOf(tag)
   local list = self:destinationList()
   if pin and pin <= list[#list] then return pin, true end
   local home = self.autoHomes and self.autoHomes[tag]
-  if home then return (self.positionOf and self.positionOf[home.section]) or home.section, false end
+  if home then return home.section, false end
   return nil, false
 end
 
-function App:_trackOrder(sections)
-  self.tabTotal = 0
-  for s in pairs(sections) do if s > self.tabTotal then self.tabTotal = s end end
-  self.positionOf = Blueprint.orderFor(self.store.tabOrder, self.tabTotal)
-  self.sectionAt = {}
-  for s, position in pairs(self.positionOf) do self.sectionAt[position] = s end
-end
 
-function App:moveMyTab(d, direction)
-  local other, total = d + direction, self.tabTotal or 0
-  if not self:myTabs() or d < 1 or other < 1 or d > total or other > total then return false end
-  local order = {}
-  for position = 1, total do order[position] = self.sectionAt[position] end
-  order[d], order[other] = order[other], order[d]
-  local identity = true
-  for position, s in ipairs(order) do if s ~= position then identity = false end end
-  for tag, pin in pairs(self.store.tabHomes) do
-    if pin == d then self.store.tabHomes[tag] = other elseif pin == other then self.store.tabHomes[tag] = d end
-  end
-  self.store:setTabOrder(not identity and order or nil)
-  self:rebuild()
-  return true
-end
 
-function App:resetMyTabOrder()
-  self.store:setTabOrder(nil)
-  self:rebuild()
-end
 
 function App:destinationColour(d)
   if self:myTabs() then
@@ -261,10 +237,11 @@ end
 function App:destinationLabel(d)
   if self:myTabs() then
     if d == 0 then return "Tab 1 (infinity): misc catch-all" end
-    local kinds, from = {}, self.sectionAt and self.sectionAt[d] or d
-    for _, entry in ipairs(Blueprint.profile(self.tabCounts, from, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
-    local moved = from ~= d and (" (now Tab " .. (from + 1) .. ")") or ""
-    return "Tab " .. (d + 1) .. moved .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
+    local kinds = {}
+    for _, entry in ipairs(Blueprint.profile(self.tabCounts, d, 3)) do kinds[#kinds + 1] = Tags.label(entry.tag) end
+    local target = self:arrangedPosition(d)
+    local moving = target and target ~= d and (" (moving to Tab " .. (target + 1) .. ")") or ""
+    return "Tab " .. (d + 1) .. moving .. ": " .. (#kinds > 0 and table.concat(kinds, ", ") or "empty")
   end
   local layout = self.store.layout
   local names = {}
@@ -310,6 +287,86 @@ function App:_buildOptions()
   }
 end
 
+function App:setNoDecant(objectId, on)
+  self.store:setNoDecant(objectId, on)
+  self:rebuild()
+end
+
+function App:_followTabs()
+  local old, current = self.lastContainerOf, self.containerOf
+  self.lastContainerOf = current
+  if not old then return end
+  local changed = false
+  for tag, pin in pairs(self.store.tabHomes) do
+    local moved = pin > 0 and old[pin] and self.displayOf[old[pin]]
+    if moved and moved ~= pin then
+      self.store.tabHomes[tag], changed = moved, true
+    end
+  end
+  if changed then self.store:save() end
+end
+
+function App:_currentArrangement()
+  local list = {}
+  for position = 1, self.tabTotal or 0 do list[position] = self.containerOf and self.containerOf[position] end
+  return list
+end
+
+function App:_validArrangement()
+  local arrangement = self.store.arrangement
+  if not arrangement or not self.containerSections then return nil end
+  if #arrangement ~= (self.tabTotal or 0) or not TabOrder.fits(arrangement, self.containerSections) then return nil end
+  return arrangement
+end
+
+function App:arrangedPosition(d)
+  local arrangement = self:_validArrangement()
+  local c = arrangement and self.containerOf and self.containerOf[d]
+  if not c then return nil end
+  for position, wanted in ipairs(arrangement) do if wanted == c then return position end end
+  return nil
+end
+
+function App:moveMyTab(d, direction)
+  local total = self.tabTotal or 0
+  if not self:myTabs() or d < 1 or d > total then return false end
+  local arrangement = {}
+  for position, c in ipairs(self:_validArrangement() or self:_currentArrangement()) do arrangement[position] = c end
+  local from = self:arrangedPosition(d) or d
+  local to = from + direction
+  if to < 1 or to > total then return false end
+  arrangement[from], arrangement[to] = arrangement[to], arrangement[from]
+  local current, same = self:_currentArrangement(), true
+  for position = 1, total do if current[position] ~= arrangement[position] then same = false end end
+  self.store:setArrangement(not same and arrangement or nil)
+  self:rebuild()
+  return true
+end
+
+function App:resetMyTabOrder()
+  self.store:setArrangement(nil)
+  self:rebuild()
+end
+
+function App:_tabArrangementStep()
+  if not self:myTabs() then return nil end
+  local arrangement = self:_validArrangement()
+  if not arrangement then
+    if self.store.arrangement then self.store:setArrangement(nil) end
+    return nil
+  end
+  local current = self:_currentArrangement()
+  for position, wanted in ipairs(arrangement) do
+    if current[position] ~= wanted then
+      for from, c in ipairs(current) do
+        if c == wanted then return { kind = "tab-move", from = from, to = position } end
+      end
+    end
+  end
+  self.store:setArrangement(nil)
+  return nil
+end
+
 function App:markOf(objectId)
   return self.store:markOf(objectId)
 end
@@ -325,7 +382,7 @@ end
 function App:slotLabel(key)
   local item = self.itemByKey and self.itemByKey[key]
   if not item then return nil end
-  local badge = Placement.badge(self.store:markOf(item.objectId or item.id))
+  local badge = Placement.badge(self.store:markOf(item.objectId or item.id), self:tagOf(item))
   if badge then return badge, "badge" end
   local decant = self.store:get("decant") and self.decant and self.decant[key]
   if decant and decant.canDecant and self.store:get("decant" .. decant.dose) then return "DECANT", "decant" end
@@ -372,7 +429,11 @@ end
 
 function App:_displaySections(items, sizes)
   local container = Bank.sections(items, sizes, Bank.TAB_VARS.tabsFirst)
-  self.displayOf, self.containerOf = TabOrder.maps(self.store.displayOrder, container)
+  local live = Bank.liveDisplayOrder()
+  local order = TabOrder.fits(live, container) and live or self.store.displayOrder
+  self.displayOf, self.containerOf = TabOrder.maps(order, container)
+  self.containerSections = container
+  self:_followTabs()
   self.containerSequence = TabOrder.containerSequence(self.displayOf, self.containerOf, Bank.TAB_VARS.tabsFirst)
   self.displaySections = TabOrder.toDisplay(container, self.displayOf)
   return self.displaySections
@@ -569,6 +630,11 @@ function App:_tickGuide()
     self.focus, self.sections, self.lastRead, self.reads = focus, sections, Verify.copy(sections), App.SETTLE_READS
   end
   if self:_correcting(sections, mode) then return end
+  local tabStep = self:_tabArrangementStep()
+  if tabStep then
+    self.step, self.remaining, self.pending = tabStep, nil, nil
+    return self:_setStatus(App.describe(tabStep, self))
+  end
   self.step = Guide.next(sections, self.destinations, mode, focus)
   self.remaining = Guide.remaining(sections, self.destinations, mode, focus)
   self.pending = self.step and { step = self.step, before = Verify.copy(sections) } or nil
@@ -666,6 +732,9 @@ end
 
 function App.describe(step, app)
   local name = nameOf(app, step.id or step.move)
+  if step.kind == "tab-move" then
+    return string.format("Drag the %s button onto %s to rearrange your tabs.", app:tabName(step.from), app:tabName(step.to))
+  end
   if step.kind == "new-tab" then
     return string.format("Drag %s onto the + button to start %s.", name, app:tabName(step.to, step.destination))
   elseif step.kind == "to-tab" then

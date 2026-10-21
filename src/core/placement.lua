@@ -2,7 +2,7 @@ local Placement = {}
 
 Placement.LIST = {
   { key = "active", label = "Active", badge = "ACTIVE", group = 1, infinity = true },
-  { key = "vanity", label = "Vanity", group = 2, infinity = true },
+  { key = "vanity", label = "Vanity", badge = "VAN", group = 2, infinity = true },
   { key = "favourite", label = "Favourite", badge = "FAV", group = 0, infinity = false },
   { key = "sell", label = "Sell", badge = "SELL", group = 4, infinity = true },
   { key = "alch", label = "Alch", badge = "ALCH", group = 5, infinity = true },
@@ -45,8 +45,8 @@ function Placement.describe(key)
   return WHERE[key] or ""
 end
 
-function Placement.badge(mark)
-  local placement = Placement.byKey[mark]
+function Placement.badge(mark, tag)
+  local placement = Placement.effective(mark, tag)
   return placement and placement.badge or nil
 end
 

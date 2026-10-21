@@ -31,12 +31,12 @@ end
 
 local function addActions(app)
   view:AddFancyButton("Analyze Bank", function() app:analyze() end)
+  view:AddFancyButton(app.guiding and "Stop Sorting" or "Start Sorting", function()
+    if app.guiding then app:stopGuide() else app:startGuide() end
+  end, { variant = app.guiding and "negative" or "positive" })
   view:AddSimpleButton("Open Blueprint", function() Windows.blueprint(app) end)
   view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end, { inline = true })
-  view:AddSimpleButton(app.guiding and "Stop Sorting Guide" or "Sorting Guide", function()
-    if app.guiding then app:stopGuide() else app:startGuide() end
-  end)
-  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end, { inline = true })
+  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end)
 end
 
 local function addStatus(app)

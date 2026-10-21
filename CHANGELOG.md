@@ -6,9 +6,12 @@
   - **Category**: what kind of item it is (this replaces the Assign Categories button).
   - **Placement**: **Active** (very top of the infinity tab), **Vanity** (top of infinity, with rares), **Favourite** (first in its own tab), **Sell**, **Alch**, **Disassemble** and **Trash** (bottom of infinity, in that order). One placement per item.
   - **Ignore**: never move this item.
-  - Tagged items show a small label (ACTIVE, FAV, SELL, ALCH, DIS, TRASH), the sidebar counts your tags, and settings has **Clear all tags**.
+  - Tagged items show a small label inside the slot (ACTIVE, VAN, FAV, SELL, ALCH, DIS, TRASH), all in one smaller font that fits the slot. The sidebar counts your tags, and settings has **Clear all tags**.
+  - **Never label for decanting**: on any potion, for the part doses you keep to make other potions.
 - **Vanity & Rares**: classic discontinued rares (partyhats, Halloween masks, Santa hats, Christmas crackers) are recognised automatically and kept at the top of the infinity tab, together with anything you tag Vanity, such as the original Blurite sword.
 - **Decant labels**: part-dose potions you can decant get a **DECANT** label. Choose which doses to label (1 to 3 dose vials, 4 and 5 dose flasks) or turn labels off in settings. Part doses that cannot make a full vial or flask go to the bottom of the herb tab instead.
+- **Rearrange your tabs with one drag**: in My tabs, **Move left / Move right** in Tab Layout now asks you to drag the tab button itself ("Drag the Tab 3 button onto Tab 2"), with an arrow between the two buttons, instead of moving every item across. Pins and tab colours follow their tab when tabs swap places, whether the guide asked or you rearranged them yourself.
+- **Start Sorting / Stop Sorting**: a big button right under Analyze Bank, green to start and red to stop.
 - **Sort direction**: **Horizontal (rows)** or **Vertical (columns)**. Vertical fills each tab down the columns, measured from your bank window; if you resize the bank, the plan follows. Share codes include the direction.
 
 ### Changed

@@ -3,6 +3,7 @@ local Tagging = require("src/game/tagging")
 local Combo = require("src/ui/combo")
 local Preset = require("src/core/preset")
 local Placement = require("src/core/placement")
+local Classify = require("src/core/classify")
 
 local Windows = {}
 
@@ -272,10 +273,16 @@ function Windows.tags(app, itemID)
       app:setMark(itemID, key ~= "none" and key or nil)
       Windows.tags(app, itemID)
     end))
-    window:AddCheckboxButton({
-      { text = "Ignore (never move this item)", value = "ignore", selected = app:isIgnored(itemID) },
-    }, { onChange = function(_, _, _, selected)
-      if selected ~= app:isIgnored(itemID) then app:toggleIgnore(itemID) end
+    local boxes = { { text = "Ignore (never move this item)", value = "ignore", selected = app:isIgnored(itemID) } }
+    if Classify.dose(name) then
+      boxes[#boxes + 1] = { text = "Never label for decanting (needed for other potions)", value = "nodecant", selected = app.store:isNoDecant(itemID) }
+    end
+    window:AddCheckboxButton(boxes, { onChange = function(_, _, changed, selected)
+      if changed == "nodecant" then
+        app:setNoDecant(itemID, selected)
+      elseif selected ~= app:isIgnored(itemID) then
+        app:toggleIgnore(itemID)
+      end
       Windows.tags(app, itemID)
     end })
   end)

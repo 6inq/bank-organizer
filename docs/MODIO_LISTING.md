@@ -41,7 +41,7 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 
 <h2>Features</h2>
 <h3>Analyze, Blueprint, Sorting Guide</h3>
-<p>Press <strong>Analyze Bank</strong> and every item is tinted with the colour of the tab it belongs in. <strong>Open Blueprint</strong> shows the plan tab by tab. <strong>Sorting Guide</strong> then marks the item to <strong>MOVE</strong> and draws an arrow to exactly where it goes: a bar in the gap where it should be inserted, or an outline around the tab button to drop it on. It re-plans from your real bank after every move.</p>
+<p>Press <strong>Analyze Bank</strong> and every item is tinted with the colour of the tab it belongs in. <strong>Open Blueprint</strong> shows the plan tab by tab. Press <strong>Start Sorting</strong> and the guide marks the item to <strong>MOVE</strong> and draws an arrow to exactly where it goes: a bar in the gap where it should be inserted, or an outline around the tab button to drop it on. It re-plans from your real bank after every move.</p>
 
 <h3>Keep your tabs, or design new ones</h3>
 <p><strong>My tabs</strong> keeps the tabs you already have. Tab 1 (infinity) is the misc catch-all, and loose items go to the tab that already holds most of their kind. Pin any kind of item to a tab, remove it, or swap whole tabs around.</p>
@@ -78,7 +78,7 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <ol>
 <li>Open your bank and enable the plugin.</li>
 <li>Choose <strong>My tabs</strong> or <strong>Whole bank</strong> in the sidebar.</li>
-<li>Press <strong>Analyze Bank</strong>, check the <strong>Blueprint</strong>, then press <strong>Sorting Guide</strong> and follow the line.</li>
+<li>Press <strong>Analyze Bank</strong>, check the <strong>Blueprint</strong>, then press <strong>Start Sorting</strong> and follow the line.</li>
 </ol>
 
 <h2>Fair play</h2>

@@ -73,7 +73,7 @@ end
 function Preset.apply(store, preset)
   store.layout = Layout.new(store.preset, preset.layout)
   store.tabHomes = preset.pins or {}
-  store.tabOrder = nil
+  store.arrangement = nil
   if preset.scope then store.settings.scope = preset.scope end
   if preset.sort then store.settings.sort = preset.sort end
   if preset.direction then store.settings.direction = preset.direction end

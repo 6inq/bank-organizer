@@ -15,6 +15,7 @@ local ITEMS = {
   { 111, "Prayer potion (3)", { "Drink" } },
   { 112, "Prayer potion (1)", { "Drink" } },
   { 113, "Super restore (2)", { "Drink" } },
+  { 114, "Red partyhat", { "Wear" } },
 }
 
 local function memoryDb()
@@ -108,7 +109,7 @@ local function boot(opts)
     Line = { new = function(parent) local c = component("line"); c.parent = parent; return c end },
   }
   _G.id = { Component = { BANK__BANK_INV = 1001, TOPLEVEL_V2__PLUGIN_BUILD_LAYER_TOP = 7 }, Interface = { BANK = 517 },
-    Font = { MUSEO_SANS_15PT_REGULAR = 1 }, Category = { FromID = function() return nil end } }
+    Font = { MUSEO_SANS_15PT_REGULAR = 1, MUSEO_SANS_11PT_REGULAR = 2 }, Category = { FromID = function() return nil end } }
   _G.var = {
     VarPlayer = { BANK_CURRENT_TAB = { value = env.allItems and 1 or 3 } },
     VarClient = { BANK_SEARCHMODE_CLIENT = { value = 0 } },
@@ -177,7 +178,7 @@ end
 function T.sidebar_has_the_bank_architect_controls()
   local env = boot()
   local p = panel(env)
-  for _, label in ipairs({ "Open Blueprint", "Sorting Guide", "Tab Layout", "Share or Load a Setup" }) do
+  for _, label in ipairs({ "Open Blueprint", "Tab Layout", "Share or Load a Setup" }) do
     A.truthy(find(p, "AddSimpleButton", label), label)
   end
   A.truthy(find(p, "AddFancyButton", "Analyze Bank")); A.truthy(comboWith(p, "ironman"), "preset chooser")
@@ -272,27 +273,27 @@ end
 
 function T.guide_pauses_without_tab_data()
   local env = boot()
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("does not expose bank tab sizes", 1, true))
   PluginShutdown()
 end
 
 function T.guide_pauses_outside_all_items_view()
   local env = boot({ tabSizes = {}, allItems = false })
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("All items view", 1, true))
   PluginShutdown()
 end
 
 function T.guide_gives_moves_and_highlights_once_tabs_are_readable()
   local env = boot({ tabSizes = {} })
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Drag Abyssal whip onto the %+ button to start Tab 2 %(Combat Gear%)"), texts(panel(env)))
   tick(env)
   local labels = {}
   for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed then labels[#labels + 1] = c.content end end
   A.eq(labels[1], "MOVE")
-  A.truthy(find(panel(env), "AddSimpleButton", "Stop Sorting Guide"))
+  A.truthy(find(panel(env), "AddFancyButton", "Stop Sorting"))
   PluginShutdown()
 end
 
@@ -368,7 +369,7 @@ end
 
 function T.guide_line_joins_move_item_and_target()
   local env = boot({ tabSizes = {}, bank = { 102, 104 } })
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   local lines, shadows, bar = 0, 0, nil
   for _, c in ipairs(env.created) do
@@ -412,7 +413,7 @@ function T.my_tabs_guide_focuses_on_the_viewed_tab()
   local env = boot({ tabSizes = { 2 }, bank = { 101, 107, 102, 104 } })
   pick(comboWith(panel(env), "tabs"), "tabs")
   var.VarPlayer.BANK_CURRENT_TAB.value = 2
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Insert Prayer potion %(4%) before Shark") or text:find("Insert Shark after Prayer potion %(4%)"), "sorts only this tab: " .. text)
   A.truthy(text:find("1 left", 1, true), "one move fixes this tab")
@@ -523,7 +524,7 @@ end
 function T.guide_line_points_at_the_tab_button()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   var.VarPlayer.BANKINSERT = { value = 0 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Drag Rune scimitar onto Tab 2", 1, true), texts(panel(env)))
   tick(env)
   local line = liveLine(env)
@@ -542,7 +543,7 @@ function T.guide_line_falls_back_to_the_tab_row()
   var.VarPlayer.BANKINSERT = { value = 0 }
   local lines = {}
   _G.log = function(text) lines[#lines + 1] = text end
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   local line = liveLine(env)
   A.truthy(line, "still a line without a tab button")
@@ -554,7 +555,7 @@ end
 function T.guide_line_stays_while_the_item_is_dragged()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   var.VarPlayer.BANKINSERT = { value = 0 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   env.hidden[108] = true
   tick(env)
@@ -571,7 +572,7 @@ end
 
 function T.top_row_labels_stay_inside_the_slot_area()
   local env = boot({ tabSizes = {}, bank = { 102, 104 } })
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   for _, c in ipairs(env.created) do
     if c.kind == "text" and not c.destroyed then A.truthy(c.y >= 0, c.content .. " label at y=" .. tostring(c.y)) end
@@ -598,41 +599,74 @@ function T.my_tabs_remove_sends_an_auto_kind_to_infinity()
   PluginShutdown()
 end
 
-function T.my_tabs_swap_two_tabs()
+function T.my_tabs_swap_two_tabs_with_one_tab_drag()
   local env = boot(MY_BANK)
   local w = myTabsLayout(env)
   find(w, "AddSimpleButton", "Move right").args[2]()
-  A.list(Store.new(PersistentDB).tabOrder, { 2, 1 }, "saved")
+  A.list(Store.new(PersistentDB).arrangement, { 2, 1 }, "saved")
   local text = texts(panel(env))
-  A.truthy(text:find("Tab 2 (now Tab 3): Food & Drink, Potions", 1, true), text)
-  A.truthy(text:find("Tab 3 (now Tab 2): Combat Gear", 1, true), text)
-  var.VarPlayer.BANK_CURRENT_TAB.value = 2
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
-  A.truthy(texts(panel(env)):find("Drag Abyssal whip onto Tab 3", 1, true), texts(panel(env)))
-  find(env.windows[#env.windows], "AddSimpleButton", "Keep my tab order").args[2]()
-  A.eq(Store.new(PersistentDB).tabOrder, nil, "order reset")
+  A.truthy(text:find("Tab 2 (moving to Tab 3): Combat Gear", 1, true), text)
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
+  text = texts(panel(env))
+  A.truthy(text:find("Drag the Tab 3 button onto Tab 2 to rearrange your tabs.", 1, true), text)
+  A.eq(text:find("Abyssal whip", 1, true), nil, "no items are moved one by one")
+  var.VarPlayer.BANK_TAB_2_MAPPING_SERVER = { value = 3 }
+  var.VarPlayer.BANK_TAB_3_MAPPING_SERVER = { value = 2 }
+  tick(env); tick(env)
+  text = texts(panel(env))
+  A.eq(text:find("Drag the Tab", 1, true), nil, "the drag was seen: " .. text)
+  A.eq(Store.new(PersistentDB).arrangement, nil, "done, nothing left to rearrange")
   PluginShutdown()
 end
 
-function T.swapping_back_clears_the_order_and_pins_follow_their_tab()
+function T.tab_drag_step_has_an_arrow_between_buttons()
+  local env = boot({ bank = MY_BANK.bank, tabSizes = MY_BANK.tabSizes, tabIcons = tabRow4() })
+  local w = myTabsLayout(env)
+  find(w, "AddSimpleButton", "Move right").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
+  tick(env)
+  local line = liveLine(env)
+  A.truthy(line, "an arrow for the tab drag")
+  A.eq(math.floor(line.y + line.h + 0.5), 100, "ending under the target button")
+  local box
+  for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.parent == env.layer then box = c end end
+  A.eq(box.x, 100 + 48 - 2, "the Tab 2 button is outlined as the drop spot")
+  PluginShutdown()
+end
+
+function T.keep_my_tab_order_cancels_a_rearrangement()
   local env = boot(MY_BANK)
   local w = myTabsLayout(env)
-  pick(find(w, "AddComboBox"), "runes")
-  local store = Store.new(PersistentDB)
-  A.eq(store.tabHomes.runes, 0)
-  w = env.windows[#env.windows]
+  find(w, "AddSimpleButton", "Move right").args[2]()
+  find(env.windows[#env.windows], "AddSimpleButton", "Keep my tab order").args[2]()
+  A.eq(Store.new(PersistentDB).arrangement, nil, "order reset")
+  PluginShutdown()
+end
+
+function T.pins_follow_their_tab_when_tabs_are_rearranged()
+  local env = boot(MY_BANK)
+  local w = myTabsLayout(env)
   local combos = {}
   for _, c in ipairs(w) do if c.method == "AddComboBox" then combos[#combos + 1] = c end end
   pick(combos[2], "clues")
-  w = env.windows[#env.windows]
+  A.eq(Store.new(PersistentDB).tabHomes.clues, 1, "pinned to Tab 2")
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
+  var.VarPlayer.BANK_TAB_2_MAPPING_SERVER = { value = 3 }
+  var.VarPlayer.BANK_TAB_3_MAPPING_SERVER = { value = 2 }
+  tick(env); tick(env)
+  A.eq(Store.new(PersistentDB).tabHomes.clues, 2, "the pinned tab now shows third, and the pin went with it")
+  PluginShutdown()
+end
+
+function T.moving_a_tab_back_clears_the_rearrangement()
+  local env = boot(MY_BANK)
+  local w = myTabsLayout(env)
   find(w, "AddSimpleButton", "Move right").args[2]()
-  A.eq(Store.new(PersistentDB).tabHomes.clues, 2, "pin moved with its tab")
   w = env.windows[#env.windows]
   local lefts = {}
   for _, c in ipairs(w) do if c.method == "AddSimpleButton" and c.args[1] == "Move left" then lefts[#lefts + 1] = c end end
-  lefts[2].args[2]()
-  A.eq(Store.new(PersistentDB).tabOrder, nil, "back to your own order")
-  A.eq(Store.new(PersistentDB).tabHomes.clues, 1)
+  lefts[1].args[2]()
+  A.eq(Store.new(PersistentDB).arrangement, nil, "back to your own order")
   PluginShutdown()
 end
 
@@ -691,7 +725,7 @@ function T.no_tabs_yet_starts_tabs_from_the_plus_button()
   pick(comboWith(panel(env), "tabs"), "tabs")
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
   A.truthy(texts(panel(env)):find("You have no tabs yet", 1, true), texts(panel(env)))
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Drag Abyssal whip onto the + button to start Tab 2 (Combat Gear)", 1, true), texts(panel(env)))
   tick(env)
   local box
@@ -713,7 +747,7 @@ end
 function T.arrow_follows_the_bank_when_it_scrolls()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   var.VarPlayer.BANKINSERT = { value = 0 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   A.eq(liveLine(env).y, 100, "starts at the scimitar")
   env.scroll = 10
@@ -726,7 +760,7 @@ end
 function T.offscreen_item_gets_a_scroll_pointer_instead_of_a_line()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes, tabIcons = tabRow() })
   var.VarPlayer.BANKINSERT = { value = 0 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   env.scroll = 300
   tick(env)
   local line = liveLine(env)
@@ -745,7 +779,7 @@ local MISTAKE_BANK = { bank = { 108, 101, 103 }, tabSizes = { 3 } }
 local function guideOnTab(env)
   pick(comboWith(panel(env), "tabs"), "tabs")
   var.VarPlayer.BANK_CURRENT_TAB.value = 2
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   return texts(panel(env))
 end
 
@@ -834,7 +868,7 @@ end
 function T.ignored_items_never_move_between_tabs()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
   setIgnore(env, 108, true)
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.eq(texts(panel(env)):find("Rune scimitar", 1, true), nil, "the ignored scimitar is never asked to move: " .. texts(panel(env)))
   PluginShutdown()
 end
@@ -855,7 +889,7 @@ function T.a_right_move_is_not_judged_while_the_game_is_mid_update()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
   var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Drag Dragon dagger onto Tab 2", 1, true), text)
   env.bank = { 103, 108, 109, 101, 107, 102 }
@@ -873,7 +907,7 @@ function T.a_right_move_is_accepted_when_the_games_tab_sizes_never_catch_up()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 } })
   var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   env.bank = { 103, 108, 109, 101, 107, 102 }
   settle(env); settle(env); settle(env)
   local text = texts(panel(env))
@@ -901,7 +935,7 @@ function T.tabs_shown_in_a_different_order_than_stored()
   pick(comboWith(panel(env), "tabs"), "tabs")
   tick(env)
   A.list(Store.new(PersistentDB).displayOrder, { 2, 1 }, "learned from the infinity view: stored tab 2 is shown first")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Drag Dragon dagger onto Tab 3", 1, true), "the gear tab is the third button on screen: " .. text)
   tick(env)
@@ -962,7 +996,7 @@ function T.no_arrow_while_the_bank_settles_after_a_move()
   local env = boot({ bank = { 103, 108, 101, 107, 109, 102 }, tabSizes = { 2, 2 }, tabIcons = tabRow4() })
   var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   tick(env)
   A.truthy(liveLine(env), "arrow for the dagger")
   env.bank = { 103, 108, 109, 101, 107, 102 }
@@ -993,7 +1027,7 @@ function T.a_move_next_to_identical_items_goes_through()
   local env = boot({ bank = { 103, 108, 110, 109, 110, 110 }, tabSizes = { 2 } })
   var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Drag Dragon dagger onto Tab 2", 1, true), text)
   env.bank = { 103, 108, 109, 110, 110, 110 }
@@ -1025,7 +1059,7 @@ function T.arrow_uses_the_scrolling_viewport_around_the_slots()
   local env = boot({ bank = bank, tabSizes = { 2 }, tabIcons = tabRow(), frame = true })
   var.VarPlayer.BANKINSERT = { value = 0 }
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Drag Rune scimitar onto Tab 2", 1, true), texts(panel(env)))
   tick(env)
   local line = liveLine(env)
@@ -1047,7 +1081,7 @@ function T.identical_copies_are_matched_within_each_tab_on_screen()
   pick(comboWith(panel(env), "tabs"), "tabs")
   tick(env)
   A.list(Store.new(PersistentDB).displayOrder, { 2, 1 }, "learned from the single copies only")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Drag Dragon dagger onto Tab 3", 1, true), texts(panel(env)))
   tick(env)
   local move
@@ -1094,7 +1128,7 @@ end
 function T.infinity_view_goes_on_to_sort_every_tab()
   local env = boot({ bank = { 108, 103, 101 }, tabSizes = { 2 } })
   pick(comboWith(panel(env), "tabs"), "tabs")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy((text:find("Insert Abyssal whip before Rune scimitar", 1, true) or text:find("Insert Rune scimitar after Abyssal whip", 1, true)), "infinity is fine, so it sorts Tab 2 next: " .. text)
   PluginShutdown()
@@ -1105,7 +1139,7 @@ function T.single_tab_view_follows_the_items_on_screen()
   pick(comboWith(panel(env), "tabs"), "tabs")
   var.VarPlayer.BANK_CURRENT_TAB.value = 3
   env.view = { 108, 103 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy((text:find("Insert Abyssal whip before Rune scimitar", 1, true) or text:find("Insert Rune scimitar after Abyssal whip", 1, true)), "the game's tab number says 3, the screen shows the gear tab: " .. text)
   PluginShutdown()
@@ -1116,7 +1150,7 @@ function T.a_finished_tab_names_the_next_one_to_open()
   pick(comboWith(panel(env), "tabs"), "tabs")
   var.VarPlayer.BANK_CURRENT_TAB.value = 2
   env.view = { 103, 108 }
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Tab 2 is organized. Open Tab 3 next.", 1, true), text)
   PluginShutdown()
@@ -1157,7 +1191,7 @@ function T.guide_marks_win_over_tag_labels()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
   var.VarPlayer.BANKINSERT = { value = 0 }
   setPlacement(env, 108, "sell")
-  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  find(panel(env), "AddFancyButton", "Start Sorting").args[2]()
   A.truthy(texts(panel(env)):find("Rune scimitar", 1, true), "the guide moves the sell item to infinity's bottom: " .. texts(panel(env)))
   tick(env)
   local labels = liveTexts(env)
@@ -1204,6 +1238,64 @@ function T.clear_all_tags_asks_first()
   A.eq(env.confirm.title, "CLEAR TAGS")
   env.confirm.onConfirm()
   A.eq(Store.new(PersistentDB):markOf(103), nil)
+  PluginShutdown()
+end
+
+local function badges(env)
+  local out = {}
+  for _, c in ipairs(env.created) do
+    if c.kind == "text" and not c.destroyed and c.font == 2 then out[#out + 1] = c end
+  end
+  return out
+end
+
+function T.labels_use_short_words_in_one_small_font_inside_the_slot()
+  local env = boot({ bank = { 114, 103, 108, 109, 101, 111, 112 } })
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  setPlacement(env, 103, "active")
+  setPlacement(env, 108, "disassemble")
+  setPlacement(env, 109, "vanity")
+  setPlacement(env, 101, "trash")
+  tick(env)
+  local words = {}
+  for _, badge in ipairs(badges(env)) do
+    words[badge.content] = (words[badge.content] or 0) + 1
+    A.eq(badge.w, 36, badge.content .. " fits the slot width"); A.eq(badge.h, 11, badge.content .. " fits the slot height")
+  end
+  A.eq(words.VAN, 2, "the partyhat (a rare) and the vanity dagger")
+  A.eq(words.ACTIVE, 1); A.eq(words.DIS, 1); A.eq(words.TRASH, 1); A.eq(words.DECANT, 2)
+  PluginShutdown()
+end
+
+function T.start_sorting_sits_under_analyze_green_then_red()
+  local env = boot({ tabSizes = {} })
+  local p = panel(env)
+  local fancy = {}
+  for _, c in ipairs(p) do if c.method == "AddFancyButton" then fancy[#fancy + 1] = c end end
+  A.eq(fancy[1].args[1], "Analyze Bank")
+  A.eq(fancy[2].args[1], "Start Sorting", "directly under Analyze Bank")
+  A.eq(fancy[2].args[3].variant, "positive", "green")
+  fancy[2].args[2]()
+  local stop = find(panel(env), "AddFancyButton", "Stop Sorting")
+  A.truthy(stop, "turns into Stop Sorting")
+  A.eq(stop.args[3].variant, "negative", "red")
+  stop.args[2]()
+  A.truthy(find(panel(env), "AddFancyButton", "Start Sorting"))
+  PluginShutdown()
+end
+
+function T.a_potion_can_opt_out_of_decant_labels()
+  local env = boot({ bank = { 111, 112, 102 } })
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  tick(env)
+  A.eq(count(liveTexts(env), "DECANT"), 2)
+  A.eq(#find(tagsWindow(env, 103), "AddCheckboxButton").args[1], 1, "no decant option on a non-potion")
+  local boxes = find(tagsWindow(env, 111), "AddCheckboxButton")
+  A.eq(boxes.args[1][2].value, "nodecant")
+  boxes.args[2].onChange(nil, nil, "nodecant", true)
+  A.eq(Store.new(PersistentDB):isNoDecant(111), true, "saved")
+  tick(env)
+  A.eq(count(liveTexts(env), "DECANT"), 0, "the kept 3-dose potion is left out, and 1 dose alone cannot decant")
   PluginShutdown()
 end
 

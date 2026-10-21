@@ -13,7 +13,7 @@ Part of [6ing's RS3 plugins](https://github.com/6inq/rs3-plugins).
    - **Whole bank**: follows your **Tab Layout**, which is a list of tabs in bank order, each with the kinds of item it holds.
 3. Press **Analyze Bank**. Every item is tinted with the colour of the tab it belongs in.
 4. Press **Open Blueprint** to review the plan, one tab at a time.
-5. Press **Sorting Guide** and follow it:
+5. Press **Start Sorting** and follow it:
    - The item to drag says **MOVE**.
    - An arrow runs to exactly where it goes: a bar in the gap where it should be inserted, or an outline around the tab button (the + button for a new tab).
    - In My tabs mode it sorts the tab you are looking at.
@@ -21,7 +21,8 @@ Part of [6ing's RS3 plugins](https://github.com/6inq/rs3-plugins).
 ## Features
 - **Classification**: about 30 kinds of item (Runes, Summoning, MTX & XP Boosts, Skilling Outfits, Potions, Herbs and more). It uses the client's own item category first, then right-click options and name families. Anything it cannot place goes to Storage & Cleanup for review.
 - **Tags**: right-click any bank item and choose Tags to set its category, a placement (Active, Vanity, Favourite, Sell, Alch, Disassemble, Trash) or Ignore. Rares are kept with Vanity at the top of the infinity tab automatically.
-- **Decant labels**: part-dose potions you can decant are labelled; the rest wait at the bottom of the herb tab.
+- **Decant labels**: part-dose potions you can decant are labelled; the rest wait at the bottom of the herb tab. Any potion can opt out from its Tags window.
+- **Rearrange tabs**: in My tabs, swap tabs in Tab Layout and the guide asks for one tab drag.
 - **Sort direction**: rows or columns.
 - **Sort inside tabs** (Smart by default): Smart (every kind has its own order, for example gear by combat style, then slot, best first; outfits by set; herblore by recipe chain, e.g. every overload ingredient together; runes in game order; potions by family and dose; resources by material and tier), Name, Item ID, Value (highest first, live GE prices with the game's item value as fallback), Quantity (highest or lowest first), or Keep my order (only move items between tabs).
 - **No tabs yet**: the guide starts each new tab by showing which item to drop on the + button.

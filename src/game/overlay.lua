@@ -7,6 +7,7 @@ Overlay.__index = Overlay
 local LABEL_HEIGHT = 14
 local IGNORED_OUTLINE = 0x969696AA
 local BADGE_COLOUR = 0xFFFFFFFF
+local BADGE_HEIGHT = 11
 local DECANT_COLOUR = 0xF2C94CFF
 local TAB_ROW_GAP = 24
 
@@ -36,9 +37,9 @@ end
 
 function Overlay:_badge(slot, text, rgba)
   local badge = self:_track(ui.Text.new(self.container))
-  badge:SetPos(slot.x - 2, slot.y + slot.height - LABEL_HEIGHT)
-  badge:SetSize(slot.width + 4, LABEL_HEIGHT)
-  badge.font = id.Font.MUSEO_SANS_15PT_REGULAR
+  badge:SetPos(slot.x, slot.y + slot.height - BADGE_HEIGHT)
+  badge:SetSize(slot.width, BADGE_HEIGHT)
+  badge.font = id.Font.MUSEO_SANS_11PT_REGULAR
   badge.content = text
   badge.rgba = rgba
   return badge
@@ -60,14 +61,14 @@ end
 Overlay.lineBox = GuideLine.box
 
 local function stepEnds(step)
-  if not step then return nil end
+  if not step or step.kind == "tab-move" then return nil end
   if step.kind == "insert" then return step.move, step.before or step.after end
   if step.kind == "swap" then return step.move, step.swapWith end
   return step.id, nil
 end
 
 local function stepMarks(step)
-  if not step then return {} end
+  if not step or step.kind == "tab-move" then return {} end
   local marks = {}
   if step.kind == "insert" then
     marks[step.move] = { "MOVE", "move" }
@@ -145,8 +146,21 @@ local function targetKind(step)
   return "tab"
 end
 
+function Overlay:_tabMoveLine(app, container, step)
+  local tabs = 0
+  for s in pairs(app.sections or {}) do if s > tabs then tabs = s end end
+  local buttons = self:_buttons(container, tabs)
+  local from, to = buttons[step.from + 1], buttons[step.to + 1]
+  if not from or not to then return end
+  local plan = GuideLine.plan(from, { kind = "tab", box = to })
+  if not plan then return end
+  local host, hx, hy = Bank.drawLayer(container)
+  GuideLine.draw(plan, host, hx, hy, app.store:colour("line"), function(component) return self:_track(component) end)
+end
+
 function Overlay:_guideLine(app, container, byId)
   local step = activeStep(app)
+  if step and step.kind == "tab-move" then return self:_tabMoveLine(app, container, step) end
   local fromID, toID = stepEnds(step)
   if not fromID then return end
   local view = self.view

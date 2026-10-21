@@ -366,6 +366,16 @@ function Bank.describeInterface(container)
   return table.concat(lines, "\n")
 end
 
+function Bank.liveDisplayOrder()
+  local order = {}
+  for tab = 2, 15 do
+    local value = tonumber(varValue("VarPlayer", "BANK_TAB_" .. tab .. "_MAPPING_SERVER"))
+    if not value or value < 1 then break end
+    order[tab - 1] = value - 1
+  end
+  return order
+end
+
 function Bank.tabMapping()
   local values = {}
   for tab = 2, 15 do values[#values + 1] = tostring(varValue("VarPlayer", "BANK_TAB_" .. tab .. "_MAPPING_SERVER")) end
