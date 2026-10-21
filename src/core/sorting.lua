@@ -346,4 +346,41 @@ function Sorting.compare(a, b)
   return a.slot < b.slot
 end
 
+Sorting.FULL_DOSES = { vial = 4, flask = 6 }
+
+local POTION_TAGS = { potions = true, ["potion-doses"] = true }
+
+function Sorting.decantInfo(items)
+  local totals, found = {}, {}
+  for _, item in ipairs(items) do
+    local name = (item.name or ""):lower()
+    local dose = POTION_TAGS[item.tag] and Classify.dose(name)
+    if dose then
+      local kind = name:find("flask", 1, true) and "flask" or "vial"
+      if dose < Sorting.FULL_DOSES[kind] then
+        local family = name:gsub("%s*%(%d%)%s*$", ""):gsub("%s*flask$", "") .. "|" .. kind
+        totals[family] = (totals[family] or 0) + dose * math.max(1, tonumber(item.quantity) or 1)
+        found[item.id] = { dose = dose, kind = kind, family = family }
+      end
+    end
+  end
+  for _, info in pairs(found) do info.canDecant = totals[info.family] >= Sorting.FULL_DOSES[info.kind] end
+  return found
+end
+
+function Sorting.vertical(list, columns)
+  local n = #list
+  if not columns or columns < 2 or n < 2 then return list end
+  local cells = {}
+  for i = 0, n - 1 do cells[#cells + 1] = i end
+  table.sort(cells, function(a, b)
+    local ca, cb = a % columns, b % columns
+    if ca ~= cb then return ca < cb end
+    return a < b
+  end)
+  local out = {}
+  for k, cell in ipairs(cells) do out[cell + 1] = list[k] end
+  return out
+end
+
 return Sorting

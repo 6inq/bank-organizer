@@ -181,12 +181,25 @@ local function anyOpContains(ops, word)
   return false
 end
 
+local RARES = {
+  ["red partyhat"] = true, ["yellow partyhat"] = true, ["green partyhat"] = true, ["blue partyhat"] = true,
+  ["purple partyhat"] = true, ["white partyhat"] = true,
+  ["red halloween mask"] = true, ["green halloween mask"] = true, ["blue halloween mask"] = true,
+  ["santa hat"] = true, ["black santa hat"] = true, ["inverted santa hat"] = true,
+  ["christmas cracker"] = true,
+}
+
+function Classify.isRare(name)
+  return RARES[(name or ""):lower()] == true
+end
+
 function Classify.classify(info)
   info = info or {}
   local name = type(info.name) == "string" and info.name:lower() or ""
   local ops = type(info.ops) == "table" and info.ops or {}
   local category = type(info.category) == "string" and info.category or ""
   if name == "" then return nil end
+  if RARES[name] then return "vanity" end
 
   if name == "coins" or has(name, " token") or name:match("tickets?$") then return "currency" end
   if has(name, "clue scroll") or has(name, "casket") or has(name, "puzzle box") or has(name, "scroll box") then return "clues" end

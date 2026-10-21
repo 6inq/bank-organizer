@@ -21,6 +21,8 @@ local function addSetup(app)
   choose(app, "Organize", { { label = app.SCOPES.bank, key = "bank" }, { label = app.SCOPES.tabs, key = "tabs" } },
     store:get("scope"), function(scope) return store:set("scope", scope) end)
   choose(app, "Sort inside tabs", Sorting.modes(app:valueSource()), store:get("sort"), function(mode) return store:set("sort", mode) end)
+  choose(app, "Sort direction", { { label = "Horizontal (rows)", key = "horizontal" }, { label = "Vertical (columns)", key = "vertical" } },
+    store:get("direction"), function(direction) return store:set("direction", direction) end)
   if store:get("scope") ~= "tabs" then
     choose(app, "Starting layout", { { label = Layout.PRESETS.main, key = "main" }, { label = Layout.PRESETS.ironman, key = "ironman" } },
       store.preset, function(preset) return store:setPreset(preset) end)
@@ -34,24 +36,20 @@ local function addActions(app)
   view:AddSimpleButton(app.guiding and "Stop Sorting Guide" or "Sorting Guide", function()
     if app.guiding then app:stopGuide() else app:startGuide() end
   end)
-  view:AddSimpleButton(app.assigning and "Stop Assigning" or "Assign Categories", function()
-    app:setAssigning(not app.assigning)
-  end, { inline = true })
-  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end)
+  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end, { inline = true })
 end
 
 local function addStatus(app)
   view:AddText({ text = app.status, height = 56 })
-  local ignored = app.store:ignoredCount()
-  if ignored > 0 then
-    view:AddText({ text = string.format("Ignoring %d item%s (right-click to stop).", ignored, ignored == 1 and "" or "s"), height = 36 })
+  local summary = app:tagSummary()
+  if summary ~= "" then view:AddText({ text = "Tags: " .. summary, height = 36 }) end
+  if app.store:get("direction") == "vertical" and not app.columns then
+    view:AddText({ text = "Vertical sort: open your bank so its columns can be measured. Sorting by rows until then.", height = 40 })
   end
   if app.correction then
     view:AddSimpleButton("Continue from here", function() app:continueFromHere() end)
   end
-  if app.assigning then
-    view:AddText({ text = "Right-click any bank item and choose Assign category to correct it.", height = 40 })
-  end
+  view:AddText({ text = "Right-click any bank item and choose Tags to set its category, placement or ignore it.", height = 40 })
 end
 
 local function addLegend(app)

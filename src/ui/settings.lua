@@ -33,6 +33,15 @@ local function mount(parent, store, app)
     { { label = "Green", key = "green" }, { label = "No overlay", key = "clear" }, { label = "Keep tab colour", key = "tint" } },
     store:get("sortedLook"),
     function(key) store:set("sortedLook", key); app:rebuild() end))
+  view:AddTitle("Decant labels")
+  view:AddCheckboxButton({
+    { text = "Label part-dose potions you can decant", value = "decant", selected = store:get("decant") },
+    { text = "1 dose", value = "decant1", selected = store:get("decant1") },
+    { text = "2 dose", value = "decant2", selected = store:get("decant2") },
+    { text = "3 dose", value = "decant3", selected = store:get("decant3") },
+    { text = "4 dose (flasks)", value = "decant4", selected = store:get("decant4") },
+    { text = "5 dose (flasks)", value = "decant5", selected = store:get("decant5") },
+  }, { onChange = function(_, _, changed, selected) store:set(changed, selected); app:rebuild() end })
   view:AddText({ text = "Rearrange mode (used when the game does not report it)", height = 40 })
   view:AddComboBox(Combo.options(
     { { label = "Insert (fewer moves)", key = "insert" }, { label = "Swap", key = "swap" } },
@@ -50,6 +59,10 @@ local function mount(parent, store, app)
       confirmLabel = "RESET", onConfirm = function() store:resetColours(); app:rebuild() end })
   end)
   view:AddTitle("Corrections")
+  view:AddSimpleButton("Clear all tags", function()
+    prettyui.Confirm.new(parent, { title = "CLEAR TAGS", body = "Remove every Active, Vanity, Favourite, Sell, Alch, Disassemble and Trash tag?",
+      confirmLabel = "CLEAR", onConfirm = function() store:clearMarks(); app:rebuild() end })
+  end)
   view:AddSimpleButton("Stop ignoring all items", function()
     prettyui.Confirm.new(parent, { title = "STOP IGNORING", body = "Let the guide organize every item you ignored?",
       confirmLabel = "RESET", onConfirm = function() store:resetIgnored(); app:rebuild() end })

@@ -15,7 +15,7 @@ local function ops(...)
 end
 
 function T.ten_categories_and_their_tags()
-  A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 32)
+  A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 33)
   for _, tag in ipairs(Tags.LIST) do A.truthy(Tags.categoryByKey[tag.category], tag.key .. " has a category") end
 end
 
@@ -24,7 +24,7 @@ function T.default_layout_puts_each_category_on_its_own_destination()
   A.eq(layout:destinationOf("runes"), 0, "Main: currency, runes & teleports")
   A.eq(layout:destinationOf("gear"), 1); A.eq(layout:destinationOf("potions"), 2)
   A.eq(layout:destinationOf("grimy-herbs"), 3); A.eq(layout:destinationOf("cleanup"), 9)
-  A.list(layout.destinations[0], { "frequently-used", "runes", "summoning", "teleports", "currency" })
+  A.list(layout.destinations[0], { "frequently-used", "runes", "summoning", "teleports", "currency", "vanity" })
 end
 
 function T.preset_names()
@@ -37,8 +37,8 @@ end
 function T.move_shift_remove_and_reset_tags()
   local layout = Layout.new("main")
   A.eq(layout:moveTag("food", 0), true); A.eq(layout:destinationOf("food"), 0)
-  A.eq(layout.destinations[0][6], "food", "appended at the end")
-  A.eq(layout:shiftTag("food", -1), true); A.eq(layout.destinations[0][5], "food")
+  A.eq(layout.destinations[0][7], "food", "appended at the end")
+  A.eq(layout:shiftTag("food", -1), true); A.eq(layout.destinations[0][6], "food")
   A.eq(layout:shiftTag("frequently-used", -1), false, "already first")
   A.eq(layout:removeTag("food"), true); A.eq(layout:destinationOf("food"), 9, "back to Storage & Cleanup's tab")
   A.eq(layout:removeTag("cleanup"), false, "cleanup itself cannot be removed")

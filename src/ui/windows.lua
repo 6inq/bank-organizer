@@ -2,6 +2,7 @@ local Tags = require("src/core/tags")
 local Tagging = require("src/game/tagging")
 local Combo = require("src/ui/combo")
 local Preset = require("src/core/preset")
+local Placement = require("src/core/placement")
 
 local Windows = {}
 
@@ -246,18 +247,37 @@ function Windows.presets(app)
   end)
 end
 
-function Windows.picker(app, itemID)
+local function placementChoices()
+  local list = { { label = "None", key = "none" } }
+  for _, placement in ipairs(Placement.LIST) do
+    list[#list + 1] = { label = placement.label .. "  (" .. Placement.describe(placement.key) .. ")", key = placement.key }
+  end
+  return list
+end
+
+function Windows.tags(app, itemID)
   local name = "item " .. tostring(itemID)
   local obj = objectOf(itemID)
   if obj and obj.name then name = obj.name end
-  return create("picker", { title = "Assign category", width = 360, height = 220, x = 200, y = 160 }, function(window)
+  return create("tags", { title = "Tags: " .. name, width = 380, height = 340, x = 200, y = 160 }, function(window)
     local current = app.store.corrections[itemID]
-    window:AddText({ text = name .. (current and ("  (now: " .. Tags.label(current) .. ")") or "  (automatic)"), height = 40 })
+    window:AddText("Category")
     window:AddComboBox(Combo.options(Tagging.choices(), current or "auto", function(key)
       if key == "auto" then app.store:clearCorrection(itemID) else app.store:correct(itemID, key) end
       app:rebuild()
-      Windows.close("picker")
+      Windows.tags(app, itemID)
     end))
+    window:AddText("Placement")
+    window:AddComboBox(Combo.options(placementChoices(), app:markOf(itemID) or "none", function(key)
+      app:setMark(itemID, key ~= "none" and key or nil)
+      Windows.tags(app, itemID)
+    end))
+    window:AddCheckboxButton({
+      { text = "Ignore (never move this item)", value = "ignore", selected = app:isIgnored(itemID) },
+    }, { onChange = function(_, _, _, selected)
+      if selected ~= app:isIgnored(itemID) then app:toggleIgnore(itemID) end
+      Windows.tags(app, itemID)
+    end })
   end)
 end
 

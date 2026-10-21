@@ -1,6 +1,7 @@
 local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
 local Sorting = require("src/core/sorting")
+local Placement = require("src/core/placement")
 
 local Store = {}
 Store.__index = Store
@@ -21,6 +22,13 @@ local SETTINGS = {
   scope = { default = "bank", valid = function(v) return v == "bank" or v == "tabs" end },
   sort = { default = Sorting.DEFAULT, valid = Sorting.isMode },
   sortedLook = { default = "green", valid = function(v) return v == "green" or v == "clear" or v == "tint" end },
+  direction = { default = "horizontal", valid = function(v) return v == "horizontal" or v == "vertical" end },
+  decant = { default = true, valid = function(v) return type(v) == "boolean" end },
+  decant1 = { default = true, valid = function(v) return type(v) == "boolean" end },
+  decant2 = { default = true, valid = function(v) return type(v) == "boolean" end },
+  decant3 = { default = true, valid = function(v) return type(v) == "boolean" end },
+  decant4 = { default = true, valid = function(v) return type(v) == "boolean" end },
+  decant5 = { default = true, valid = function(v) return type(v) == "boolean" end },
 }
 
 local function read(db)
@@ -74,6 +82,15 @@ local function sanitizeOrder(raw)
   return isOrder(list) and #list > 0 and list or nil
 end
 
+local function sanitizeMarks(raw)
+  local marks = {}
+  for key, mark in pairs(type(raw) == "table" and raw or {}) do
+    local numeric = tonumber(key)
+    if numeric and Placement.isValid(mark) then marks[math.floor(numeric)] = mark end
+  end
+  return marks
+end
+
 local function sanitizeIgnored(raw)
   local ignored = {}
   for key, value in pairs(type(raw) == "table" and raw or {}) do
@@ -101,6 +118,7 @@ function Store.new(db)
   self.layout = Layout.new(self.preset, raw.layout)
   self.corrections = sanitizeCorrections(raw.corrections)
   self.ignored = sanitizeIgnored(raw.ignored)
+  self.marks = sanitizeMarks(raw.marks)
   self.displayOrder = sanitizeOrder(raw.displayOrder)
   self.colours = sanitizeColours(raw.colours)
   self.tabHomes = sanitizeTabHomes(raw.tabHomes)
@@ -120,10 +138,12 @@ function Store:save()
   local ignored = {}
   for id in pairs(self.ignored) do ignored[#ignored + 1] = id end
   table.sort(ignored)
+  local marks = {}
+  for id, mark in pairs(self.marks) do marks[tostring(id)] = mark end
   local data = {
     preset = self.preset, layout = self.layout:serialize(), corrections = corrections, ignored = ignored,
     colours = self.colours, settings = self.settings, tabHomes = self.tabHomes, tabOrder = self.tabOrder,
-    displayOrder = self.displayOrder,
+    displayOrder = self.displayOrder, marks = marks,
   }
   local ok, err = pcall(function() return self.db:SetStructuredData(Store.KEY, data) end)
   if not ok and log then log("[bank-organizer] save failed: " .. tostring(err)) end
@@ -163,6 +183,28 @@ function Store:setDisplayOrder(order)
   self.displayOrder = order
   self:save()
   return true
+end
+
+function Store:markOf(itemID)
+  return self.marks[itemID]
+end
+
+function Store:setMark(itemID, mark)
+  if type(itemID) ~= "number" or (mark ~= nil and not Placement.isValid(mark)) then return false end
+  self.marks[itemID] = mark
+  self:save()
+  return true
+end
+
+function Store:markCounts()
+  local counts = {}
+  for _, mark in pairs(self.marks) do counts[mark] = (counts[mark] or 0) + 1 end
+  return counts
+end
+
+function Store:clearMarks()
+  self.marks = {}
+  self:save()
 end
 
 function Store:isIgnored(itemID)

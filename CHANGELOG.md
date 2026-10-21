@@ -1,5 +1,19 @@
 # Changelog: Bank Organizer
 
+## 1.4.1 (2026-10-21)
+### New
+- **Tags**: right-click any bank item and choose **Tags (Bank Organizer)**. One window holds everything for that item:
+  - **Category**: what kind of item it is (this replaces the Assign Categories button).
+  - **Placement**: **Active** (very top of the infinity tab), **Vanity** (top of infinity, with rares), **Favourite** (first in its own tab), **Sell**, **Alch**, **Disassemble** and **Trash** (bottom of infinity, in that order). One placement per item.
+  - **Ignore**: never move this item.
+  - Tagged items show a small label (ACTIVE, FAV, SELL, ALCH, DIS, TRASH), the sidebar counts your tags, and settings has **Clear all tags**.
+- **Vanity & Rares**: classic discontinued rares (partyhats, Halloween masks, Santa hats, Christmas crackers) are recognised automatically and kept at the top of the infinity tab, together with anything you tag Vanity, such as the original Blurite sword.
+- **Decant labels**: part-dose potions you can decant get a **DECANT** label. Choose which doses to label (1 to 3 dose vials, 4 and 5 dose flasks) or turn labels off in settings. Part doses that cannot make a full vial or flask go to the bottom of the herb tab instead.
+- **Sort direction**: **Horizontal (rows)** or **Vertical (columns)**. Vertical fills each tab down the columns, measured from your bank window; if you resize the bank, the plan follows. Share codes include the direction.
+
+### Changed
+- The right-click menu has a single Bank Organizer entry, **Tags**, instead of separate Ignore and Assign category entries.
+
 ## 1.4.0 (2026-10-20)
 ### New
 - **Sort by quantity**: **Quantity (highest first)** puts the biggest stacks of each tab first, **Quantity (lowest first)** the smallest, with ties by name.

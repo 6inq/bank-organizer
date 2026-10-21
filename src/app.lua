@@ -6,6 +6,8 @@ local TabOrder = require("src/core/tab_order")
 local Bank = require("src/game/bank")
 local Prices = require("src/game/prices")
 local Overlay = require("src/game/overlay")
+local Sorting = require("src/core/sorting")
+local Placement = require("src/core/placement")
 
 local App = {}
 App.__index = App
@@ -29,7 +31,7 @@ function App.new(store)
   return setmetatable({
     store = store, overlay = Overlay.new(), listeners = {},
     items = nil, destinations = nil, bySlot = nil, signature = nil,
-    guiding = false, assigning = false, step = nil, remaining = nil,
+    guiding = false, step = nil, remaining = nil,
     status = App.STATUS.CLOSED, bankOpen = false,
   }, App)
 end
@@ -69,6 +71,14 @@ function App:_build(allItems)
   local tagOf = function(item) return self:tagOf(item) end
   local mode = self.store:get("sort")
   if mode == "value" then self.priceSource = Prices.attach(items) end
+  self.itemByKey = {}
+  for _, item in ipairs(allItems) do self.itemByKey[item.id] = item end
+  local tagged = {}
+  for index, item in ipairs(items) do
+    tagged[index] = { id = item.id, name = item.name, quantity = item.quantity, tag = self:tagOf(item) }
+  end
+  self.decant = Sorting.decantInfo(tagged)
+  local opts = self:_buildOptions()
   self.tabCounts, self.noTabs = nil, false
   local sizes = self:tabSizes()
   local sections = sizes and self:_displaySections(allItems, sizes)
@@ -79,13 +89,13 @@ function App:_build(allItems)
       self.noTabs = true
     else
       self.destinations, self.bySlot, self.tabCounts, self.autoHomes = Blueprint.buildFromTabs(
-        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder, mode)
+        items, sections, tagOf, self.store.tabHomes, self.store.tabOrder, mode, opts)
       self:_trackOrder(sections)
       self:_keepOrder(sections)
       return true
     end
   end
-  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, tagOf, mode)
+  self.destinations, self.bySlot = Blueprint.build(items, self.store.layout, tagOf, mode, opts)
   self:_keepOrder(sections)
   return true
 end
@@ -291,9 +301,61 @@ function App:copyCurrentTabs()
   return true
 end
 
-function App:setAssigning(on)
-  self.assigning = on == true
-  self:_notify()
+function App:_buildOptions()
+  return {
+    markOf = function(item) return self.store:markOf(item.objectId or item.id) end,
+    decant = self.decant,
+    vertical = self.store:get("direction") == "vertical",
+    columns = self.columns,
+  }
+end
+
+function App:markOf(objectId)
+  return self.store:markOf(objectId)
+end
+
+function App:setMark(objectId, mark)
+  if not self.store:setMark(objectId, mark) then return false end
+  self.pending, self.correction = nil, nil
+  self:rebuild()
+  if self.guiding then self:_tickGuide() end
+  return true
+end
+
+function App:slotLabel(key)
+  local item = self.itemByKey and self.itemByKey[key]
+  if not item then return nil end
+  local badge = Placement.badge(self.store:markOf(item.objectId or item.id))
+  if badge then return badge, "badge" end
+  local decant = self.store:get("decant") and self.decant and self.decant[key]
+  if decant and decant.canDecant and self.store:get("decant" .. decant.dose) then return "DECANT", "decant" end
+  return nil
+end
+
+function App:noteColumns(slots)
+  local perRow, columns = {}, 0
+  for _, slot in ipairs(slots) do
+    perRow[slot.y] = (perRow[slot.y] or 0) + 1
+    if perRow[slot.y] > columns then columns = perRow[slot.y] end
+  end
+  if columns < 2 or columns == self.columns then return end
+  self.columns = columns
+  if self.store:get("direction") == "vertical" and self.items then
+    self:_build(self.items)
+    self:_notify()
+  end
+end
+
+function App:tagSummary()
+  local counts = self.store:markCounts()
+  local parts = {}
+  for _, placement in ipairs(Placement.LIST) do
+    local n = counts[placement.key]
+    if n and n > 0 then parts[#parts + 1] = placement.label .. " " .. n end
+  end
+  local ignored = self.store:ignoredCount()
+  if ignored > 0 then parts[#parts + 1] = "Ignored " .. ignored end
+  return table.concat(parts, ", ")
 end
 
 function App:startGuide()

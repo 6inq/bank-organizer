@@ -6,6 +6,8 @@ Overlay.__index = Overlay
 
 local LABEL_HEIGHT = 14
 local IGNORED_OUTLINE = 0x969696AA
+local BADGE_COLOUR = 0xFFFFFFFF
+local DECANT_COLOUR = 0xF2C94CFF
 local TAB_ROW_GAP = 24
 
 function Overlay.new()
@@ -30,6 +32,16 @@ function Overlay:_rect(slot, rgba, outline)
   rect.outlineThickness = outline or 0
   rect.rgba = rgba
   return rect
+end
+
+function Overlay:_badge(slot, text, rgba)
+  local badge = self:_track(ui.Text.new(self.container))
+  badge:SetPos(slot.x - 2, slot.y + slot.height - LABEL_HEIGHT)
+  badge:SetSize(slot.width + 4, LABEL_HEIGHT)
+  badge.font = id.Font.MUSEO_SANS_15PT_REGULAR
+  badge.content = text
+  badge.rgba = rgba
+  return badge
 end
 
 function Overlay:_label(slot, text, rgba)
@@ -80,12 +92,13 @@ local function stepKey(step)
 end
 
 local function signatureOf(slots, app, tint, marks)
-  local parts = { tostring(tint), tostring(app.store:get("opacity")), tostring(app.assigning), stepKey(activeStep(app)) }
+  local parts = { tostring(tint), tostring(app.store:get("opacity")), stepKey(activeStep(app)) }
   for _, slot in ipairs(slots) do
     local d = app:destinationOfItem(slot.key)
     local mark = marks[slot.key]
     parts[#parts + 1] = slot.key .. "@" .. slot.x .. "," .. slot.y .. "=" .. tostring(d)
       .. ":" .. tostring(d and app:destinationColour(d)) .. (mark and mark[1] or "") .. (app:isSortedSlot(slot.key) and "S" or "")
+      .. tostring(app:slotLabel(slot.key))
   end
   for _, key in ipairs({ "move", "target", "line", "done" }) do parts[#parts + 1] = tostring(app.store:colour(key)) end
   parts[#parts + 1] = tostring(app.store:get("sortedLook"))
@@ -158,7 +171,8 @@ function Overlay:render(app)
   local _, container, slots = Bank.componentsById()
   if not container then return self:clear() end
   if container ~= self.container then self:clear() end
-  local tint = app.store:get("tint") or app.assigning
+  local tint = app.store:get("tint")
+  app:noteColumns(slots or {})
   local marks = activeStep(app) and stepMarks(app.step) or {}
   app:assignSlotKeys(slots or {})
   self.view = self:_view(container)
@@ -195,6 +209,9 @@ function Overlay:render(app)
       local colour = app.store:colour(mark[2])
       self:_rect(slot, colour, 3)
       self:_label(slot, mark[1], colour)
+    else
+      local text, kind = app:slotLabel(slot.key)
+      if text then self:_badge(slot, text, kind == "decant" and DECANT_COLOUR or BADGE_COLOUR) end
     end
   end
   local ok, err = pcall(function() self:_guideLine(app, container, byId) end)

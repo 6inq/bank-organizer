@@ -20,7 +20,7 @@ function PluginShutdown()
 end
 
 app:start()
-Tagging.start(app, function(itemID) Windows.picker(app, itemID) end)
+Tagging.start(app, function(itemID) Windows.tags(app, itemID) end)
 Panel.start(app)
 Settings.start(store, app)
 

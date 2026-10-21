@@ -12,6 +12,9 @@ local ITEMS = {
   { 108, "Rune scimitar", { "Wield" } },
   { 109, "Dragon dagger", { "Wield" } },
   { 110, "Ushabti" },
+  { 111, "Prayer potion (3)", { "Drink" } },
+  { 112, "Prayer potion (1)", { "Drink" } },
+  { 113, "Super restore (2)", { "Drink" } },
 }
 
 local function memoryDb()
@@ -174,11 +177,13 @@ end
 function T.sidebar_has_the_bank_architect_controls()
   local env = boot()
   local p = panel(env)
-  for _, label in ipairs({ "Open Blueprint", "Sorting Guide", "Assign Categories", "Tab Layout" }) do
+  for _, label in ipairs({ "Open Blueprint", "Sorting Guide", "Tab Layout", "Share or Load a Setup" }) do
     A.truthy(find(p, "AddSimpleButton", label), label)
   end
   A.truthy(find(p, "AddFancyButton", "Analyze Bank")); A.truthy(comboWith(p, "ironman"), "preset chooser")
   A.truthy(comboWith(p, "tabs"), "Organize: whole bank / my tabs")
+  A.truthy(comboWith(p, "vertical"), "Sort direction")
+  A.eq(find(p, "AddSimpleButton", "Assign Categories"), nil, "category moved into the Tags window")
   A.truthy(texts(p):find("Tab 1 (infinity): Frequently Used, Runes, Summoning, Teleports, Currency", 1, true), "legend")
   PluginShutdown()
 end
@@ -221,15 +226,15 @@ end
 function T.right_click_correction_moves_an_item()
   local env = boot()
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
-  find(panel(env), "AddSimpleButton", "Assign Categories").args[2]()
   local added = {}
   local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 106 } } } } }
   function menu:Add(label, fn) added[#added + 1] = { label = label, fn = fn } end
   env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
-  A.eq(#added, 2); A.eq(added[1].label, "Ignore (Bank Organizer)"); A.eq(added[2].label, "Assign category (Bank Organizer)")
-  added[2].fn()
+  A.eq(#added, 1); A.eq(added[1].label, "Tags (Bank Organizer)")
+  added[1].fn()
   local picker = env.windows[#env.windows]
-  A.eq(picker.options.title, "Assign category")
+  A.eq(picker.options.title, "Tags: Mystery thing")
+  assertIntegerIds(picker)
   pick(find(picker, "AddComboBox"), "boss-loot")
   A.eq(Store.new(PersistentDB).corrections[106], "boss-loot", "saved")
   find(panel(env), "AddSimpleButton", "Open Blueprint").args[2]()
@@ -237,15 +242,14 @@ function T.right_click_correction_moves_an_item()
   PluginShutdown()
 end
 
-function T.menu_entry_only_while_assigning_and_on_bank_items()
+function T.one_menu_entry_on_bank_items_only()
   local env = boot()
   local added = 0
   local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 106 } } } } }
   function menu:Add() added = added + 1 end
   env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
-  A.eq(added, 1, "only Ignore while not assigning")
+  A.eq(added, 1, "a single Tags entry")
   added = 0
-  find(panel(env), "AddSimpleButton", "Assign Categories").args[2]()
   env.events["Menu:bank-organizer:menu"]({ miniMenu = { entries = { { componentData = { component = { interfaceID = 9 } } } }, Add = menu.Add } })
   A.eq(added, 0, "not a bank item")
   PluginShutdown()
@@ -792,23 +796,36 @@ local function rightClick(env, itemID)
   return added
 end
 
+local function tagsWindow(env, itemID)
+  rightClick(env, itemID)[1].fn()
+  return env.windows[#env.windows]
+end
+
+local function setIgnore(env, itemID, on)
+  find(tagsWindow(env, itemID), "AddCheckboxButton").args[2].onChange(nil, nil, "ignore", on)
+end
+
+local function setPlacement(env, itemID, key)
+  local window = tagsWindow(env, itemID)
+  local combos = {}
+  for _, c in ipairs(window) do if c.method == "AddComboBox" then combos[#combos + 1] = c end end
+  pick(combos[2], key)
+end
+
 function T.ignored_items_are_left_alone()
   local env = boot(MISTAKE_BANK)
   guideOnTab(env)
-  local menu = rightClick(env, 103)
-  A.eq(menu[1].label, "Ignore (Bank Organizer)")
-  menu[1].fn()
+  setIgnore(env, 103, true)
   A.eq(Store.new(PersistentDB):isIgnored(103), true, "saved")
   local text = texts(panel(env))
-  A.truthy(text:find("Ignoring 1 item", 1, true), text)
+  A.truthy(text:find("Tags: Ignored 1", 1, true), text)
   A.truthy((text:find("Tab 2 is organized", 1, true) or text:find("matches the blueprint", 1, true)), "the whip no longer needs moving: " .. text)
   tick(env)
   local outlined = 0
   for _, c in ipairs(env.created) do if c.kind == "rect" and not c.destroyed and c.outlineThickness == 1 then outlined = outlined + 1 end end
   A.eq(outlined, 1, "the ignored whip gets a thin outline instead of a tint")
-  menu = rightClick(env, 103)
-  A.eq(menu[1].label, "Stop ignoring (Bank Organizer)")
-  menu[1].fn()
+  A.eq(find(tagsWindow(env, 103), "AddCheckboxButton").args[1][1].selected, true, "shown ticked")
+  setIgnore(env, 103, false)
   A.eq(Store.new(PersistentDB):isIgnored(103), false)
   A.truthy(texts(panel(env)):find("Insert Abyssal whip before Rune scimitar", 1, true), "sorted again once unignored")
   PluginShutdown()
@@ -816,7 +833,7 @@ end
 
 function T.ignored_items_never_move_between_tabs()
   local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
-  rightClick(env, 108)[1].fn()
+  setIgnore(env, 108, true)
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   A.eq(texts(panel(env)):find("Rune scimitar", 1, true), nil, "the ignored scimitar is never asked to move: " .. texts(panel(env)))
   PluginShutdown()
@@ -994,13 +1011,10 @@ end
 
 function T.ignoring_one_ushabti_ignores_them_all()
   local env = boot({ bank = { 110, 102, 110 } })
-  local added = {}
-  local menu = { entries = { { componentData = { component = { interfaceID = 517, associatedObjectID = 110 } } } } }
-  function menu:Add(label, fn) added[#added + 1] = { label = label, fn = fn } end
-  env.events["Menu:bank-organizer:menu"]({ miniMenu = menu })
-  added[1].fn()
+  setIgnore(env, 110, true)
+  A.eq(Store.new(PersistentDB):isIgnored(110), true)
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
-  A.truthy(texts(panel(env)):find("(1)", 1, true), "only the coins are planned: " .. texts(panel(env)))
+  A.truthy(texts(panel(env)):find("Tab 1 (infinity): Frequently Used, Runes, Summoning, Teleports, Currency, Vanity & Rares  (1)", 1, true), "only the coins are planned: " .. texts(panel(env)))
   PluginShutdown()
 end
 
@@ -1105,6 +1119,91 @@ function T.a_finished_tab_names_the_next_one_to_open()
   find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
   local text = texts(panel(env))
   A.truthy(text:find("Tab 2 is organized. Open Tab 3 next.", 1, true), text)
+  PluginShutdown()
+end
+
+local function liveTexts(env)
+  local out = {}
+  for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed then out[#out + 1] = c.content end end
+  return out
+end
+
+local function count(list, value)
+  local n = 0
+  for _, v in ipairs(list) do if v == value then n = n + 1 end end
+  return n
+end
+
+function T.tags_window_sets_a_placement_with_a_label_and_a_count()
+  local env = boot()
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  local window = tagsWindow(env, 103)
+  A.eq(window.options.title, "Tags: Abyssal whip")
+  assertIntegerIds(window)
+  setPlacement(env, 103, "sell")
+  A.eq(Store.new(PersistentDB):markOf(103), "sell")
+  A.truthy(texts(panel(env)):find("Tags: Sell 1", 1, true), texts(panel(env)))
+  tick(env)
+  A.eq(count(liveTexts(env), "SELL"), 1, "a SELL label on the whip")
+  setPlacement(env, 103, "trash")
+  tick(env)
+  A.eq(count(liveTexts(env), "SELL"), 0); A.eq(count(liveTexts(env), "TRASH"), 1, "one placement tag at a time")
+  setPlacement(env, 103, "none")
+  A.eq(Store.new(PersistentDB):markOf(103), nil)
+  PluginShutdown()
+end
+
+function T.guide_marks_win_over_tag_labels()
+  local env = boot({ bank = TAB_BANK.bank, tabSizes = TAB_BANK.tabSizes })
+  var.VarPlayer.BANKINSERT = { value = 0 }
+  setPlacement(env, 108, "sell")
+  find(panel(env), "AddSimpleButton", "Sorting Guide").args[2]()
+  A.truthy(texts(panel(env)):find("Rune scimitar", 1, true), "the guide moves the sell item to infinity's bottom: " .. texts(panel(env)))
+  tick(env)
+  local labels = liveTexts(env)
+  A.eq(count(labels, "SELL"), 0, "the MOVE mark wins on the same slot")
+  PluginShutdown()
+end
+
+function T.decant_labels_follow_the_settings()
+  local env = boot({ bank = { 111, 112, 113, 102 } })
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  tick(env)
+  A.eq(count(liveTexts(env), "DECANT"), 2, "3 + 1 doses can be decanted; the lone 2-dose restore cannot")
+  env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
+  local boxes
+  for _, c in ipairs(env.settings[#env.settings]) do
+    if c.method == "AddCheckboxButton" and c.args[1][1].value == "decant" then boxes = c end
+  end
+  A.truthy(boxes, "decant checkboxes in settings")
+  boxes.args[2].onChange(nil, nil, "decant3", false)
+  tick(env)
+  A.eq(count(liveTexts(env), "DECANT"), 1, "3-dose labels turned off")
+  boxes.args[2].onChange(nil, nil, "decant", false)
+  tick(env)
+  A.eq(count(liveTexts(env), "DECANT"), 0, "decant labels turned off")
+  PluginShutdown()
+end
+
+function T.vertical_waits_for_the_bank_columns()
+  local env = boot()
+  pick(comboWith(panel(env), "vertical"), "vertical")
+  A.eq(Store.new(PersistentDB):get("direction"), "vertical")
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  A.truthy(texts(panel(env)):find("Vertical sort: open your bank", 1, true), texts(panel(env)))
+  tick(env)
+  A.eq(texts(panel(env)):find("Vertical sort: open your bank", 1, true), nil, "columns measured from the bank on screen")
+  PluginShutdown()
+end
+
+function T.clear_all_tags_asks_first()
+  local env = boot()
+  setPlacement(env, 103, "favourite")
+  env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
+  find(env.settings[#env.settings], "AddSimpleButton", "Clear all tags").args[2]()
+  A.eq(env.confirm.title, "CLEAR TAGS")
+  env.confirm.onConfirm()
+  A.eq(Store.new(PersistentDB):markOf(103), nil)
   PluginShutdown()
 end
 

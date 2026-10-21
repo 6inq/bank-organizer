@@ -27,7 +27,7 @@ function Preset.encode(store)
   table.sort(pins)
   return table.concat({
     Preset.PREFIX, "s=" .. store:get("scope"), "o=" .. store:get("sort"), "t=" .. table.concat(tabs, "/"),
-    "n=" .. table.concat(names, ","), "p=" .. table.concat(pins, ","),
+    "n=" .. table.concat(names, ","), "p=" .. table.concat(pins, ","), "d=" .. store:get("direction"),
   }, "|")
 end
 
@@ -63,6 +63,7 @@ function Preset.decode(text)
   end
   return {
     scope = (f.s == "tabs" or f.s == "bank") and f.s or nil,
+    direction = (f.d == "horizontal" or f.d == "vertical") and f.d or nil,
     sort = Sorting.isMode(f.o) and f.o or nil,
     layout = { count = count, tabs = tabs, names = names },
     pins = pins,
@@ -75,6 +76,7 @@ function Preset.apply(store, preset)
   store.tabOrder = nil
   if preset.scope then store.settings.scope = preset.scope end
   if preset.sort then store.settings.sort = preset.sort end
+  if preset.direction then store.settings.direction = preset.direction end
   store:save()
   return store.layout:last()
 end

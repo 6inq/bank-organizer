@@ -46,6 +46,7 @@ Tags.LIST = {
   { key = "collection-log", label = "Collection Log", category = "clues-cosmetics" },
   { key = "cleanup", label = "Storage & Cleanup", category = "storage-cleanup" },
   { key = "quest-items", label = "Quest Items", category = "storage-cleanup" },
+  { key = "vanity", label = "Vanity & Rares", category = "currency-utilities" },
 }
 
 Tags.FALLBACK = "cleanup"

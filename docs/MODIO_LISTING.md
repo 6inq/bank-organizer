@@ -53,6 +53,12 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <h3>Share your layout</h3>
 <p><strong>Share or Load a Setup</strong> turns your whole bank setup into one line of text. Post it anywhere, and anyone can paste it in to use your layout.</p>
 
+<h3>Tag anything</h3>
+<p>Right-click any bank item and choose <strong>Tags</strong>: set its category, keep it <strong>Active</strong> or as <strong>Vanity</strong> at the top of your infinity tab (rares like partyhats go there automatically), make it a <strong>Favourite</strong> first in its tab, or line it up to <strong>Sell</strong>, <strong>Alch</strong>, <strong>Disassemble</strong> or <strong>Trash</strong> at the bottom. Or <strong>Ignore</strong> it entirely.</p>
+
+<h3>Decant labels and vertical sorting</h3>
+<p>Part-dose potions you can combine get a <strong>DECANT</strong> label, and you choose which doses count. Prefer your bank in columns? Switch <strong>Sort direction</strong> to <strong>Vertical</strong>.</p>
+
 <h3>Checks every move</h3>
 <p>Swapped when you should have inserted, or dropped an item in the wrong spot? The guide notices, tells you <strong>Not quite</strong>, and walks you back before carrying on. Or press <strong>Continue from here</strong> to keep the new layout.</p>
 
@@ -63,7 +69,7 @@ The editor accepts HTML. Click the `<>` (source code) button in the toolbar and 
 <p>No tabs yet? The guide shows you which item to drop on the <strong>+</strong> button to start each new tab, in order.</p>
 
 <h3>Smart classification</h3>
-<p>About 30 kinds of item, including Runes, Summoning, MTX &amp; XP Boosts, Skilling Outfits, Potions and Herbs. Items are recognised from the game's own item categories, their right-click options and their names. Anything it gets wrong, fix with <strong>Assign Categories</strong>: right-click the item and pick its kind. Your choice always wins.</p>
+<p>About 30 kinds of item, including Runes, Summoning, MTX &amp; XP Boosts, Skilling Outfits, Potions and Herbs. Items are recognised from the game's own item categories, their right-click options and their names. Anything it gets wrong, fix it from the right-click <strong>Tags</strong> window: pick its category. Your choice always wins.</p>
 
 <h3>Customizable</h3>
 <p>Every tab colour, the MOVE highlight, the drop target and the guide line can be changed, along with tint opacity and insert or swap mode.</p>
