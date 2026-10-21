@@ -53,7 +53,6 @@ src/ui/                      sidebar panel, settings, Blueprint / Tab Layout / p
 src/app.lua                  analyze -> blueprint -> guide loop
 tests/                       Lua tests run under embedded Lua 5.4
 tools/                       build script + real-item fixture generator
-docs/                        mod.io listing answers
 ```
 
 ## Tests
