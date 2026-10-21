@@ -34,13 +34,9 @@ function Overlay:_rect(slot, rgba, outline)
   return rect
 end
 
-local SMALL_FONTS = { "MUSEO_SANS_9PT_REGULAR", "MUSEO_SANS_10PT_REGULAR", "MUSEO_SANS_11PT_REGULAR" }
-
 function Overlay.badgeFont()
-  for _, name in ipairs(SMALL_FONTS) do
-    local ok, font = pcall(function() return id.Font[name] end)
-    if ok and font then return font end
-  end
+  local ok, font = pcall(function() return id.Font.MUSEO_SANS_11PT_REGULAR end)
+  if ok and type(font) == "number" and font >= 0 then return font end
   return id.Font.MUSEO_SANS_15PT_REGULAR
 end
 
@@ -51,11 +47,8 @@ function Overlay:_badge(slot, text, rgba)
   badge.font = Overlay.badgeFont()
   badge.content = text
   badge.rgba = rgba
-  pcall(function()
-    badge.horizontalAlignment = ui.AlignMode.CENTRE
-    badge.maxLines = 1
-    badge.isShadowed = true
-  end)
+  pcall(function() badge.horizontalAlignment = ui.AlignMode.CENTRE end)
+  pcall(function() badge.isShadowed = true end)
   return badge
 end
 

@@ -1317,7 +1317,24 @@ function T.each_label_has_its_own_colour_setting()
   local sell
   for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed and c.content == "Sell" then sell = c end end
   A.eq(sell.rgba, 0x112233FF, "the label uses it")
-  A.eq(sell.horizontalAlignment, 2, "centred in the slot"); A.eq(sell.isShadowed, true, "shadowed to stay readable"); A.eq(sell.maxLines, 1)
+  A.eq(sell.horizontalAlignment, 2, "centred in the slot"); A.eq(sell.isShadowed, true, "shadowed to stay readable")
+  A.eq(sell.font, 2, "the 11pt font every client has")
+  PluginShutdown()
+end
+
+function T.a_missing_small_font_never_hides_labels()
+  local env = boot({ bank = { 111, 112, 102 } })
+  id.Font.MUSEO_SANS_11PT_REGULAR = -1
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  tick(env)
+  local decant = 0
+  for _, c in ipairs(env.created) do
+    if c.kind == "text" and not c.destroyed and c.content == "Decant" then
+      decant = decant + 1
+      A.eq(c.font, 1, "falls back to the standard font")
+    end
+  end
+  A.eq(decant, 2)
   PluginShutdown()
 end
 
