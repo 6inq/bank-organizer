@@ -11,6 +11,9 @@ Store.KEY = "bank-organizer-v2"
 local DEFAULT_COLOURS = {}
 for _, category in ipairs(Tags.CATEGORIES) do DEFAULT_COLOURS[category.key] = category.colour end
 Store.HIGHLIGHT_DEFAULTS = { move = 0x3CE03CFF, target = 0xF2C94CFF, done = 0x3CE03C55, line = 0xFFFFFFE6 }
+for _, placement in ipairs(Placement.labelColours()) do
+  Store.HIGHLIGHT_DEFAULTS[Placement.colourKey(placement.key)] = placement.colour
+end
 
 local function isBool(v) return type(v) == "boolean" end
 local function isColour(v) return type(v) == "number" and v == math.floor(v) and v >= 0 and v <= 0xFFFFFFFF end

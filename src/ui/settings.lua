@@ -1,5 +1,6 @@
 local Tags = require("src/core/tags")
 local Combo = require("src/ui/combo")
+local Placement = require("src/core/placement")
 
 local Settings = {}
 
@@ -54,6 +55,10 @@ local function mount(parent, store, app)
   end
   view:AddTitle("Guide colours")
   for _, highlight in ipairs(HIGHLIGHTS) do addColour(store, app, highlight[1], highlight[2]) end
+  view:AddTitle("Tag label colours")
+  for _, placement in ipairs(Placement.labelColours()) do
+    addColour(store, app, Placement.colourKey(placement.key), placement.label .. " (" .. placement.badge .. ")")
+  end
   view:AddSimpleButton("Reset all colours", function()
     prettyui.Confirm.new(parent, { title = "RESET COLOURS", body = "Put every colour back to its default?",
       confirmLabel = "RESET", onConfirm = function() store:resetColours(); app:rebuild() end })

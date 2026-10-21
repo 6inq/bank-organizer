@@ -382,10 +382,12 @@ end
 function App:slotLabel(key)
   local item = self.itemByKey and self.itemByKey[key]
   if not item then return nil end
-  local badge = Placement.badge(self.store:markOf(item.objectId or item.id), self:tagOf(item))
-  if badge then return badge, "badge" end
+  local badge, colourKey = Placement.badge(self.store:markOf(item.objectId or item.id), self:tagOf(item))
+  if badge then return badge, colourKey end
   local decant = self.store:get("decant") and self.decant and self.decant[key]
-  if decant and decant.canDecant and self.store:get("decant" .. decant.dose) then return "DECANT", "decant" end
+  if decant and decant.canDecant and self.store:get("decant" .. decant.dose) then
+    return Placement.DECANT.badge, Placement.colourKey(Placement.DECANT.key)
+  end
   return nil
 end
 

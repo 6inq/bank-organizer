@@ -353,7 +353,8 @@ function Bank.view(container, frame)
 end
 
 function Bank.describeInterface(container)
-  local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ","), "mapping: " .. table.concat(Bank.tabMapping(), ",") }
+  local lines = { "names: " .. table.concat(Bank.componentNames("BANK__"), ","), "mapping: " .. table.concat(Bank.tabMapping(), ","),
+    "fonts: " .. table.concat(Bank.fontNames(), ",") }
   for _, found in ipairs(bankComponents(container)) do
     local c = found.component
     local ok, line = pcall(function()
@@ -380,6 +381,17 @@ function Bank.tabMapping()
   local values = {}
   for tab = 2, 15 do values[#values + 1] = tostring(varValue("VarPlayer", "BANK_TAB_" .. tab .. "_MAPPING_SERVER")) end
   return values
+end
+
+function Bank.fontNames()
+  local names = {}
+  pcall(function()
+    for name in pairs(id.Font) do
+      if type(name) == "string" then names[#names + 1] = name end
+    end
+  end)
+  table.sort(names)
+  return names
 end
 
 function Bank.componentNames(prefix)

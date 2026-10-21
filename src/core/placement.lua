@@ -1,13 +1,13 @@
 local Placement = {}
 
 Placement.LIST = {
-  { key = "active", label = "Active", badge = "ACTIVE", group = 1, infinity = true },
-  { key = "vanity", label = "Vanity", badge = "VAN", group = 2, infinity = true },
-  { key = "favourite", label = "Favourite", badge = "FAV", group = 0, infinity = false },
-  { key = "sell", label = "Sell", badge = "SELL", group = 4, infinity = true },
-  { key = "alch", label = "Alch", badge = "ALCH", group = 5, infinity = true },
-  { key = "disassemble", label = "Disassemble", badge = "DIS", group = 6, infinity = true },
-  { key = "trash", label = "Trash", badge = "TRASH", group = 7, infinity = true },
+  { key = "active", label = "Active", badge = "Active", group = 1, infinity = true, colour = 0x6EE68AFF },
+  { key = "vanity", label = "Vanity", badge = "Van", group = 2, infinity = true, colour = 0xD7A6FFFF },
+  { key = "favourite", label = "Favourite", badge = "Fav", group = 0, infinity = false, colour = 0xFFD84DFF },
+  { key = "sell", label = "Sell", badge = "Sell", group = 4, infinity = true, colour = 0x7FD3FFFF },
+  { key = "alch", label = "Alch", badge = "Alch", group = 5, infinity = true, colour = 0xFFB04DFF },
+  { key = "disassemble", label = "Disassemble", badge = "Dis", group = 6, infinity = true, colour = 0xD0D0D0FF },
+  { key = "trash", label = "Trash", badge = "Trash", group = 7, infinity = true, colour = 0xFF7070FF },
 }
 
 Placement.NORMAL = 3
@@ -45,9 +45,23 @@ function Placement.describe(key)
   return WHERE[key] or ""
 end
 
+Placement.DECANT = { key = "decant", label = "Decant", badge = "Decant", colour = 0xF2C94CFF }
+
+function Placement.colourKey(key)
+  return "label-" .. key
+end
+
+function Placement.labelColours()
+  local list = {}
+  for _, placement in ipairs(Placement.LIST) do list[#list + 1] = placement end
+  list[#list + 1] = Placement.DECANT
+  return list
+end
+
 function Placement.badge(mark, tag)
   local placement = Placement.effective(mark, tag)
-  return placement and placement.badge or nil
+  if not placement then return nil end
+  return placement.badge, Placement.colourKey(placement.key)
 end
 
 return Placement

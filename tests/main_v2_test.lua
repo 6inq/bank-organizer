@@ -97,7 +97,7 @@ local function boot(opts)
     return c
   end
   _G.ui = {
-    ComponentType = { SPRITE = 5 }, SelectionChangeEvent = { SELECTED = 1 },
+    ComponentType = { SPRITE = 5 }, SelectionChangeEvent = { SELECTED = 1 }, AlignMode = { TOPLEFT = 1, CENTRE = 2, BOTTOMRIGHT = 3 },
     Interfaces = { GetComponent = function(_, componentID, staticID)
       if staticID ~= nil then return componentID == 517 and bankStatic(staticID) or nil end
       if componentID == 1001 then return container end
@@ -1178,10 +1178,10 @@ function T.tags_window_sets_a_placement_with_a_label_and_a_count()
   A.eq(Store.new(PersistentDB):markOf(103), "sell")
   A.truthy(texts(panel(env)):find("Tags: Sell 1", 1, true), texts(panel(env)))
   tick(env)
-  A.eq(count(liveTexts(env), "SELL"), 1, "a SELL label on the whip")
+  A.eq(count(liveTexts(env), "Sell"), 1, "a SELL label on the whip")
   setPlacement(env, 103, "trash")
   tick(env)
-  A.eq(count(liveTexts(env), "SELL"), 0); A.eq(count(liveTexts(env), "TRASH"), 1, "one placement tag at a time")
+  A.eq(count(liveTexts(env), "Sell"), 0); A.eq(count(liveTexts(env), "Trash"), 1, "one placement tag at a time")
   setPlacement(env, 103, "none")
   A.eq(Store.new(PersistentDB):markOf(103), nil)
   PluginShutdown()
@@ -1195,7 +1195,7 @@ function T.guide_marks_win_over_tag_labels()
   A.truthy(texts(panel(env)):find("Rune scimitar", 1, true), "the guide moves the sell item to infinity's bottom: " .. texts(panel(env)))
   tick(env)
   local labels = liveTexts(env)
-  A.eq(count(labels, "SELL"), 0, "the MOVE mark wins on the same slot")
+  A.eq(count(labels, "Sell"), 0, "the MOVE mark wins on the same slot")
   PluginShutdown()
 end
 
@@ -1203,7 +1203,7 @@ function T.decant_labels_follow_the_settings()
   local env = boot({ bank = { 111, 112, 113, 102 } })
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
   tick(env)
-  A.eq(count(liveTexts(env), "DECANT"), 2, "3 + 1 doses can be decanted; the lone 2-dose restore cannot")
+  A.eq(count(liveTexts(env), "Decant"), 2, "3 + 1 doses can be decanted; the lone 2-dose restore cannot")
   env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
   local boxes
   for _, c in ipairs(env.settings[#env.settings]) do
@@ -1212,10 +1212,10 @@ function T.decant_labels_follow_the_settings()
   A.truthy(boxes, "decant checkboxes in settings")
   boxes.args[2].onChange(nil, nil, "decant3", false)
   tick(env)
-  A.eq(count(liveTexts(env), "DECANT"), 1, "3-dose labels turned off")
+  A.eq(count(liveTexts(env), "Decant"), 1, "3-dose labels turned off")
   boxes.args[2].onChange(nil, nil, "decant", false)
   tick(env)
-  A.eq(count(liveTexts(env), "DECANT"), 0, "decant labels turned off")
+  A.eq(count(liveTexts(env), "Decant"), 0, "decant labels turned off")
   PluginShutdown()
 end
 
@@ -1262,8 +1262,8 @@ function T.labels_use_short_words_in_one_small_font_inside_the_slot()
     words[badge.content] = (words[badge.content] or 0) + 1
     A.eq(badge.w, 36, badge.content .. " fits the slot width"); A.eq(badge.h, 11, badge.content .. " fits the slot height")
   end
-  A.eq(words.VAN, 2, "the partyhat (a rare) and the vanity dagger")
-  A.eq(words.ACTIVE, 1); A.eq(words.DIS, 1); A.eq(words.TRASH, 1); A.eq(words.DECANT, 2)
+  A.eq(words.Van, 2, "the partyhat (a rare) and the vanity dagger")
+  A.eq(words.Active, 1); A.eq(words.Dis, 1); A.eq(words.Trash, 1); A.eq(words.Decant, 2)
   PluginShutdown()
 end
 
@@ -1288,14 +1288,36 @@ function T.a_potion_can_opt_out_of_decant_labels()
   local env = boot({ bank = { 111, 112, 102 } })
   find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
   tick(env)
-  A.eq(count(liveTexts(env), "DECANT"), 2)
+  A.eq(count(liveTexts(env), "Decant"), 2)
   A.eq(#find(tagsWindow(env, 103), "AddCheckboxButton").args[1], 1, "no decant option on a non-potion")
   local boxes = find(tagsWindow(env, 111), "AddCheckboxButton")
   A.eq(boxes.args[1][2].value, "nodecant")
   boxes.args[2].onChange(nil, nil, "nodecant", true)
   A.eq(Store.new(PersistentDB):isNoDecant(111), true, "saved")
   tick(env)
-  A.eq(count(liveTexts(env), "DECANT"), 0, "the kept 3-dose potion is left out, and 1 dose alone cannot decant")
+  A.eq(count(liveTexts(env), "Decant"), 0, "the kept 3-dose potion is left out, and 1 dose alone cannot decant")
+  PluginShutdown()
+end
+
+function T.each_label_has_its_own_colour_setting()
+  local env = boot()
+  find(panel(env), "AddFancyButton", "Analyze Bank").args[2]()
+  setPlacement(env, 103, "sell")
+  env.events["Settings:bank-organizer:settings"]({ component = { kind = "settings", width = 300, height = 800 } })
+  local settings = env.settings[#env.settings]
+  A.truthy(texts(settings):find("Tag label colours", 1, true))
+  local pickers = {}
+  for index, c in ipairs(settings) do
+    if c.method == "AddColourPicker" and settings[index - 1].content == "Sell (Sell)" then pickers.sell = c end
+  end
+  A.truthy(pickers.sell, "a colour picker for the Sell label")
+  pickers.sell.args[1].onChange(nil, 0x112233FF)
+  A.eq(Store.new(PersistentDB):colour("label-sell"), 0x112233FF, "saved")
+  tick(env)
+  local sell
+  for _, c in ipairs(env.created) do if c.kind == "text" and not c.destroyed and c.content == "Sell" then sell = c end end
+  A.eq(sell.rgba, 0x112233FF, "the label uses it")
+  A.eq(sell.horizontalAlignment, 2, "centred in the slot"); A.eq(sell.isShadowed, true, "shadowed to stay readable"); A.eq(sell.maxLines, 1)
   PluginShutdown()
 end
 
