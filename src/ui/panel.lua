@@ -6,10 +6,10 @@
 --                buttons that only make sense right now (Continue from here,
 --                Run the Bank Cleaner)
 --   Main buttons Analyze Bank, Start / Stop Sorting, Open Blueprint, Tab Layout
+--   Tools        (collapsible) every other window
 --   Organize     (collapsible) how the bank is organized and sorted
 --   Your tabs    (collapsible) one row per tab: first item icon, name in the
 --                tab's colour, what it holds and how many items
---   Tools        (collapsible) every other window
 --   Footer hint  how to reach the right-click Tags menu
 --
 -- The panel is redrawn from scratch whenever the App notifies a change.
@@ -139,9 +139,11 @@ local function build(app)
   Widgets.divider(view)
   addActions(app)
   Widgets.divider(view)
+  -- Tools sit right under the main buttons, so every window is one click
+  -- away without scrolling past the tab list.
+  Widgets.section(view, collapsed, "tools", "Tools", refresh, function() addTools(app) end)
   Widgets.section(view, collapsed, "organize", "Organize", refresh, function() addSetup(app) end)
   Widgets.section(view, collapsed, "tabs", "Your tabs", refresh, function() addLegend(app) end)
-  Widgets.section(view, collapsed, "tools", "Tools", refresh, function() addTools(app) end)
   Widgets.divider(view)
   Widgets.muted(view, "Right-click any bank item: Tags (Bank Organizer) sets its category and tags, or ignores it.")
 end

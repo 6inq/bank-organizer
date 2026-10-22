@@ -15,6 +15,7 @@
 --   * Ignore wins over tags
 --   * every dropdown uses whole-number ids
 --   * the version in the plugin matches plugin.json
+--   * the Tools section sits under the main buttons, above Organize
 --   * windows can be dragged: a redrawn window stays where it was dragged,
 --     and a window is fitted inside the game so it is never pinned
 
@@ -550,6 +551,29 @@ function T.nothing_is_cut_off_anywhere()
   pick(H.comboWith(panel(env), "tabs"), "tabs")
   press(env, "Tab Layout")
   assertNothingCutOff(H.window(env), Widgets.room(H.window(env).view, 470), "Tab Layout (My tabs)")
+  PluginShutdown()
+end
+
+-- Returns where in a recording the first call of a method with a given
+-- first argument is (its position in the list), or nil.
+local function indexOf(calls, method, label)
+  for index, c in ipairs(calls) do
+    if c.method == method and c.args[1] == label then return index end
+  end
+end
+
+-- Requirement: the Tools section sits right under the main buttons
+-- (Analyze Bank, Sorting, Open Blueprint, Tab Layout) and above the
+-- Organize and Your tabs sections.
+function T.tools_sit_under_the_main_buttons()
+  local env = boot()
+  local p = panel(env)
+  local tools = indexOf(p, "AddSimpleButton", "[-] Tools")
+  A.truthy(tools, "Tools section shown")
+  A.truthy(indexOf(p, "AddFancyButton", "Analyze Bank") < tools, "Tools below Analyze Bank")
+  A.truthy(indexOf(p, "AddSimpleButton", "Tab Layout") < tools, "Tools below Tab Layout")
+  A.truthy(tools < indexOf(p, "AddSimpleButton", "[-] Organize"), "Tools above Organize")
+  A.truthy(tools < indexOf(p, "AddSimpleButton", "[-] Your tabs"), "Tools above Your tabs")
   PluginShutdown()
 end
 
