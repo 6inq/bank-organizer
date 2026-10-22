@@ -1,21 +1,36 @@
+-- Bank Organizer tests: live GE prices through the GE Price Library.
+--
+-- Requirements covered: Value sort uses GE prices once they load and the
+-- game's item value before that or without the library; the sort label says
+-- where prices come from; a broken or missing library never breaks the plugin.
+
 local A = require("assert")
 local Sorting = require("src/core/sorting")
 local Prices = require("src/game/prices")
 
 local T = {}
 
+-- Installs a fake GE Price Library as the global gepl.
+--   opts.ready       false while prices are still loading
+--   opts.prices      item id -> { high, low } (false = no price)
+--   opts.fetchingOn  false when the player switched fetching off
+--   opts.readyError  true to make isReady throw
+-- Returns the fake, which counts its price lookups.
 local function library(opts)
   opts = opts or {}
   local lib = { ready = opts.ready ~= false, prices = opts.prices or {}, fetchingOn = opts.fetchingOn, lookups = 0 }
+  -- The plugin must ask about the "latest" prices.
   lib.isReady = function(endpoint)
     A.eq(endpoint, "latest")
     if opts.readyError then error("broken") end
     return lib.ready
   end
+  -- Whether the library is allowed to download prices.
   lib.isFetchingOn = function()
     if lib.fetchingOn == nil then return true end
     return lib.fetchingOn
   end
+  -- Unknown items throw, like the real library does.
   lib.getLatest = function(itemID)
     lib.lookups = lib.lookups + 1
     local price = lib.prices[itemID]
@@ -27,11 +42,13 @@ local function library(opts)
   return lib
 end
 
+-- Builds a wieldable item with a client category and item value.
 local function gear(id, name, category, cost)
   return { slot = id, id = id, name = name, quantity = 1,
     info = { name = name, category = category, cost = cost, ops = { wield = true } } }
 end
 
+-- Four pieces of gear whose item values and GE prices disagree.
 local function items()
   return {
     gear(1, "Abyssal whip", "WEAPON_WHIP", 120000),
@@ -48,11 +65,15 @@ local GE = {
   [4] = { high = 1000000, low = 1000000 },
 }
 
+-- Loads a fresh App in Value sort mode over a fixed list of items, with the
+-- bank reported closed. Counts how often listeners are notified.
 local function app(list)
+  -- Log lines are dropped.
   _G.log = function() end
   _G.PersistentDB = nil
   for key in pairs(package.loaded) do if key:match("^src/") then package.loaded[key] = nil end end
   local Bank = require("src/game/bank")
+  -- The bank reader is replaced so no client is needed.
   Bank.readItems = function() return list end
   Bank.slotsContainer = function() return nil end
   Bank.tabSizes = function() return nil end
@@ -66,18 +87,21 @@ local function app(list)
   return a
 end
 
+-- Returns the names planned in the gear tab, in order.
 local function planned(a)
   local names = {}
   for index, entry in ipairs(a.destinations[a.store.layout:destinationOf("gear")]) do names[index] = entry.name end
   return names
 end
 
+-- Returns the Value sort label for a price source.
 local function valueLabel(source)
   for _, entry in ipairs(Sorting.modes(source)) do
     if entry.key == "value" then return entry.label end
   end
 end
 
+-- Requirement: Ge price wins over item value when known.
 function T.ge_price_wins_over_item_value_when_known()
   library({ prices = GE })
   local a = app(items())
@@ -87,6 +111,7 @@ function T.ge_price_wins_over_item_value_when_known()
   _G.gepl = nil
 end
 
+-- Requirement: Items without a ge price fall back to item value.
 function T.items_without_a_ge_price_fall_back_to_item_value()
   library({ prices = { [1] = GE[1], [3] = false } })
   local a = app(items())
@@ -96,6 +121,7 @@ function T.items_without_a_ge_price_fall_back_to_item_value()
   _G.gepl = nil
 end
 
+-- Requirement: Loading sorts by item value then resorts once prices arrive.
 function T.loading_sorts_by_item_value_then_resorts_once_prices_arrive()
   local lib = library({ ready = false, prices = GE })
   local a = app(items())
@@ -116,6 +142,7 @@ function T.loading_sorts_by_item_value_then_resorts_once_prices_arrive()
   _G.gepl = nil
 end
 
+-- Requirement: Without the library value uses item value.
 function T.without_the_library_value_uses_item_value()
   _G.gepl = nil
   local a = app(items())
@@ -124,6 +151,7 @@ function T.without_the_library_value_uses_item_value()
   A.list(planned(a), { "Torva full helm", "Armadyl chestplate", "Abyssal whip", "Bronze dagger" })
 end
 
+-- Requirement: A broken library falls back without crashing.
 function T.a_broken_library_falls_back_without_crashing()
   library({ readyError = true, prices = GE })
   A.eq(Prices.source(), "none")
@@ -133,6 +161,7 @@ function T.a_broken_library_falls_back_without_crashing()
   _G.gepl = nil
 end
 
+-- Requirement: Price fetching turned off with no cache is item value.
 function T.price_fetching_turned_off_with_no_cache_is_item_value()
   library({ ready = false, fetchingOn = false })
   A.eq(Prices.source(), "none")
@@ -141,6 +170,7 @@ function T.price_fetching_turned_off_with_no_cache_is_item_value()
   _G.gepl = nil
 end
 
+-- Requirement: Price is the middle of buy and sell or whichever is known.
 function T.price_is_the_middle_of_buy_and_sell_or_whichever_is_known()
   library({ prices = { [1] = { high = 101, low = 100 }, [2] = { high = 70 }, [3] = { low = 30 }, [4] = { high = 0, low = 0 },
     [5] = { high = "bad" } } })
@@ -153,6 +183,7 @@ function T.price_is_the_middle_of_buy_and_sell_or_whichever_is_known()
   _G.gepl = nil
 end
 
+-- Requirement: Attach clears old prices when not live.
 function T.attach_clears_old_prices_when_not_live()
   local list = items()
   library({ prices = GE })
@@ -164,6 +195,7 @@ function T.attach_clears_old_prices_when_not_live()
   _G.gepl = nil
 end
 
+-- Requirement: Sort label says which value is used.
 function T.sort_label_says_which_value_is_used()
   A.truthy(valueLabel("live"):find("GE price", 1, true))
   A.truthy(valueLabel("loading"):find("until GE prices load", 1, true))
@@ -173,6 +205,7 @@ function T.sort_label_says_which_value_is_used()
   A.eq(Sorting.modes("live")[1].label, Sorting.MODES[1].label, "other modes unchanged")
 end
 
+-- Requirement: Worth prefers price then cost.
 function T.worth_prefers_price_then_cost()
   A.eq(Sorting.worth({ price = 5, cost = 9 }), 5)
   A.eq(Sorting.worth({ cost = 9 }), 9)
@@ -180,6 +213,7 @@ function T.worth_prefers_price_then_cost()
   A.eq(Sorting.worth(nil), 0)
 end
 
+-- Requirement: Other sort modes never touch prices.
 function T.other_sort_modes_never_touch_prices()
   local lib = library({ ready = false, prices = GE })
   local a = app(items())

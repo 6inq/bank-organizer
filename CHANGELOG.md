@@ -1,5 +1,25 @@
 # Changelog: Bank Organizer
 
+## 1.4.2 (2026-10-22)
+### New
+- **Right-click Tags menu**: with PrettyUI 1.2.0 or newer, **Tags (Bank Organizer)** opens a submenu titled with the item's name: **Category...**, **Ignore**, every tag, **Never label for decanting** (potions only) and **More...**. Each choice switches on or off at once and shows [x] when it is on. With an older PrettyUI the entry opens the Tags window as before.
+- **Custom categories** (Tools): make your own kinds of item with a name and colour. Add name rules ("Name contains", "Name starts with") and matching items join automatically. A review list shows every match in your bank, with **Remove** and **Restore**. Custom categories work everywhere built-in ones do: Tab Layout, My tabs pins, tab colours and Smart sort. Your own pick from the Tags window still wins over rules.
+- **Custom tags** (Tools): make tags with a label of up to 6 characters, a colour, and a placement: top of infinity, bottom of infinity, first in its tab, or label only.
+- **Any combination of tags**: an item can carry several tags. A priority list (Custom tags window) decides which tag places the item and which label shows. Saves from 1.4.1 load unchanged.
+- **Herblore, recipe by recipe**: Smart sort puts empty vials and vials of water first, then each potion's grimy herb, clean herb, unfinished potion, secondary, vial doses from (1) to (4) and flask doses from (1) to (6). The whole overload family stays together.
+- **Secondaries** setting: with their potion, or all at the bottom of the tab.
+- **Bank Cleaner** (Tools, and offered when your bank is sorted): suggests quest leftovers (quests complete), items worth more alched, low value stacks (your limit, 1,000 gp to start) and items to review, each with a reason. Tag them Sell, Alch or Trash, or Keep them. It never suggests clue scroll items (emote clue STASH items, clue tools, caskets), rares, Vanity, Active or Favourite items, items for quests you have not finished, or coins. It never destroys, drops or sells anything.
+- **Share codes** now carry custom categories (with rules), custom tags, the tag priority order and the Secondaries setting. Tags on single items, ignores and the Keep list stay yours. Older codes still load.
+
+### Changed
+- **New look**: the sidebar has a status card (moves left, sorted tabs), folding sections (Organize, Your tabs, Tools) and an item icon on every tab row. Settings are split into pages (General, Sorting, Tags & Labels, Colours, Cleaner) with a short explanation under every setting, in the settings gear and in a Settings window. The Tab Layout picks one tab at a time from a row of numbered buttons, shows that tab's planned items, and keeps the tab buttons at the bottom.
+- Potions now sort from the fewest doses to the most.
+- With decant labels off, part doses stay with their potion instead of sinking to the bottom.
+
+### For developers
+- Every file and function is commented in detail, as the Plugin Hub asks. `tools/check_comments.py` checks it, and the test runner fails when a comment is missing.
+- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the submenu and the new interface. 232 tests pass.
+
 ## 1.4.1 (2026-10-21)
 ### New
 - **Tags**: right-click any bank item and choose **Tags (Bank Organizer)**. One window holds everything for that item:

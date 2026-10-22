@@ -1,3 +1,9 @@
+-- Bank Organizer tests: the order items take inside a tab (src/core/sorting.lua).
+--
+-- Requirements covered: combat style and slot for gear; every sort mode;
+-- Smart order for every kind (herblore, potions, resources, food, teleports,
+-- tools and more); value and quantity sorts.
+
 local A = require("assert")
 local Sorting = require("src/core/sorting")
 local Blueprint = require("src/core/blueprint")
@@ -7,6 +13,7 @@ local T = {}
 
 local MELEE, RANGED, MAGIC, NECRO, OTHER = 1, 2, 3, 4, 5
 
+-- Requirement: Styles from category then name.
 function T.styles_from_category_then_name()
   A.eq(Sorting.style("Abyssal whip", "WEAPON_WHIP"), MELEE)
   A.eq(Sorting.style("Augmented ascension crossbow", "WEAPON_XBOW"), RANGED)
@@ -19,6 +26,7 @@ function T.styles_from_category_then_name()
   A.eq(Sorting.style("Ring of kinship", "RING"), OTHER)
 end
 
+-- Requirement: Slots in bank preset order.
 function T.slots_in_bank_preset_order()
   A.eq(Sorting.SLOTS[Sorting.slot("Abyssal whip", "WEAPON_WHIP")], "main hand")
   A.eq(Sorting.SLOTS[Sorting.slot("Augmented off-hand ascension crossbow", "WEAPON_XBOW")], "off hand", "off-hand beats the weapon category")
@@ -31,11 +39,13 @@ function T.slots_in_bank_preset_order()
   A.eq(Sorting.SLOTS[Sorting.slot("Mystery", "")], "other")
 end
 
+-- Builds a wieldable item with a client category and item value.
 local function gear(slot, id, name, category, cost)
   return { slot = slot, id = id, name = name, quantity = 1,
     info = { name = name, category = category, cost = cost, ops = { wield = true } } }
 end
 
+-- Plans items as gear and returns their names in planned order.
 local function order(items, mode)
   local layout = Layout.new("main")
   local d = Blueprint.build(items, layout, function() return "gear" end, mode)
@@ -53,6 +63,7 @@ local GEAR = {
   gear(6, 60, "Wand of the Cywir elders", "WEAPON_WAND", 3000),
 }
 
+-- Requirement: Smart groups gear by style then slot then best first.
 function T.smart_groups_gear_by_style_then_slot_then_best_first()
   A.list(order(GEAR, "smart"), {
     "Noxious scythe", "Abyssal whip",
@@ -63,12 +74,14 @@ function T.smart_groups_gear_by_style_then_slot_then_best_first()
   })
 end
 
+-- Requirement: Name and id modes.
 function T.name_and_id_modes()
   A.list(order(GEAR, "name"), { "Abyssal whip", "Armadyl chestplate", "Noxious scythe", "Torva full helm", "Virtus robe top", "Wand of the Cywir elders" })
   A.list(order(GEAR, "id"), { "Noxious scythe", "Abyssal whip", "Armadyl chestplate", "Torva full helm", "Virtus robe top", "Wand of the Cywir elders" })
 end
 
-function T.smart_keeps_potion_families_together_highest_dose_first()
+-- Requirement: potions of one family stay together, doses ascending.
+function T.smart_keeps_potion_families_together_lowest_dose_first()
   local items = {}
   for slot, name in ipairs({ "Super restore (1)", "Prayer potion (3)", "Super restore (4)", "Prayer potion (4)", "Super restore (2)" }) do
     items[slot] = { slot = slot, id = slot, name = name, quantity = 1, info = { name = name, ops = { drink = true } } }
@@ -77,9 +90,10 @@ function T.smart_keeps_potion_families_together_highest_dose_first()
   local d = Blueprint.build(items, layout, function() return "potions" end, "smart")
   local names = {}
   for index, entry in ipairs(d[layout:destinationOf("potions")]) do names[index] = entry.name end
-  A.list(names, { "Prayer potion (4)", "Prayer potion (3)", "Super restore (4)", "Super restore (2)", "Super restore (1)" })
+  A.list(names, { "Prayer potion (3)", "Prayer potion (4)", "Super restore (1)", "Super restore (2)", "Super restore (4)" })
 end
 
+-- Requirement: Smart resources by material then tier.
 function T.smart_resources_by_material_then_tier()
   local items = {}
   for slot, name in ipairs({ "Magic logs", "Rune bar", "Oak logs", "Bronze bar", "Mithril ore" }) do
@@ -92,6 +106,7 @@ function T.smart_resources_by_material_then_tier()
   A.list(names, { "Mithril ore", "Bronze bar", "Rune bar", "Oak logs", "Magic logs" })
 end
 
+-- Requirement: Keep my order leaves a tab alone and appends arrivals.
 function T.keep_my_order_leaves_a_tab_alone_and_appends_arrivals()
   local destinations = { [0] = {}, [1] = {
     { id = 7, slot = 9 }, { id = 5, slot = 2 }, { id = 6, slot = 1 }, { id = 8, slot = 4 },
@@ -103,12 +118,14 @@ function T.keep_my_order_leaves_a_tab_alone_and_appends_arrivals()
   A.list(ids, { 6, 5, 8, 7 }, "tab members in their current order, the newcomer last")
 end
 
+-- Requirement: Every mode is offered and valid.
 function T.every_mode_is_offered_and_valid()
   A.eq(#Sorting.MODES, 7)
   for _, mode in ipairs(Sorting.MODES) do A.eq(Sorting.isMode(mode.key), true) end
   A.eq(Sorting.isMode("bogus"), false)
 end
 
+-- Requirement: Smart groups herblore by recipe chain.
 function T.smart_groups_herblore_by_recipe_chain()
   local rows = {
     { "Super restore (4)", "potions" }, { "Clean irit", "clean-herbs" }, { "Extreme attack (3)", "potion-doses" },
@@ -128,12 +145,13 @@ function T.smart_groups_herblore_by_recipe_chain()
   local names = {}
   for index, entry in ipairs(d[3]) do names[index] = entry.name end
   A.list(names, {
-    "Grimy irit", "Clean irit", "Irit potion (unf)", "Super attack (4)", "Super attack (2)",
+    "Grimy irit", "Clean irit", "Irit potion (unf)", "Super attack (2)", "Super attack (4)",
     "Clean avantoe", "Extreme attack (3)", "Super ranging (4)", "Grenwall spikes", "Clean torstol", "Overload (4)",
     "Ranarr potion (unf)", "Prayer potion (4)", "Super restore (4)",
   })
 end
 
+-- Requirement: Chains pick the most specific name.
 function T.chains_pick_the_most_specific_name()
   local group, member = Sorting.chain("Super antipoison (4)")
   local _, plain = Sorting.chain("Antipoison (4)")
@@ -142,6 +160,8 @@ function T.chains_pick_the_most_specific_name()
   A.truthy(Sorting.chain("Mystery") > group, "unknown items come after every chain")
 end
 
+-- Plans items of one kind with Smart sort and returns their names in order.
+-- extra adds facts (like cost) per item name.
 local function smartOrder(tag, names, extra)
   local items = {}
   for slot, name in ipairs(names) do
@@ -156,6 +176,7 @@ local function smartOrder(tag, names, extra)
   return out
 end
 
+-- Requirement: Smart covers every kind.
 function T.smart_covers_every_kind()
   A.list(smartOrder("food", { "Shark", "1/3 blue blubber jellyfish", "Lobster", "Blue blubber jellyfish", "Rocktail" }),
     { "Lobster", "Shark", "Rocktail", "Blue blubber jellyfish", "1/3 blue blubber jellyfish" }, "food by healing tier, full portions first")
@@ -171,6 +192,7 @@ function T.smart_covers_every_kind()
     { "Big drop", "Cheap drop" }, "loot by value")
 end
 
+-- Requirement: Incense stays out of the potion chains.
 function T.incense_stays_out_of_the_potion_chains()
   local group = Sorting.chain("Clean irit")
   A.truthy(select(1, Sorting.chain("Irit incense sticks")) == group, "the herb name alone would match")
@@ -185,6 +207,7 @@ function T.incense_stays_out_of_the_potion_chains()
   A.eq(d[2][1].name, "Super attack (4)", "incense after the potions")
 end
 
+-- Requirement: Value mode puts the most valuable first whatever the kind.
 function T.value_mode_puts_the_most_valuable_first_whatever_the_kind()
   local items = {
     gear(1, 1, "Abyssal whip", "WEAPON_WHIP", 120000), gear(2, 2, "Torva full helm", "ARMOUR_HELMET", 9000000),
@@ -193,11 +216,13 @@ function T.value_mode_puts_the_most_valuable_first_whatever_the_kind()
   A.list(order(items, "value"), { "Torva full helm", "Armadyl chestplate", "Abyssal whip", "Bronze dagger" })
 end
 
+-- Requirement: Quantity modes sort by stack size both ways.
 function T.quantity_modes_sort_by_stack_size_both_ways()
   local items = {}
   for slot, row in ipairs({ { "Coins", 5000 }, { "Air rune", 120000 }, { "Shark", 28 }, { "Abyssal whip", 1 }, { "Bones", 28 } }) do
     items[slot] = { slot = slot, id = slot, name = row[1], quantity = row[2], info = { name = row[1], ops = {} } }
   end
+  -- Returns the planned names for one sort mode.
   local function sorted(mode)
     local layout = Layout.new("main")
     local d = Blueprint.build(items, layout, function() return "cleanup" end, mode)

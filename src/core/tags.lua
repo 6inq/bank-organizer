@@ -1,6 +1,23 @@
+-- Bank Organizer: kinds of item and the categories that group them.
+--
+-- Every bank item is given exactly one "kind" (for example Runes, Potions or
+-- Combat Gear). Kinds are what the Tab Layout moves between tabs. Each kind
+-- belongs to a "category", which supplies the colour a tab is tinted with and
+-- the group the kind starts in on the default layout.
+--
+-- The built-in kinds and categories below never change. Players can also make
+-- their own categories (see src/core/custom.lua). Those are registered here at
+-- runtime with Tags.setCustom so the rest of the plugin can treat them exactly
+-- like the built-in ones.
+
 local Tags = {}
 
-Tags.CATEGORIES = {
+-- The built-in categories, in default tab order. Each one has:
+--   key     a stable id saved in layouts and share codes
+--   main    the name shown with the "Main" starting layout
+--   ironman the name shown with the "Ironman" starting layout
+--   colour  the default tint as 0xRRGGBBAA
+local BUILTIN_CATEGORIES = {
   { key = "currency-utilities", main = "Currency, Runes & Teleports", ironman = "Frequently Used, Runes & Teleports", colour = 0xFFCD3CFF },
   { key = "combat-gear", main = "Combat Gear", ironman = "Combat Gear", colour = 0xE24A4AFF },
   { key = "potions-food", main = "Potions & Food", ironman = "Potions, Food & PvM Supplies", colour = 0x5EC878FF },
@@ -13,7 +30,10 @@ Tags.CATEGORIES = {
   { key = "storage-cleanup", main = "Storage & Cleanup Review", ironman = "Storage & Cleanup Review", colour = 0x969696FF },
 }
 
-Tags.LIST = {
+-- The built-in kinds of item. Each one has a stable key, the label players
+-- see, and the key of the category it belongs to. The order here is the
+-- order kinds appear inside a category on the default layout.
+local BUILTIN_LIST = {
   { key = "frequently-used", label = "Frequently Used", category = "currency-utilities" },
   { key = "runes", label = "Runes", category = "currency-utilities" },
   { key = "summoning", label = "Summoning", category = "currency-utilities" },
@@ -49,33 +69,71 @@ Tags.LIST = {
   { key = "vanity", label = "Vanity & Rares", category = "currency-utilities" },
 }
 
+-- The kind given to anything the classifier cannot place.
 Tags.FALLBACK = "cleanup"
-Tags.DESTINATIONS = 10
 
-Tags.byKey, Tags.categoryByKey = {}, {}
-for index, tag in ipairs(Tags.LIST) do
-  tag.index = index
-  Tags.byKey[tag.key] = tag
-end
-for index, category in ipairs(Tags.CATEGORIES) do
-  category.index = index
-  Tags.categoryByKey[category.key] = category
+-- How many tabs the default layout has (infinity plus nine custom tabs). It
+-- matches the number of built-in categories, one tab per category.
+Tags.DESTINATIONS = #BUILTIN_CATEGORIES
+
+-- Rebuilds the public lists and lookup tables from the built-in entries plus
+-- the given custom categories.
+--   custom  a list of { key, name, colour } tables (may be nil or empty)
+-- Each custom category becomes both a category (for its colour) and a kind of
+-- the same key and name (so it can be placed in tabs). Indexes are renumbered
+-- so Tags.LIST[i].index == i and Tags.CATEGORIES[i].index == i always hold.
+function Tags.setCustom(custom)
+  Tags.CATEGORIES, Tags.LIST = {}, {}
+  -- Copy the built-in entries first so their indexes never change.
+  for _, category in ipairs(BUILTIN_CATEGORIES) do Tags.CATEGORIES[#Tags.CATEGORIES + 1] = category end
+  for _, tag in ipairs(BUILTIN_LIST) do Tags.LIST[#Tags.LIST + 1] = tag end
+  -- Then add each custom category as a category and as a kind with one key.
+  for _, def in ipairs(custom or {}) do
+    Tags.CATEGORIES[#Tags.CATEGORIES + 1] = { key = def.key, main = def.name, ironman = def.name, colour = def.colour, custom = true }
+    Tags.LIST[#Tags.LIST + 1] = { key = def.key, label = def.name, category = def.key, custom = true }
+  end
+  -- Rebuild the key lookups and stamp each entry with its position.
+  Tags.byKey, Tags.categoryByKey = {}, {}
+  for index, tag in ipairs(Tags.LIST) do
+    tag.index = index
+    Tags.byKey[tag.key] = tag
+  end
+  for index, category in ipairs(Tags.CATEGORIES) do
+    category.index = index
+    Tags.categoryByKey[category.key] = category
+  end
 end
 
+-- Start with no custom categories. The store registers the saved ones when
+-- the plugin loads.
+Tags.setCustom(nil)
+
+-- Returns true when key names a known kind of item (built-in or custom).
 function Tags.isValid(key)
   return Tags.byKey[key] ~= nil
 end
 
+-- Returns true when key names a kind the player created themselves.
+function Tags.isCustom(key)
+  local tag = Tags.byKey[key]
+  return tag ~= nil and tag.custom == true
+end
+
+-- Returns the label players see for a kind, or the key itself when the kind
+-- is unknown (for example a custom category that was just deleted).
 function Tags.label(key)
   local tag = Tags.byKey[key]
   return tag and tag.label or key
 end
 
+-- Returns the category table a kind belongs to, or nil for unknown kinds.
 function Tags.categoryOf(key)
   local tag = Tags.byKey[key]
   return tag and Tags.categoryByKey[tag.category]
 end
 
+-- Returns the RS3 name for a tab position. Position 0 is the infinity tab
+-- (the game's "Tab 1"); position n is the game's "Tab n+1".
 function Tags.destinationName(destination)
   if destination == 0 then return "Tab 1 (infinity)" end
   return "Tab " .. (destination + 1)

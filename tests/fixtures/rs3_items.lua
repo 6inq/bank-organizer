@@ -1,3 +1,10 @@
+-- Bank Organizer tests: 1,000 real RS3 items (generated data).
+--
+-- Made by tools/gen_fixture.py: a fixed random sample (seed 6) of item ids
+-- and names from an RS3 item name list. Used by the guide's large session
+-- tests (tests/guide_scale_test.lua) and classifier tests. Do not edit by
+-- hand; run the tool again to refresh it.
+
 return {
   { id = 11515, name = "Super magic mix (1)" },
   { id = 2315, name = "Pie shell" },

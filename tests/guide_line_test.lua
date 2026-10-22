@@ -1,16 +1,26 @@
+-- Bank Organizer tests: the guide arrow's geometry (src/game/guide_line.lua).
+--
+-- Requirements covered: the arrow starts at the item and ends at the drop
+-- spot (a bar for inserts, an outline for swaps and tab buttons), works in
+-- every direction, and becomes a scroll hint when the item is out of view.
+
 local A = require("assert")
+-- A stand-in for the client's colour type, needed when lines are drawn.
 _G.Vector4 = _G.Vector4 or { new = function(r, g, b, a) return { r = r, g = g, b = b, a = a } end }
 local GuideLine = require("src/game/guide_line")
 
 local T = {}
 
+-- A bank slot's box at the given screen position.
 local function slot(x, y) return { x = x, y = y, width = 36, height = 32 } end
 local VIEW = { x = 0, y = 0, width = 400, height = 300 }
 
+-- Fails unless two numbers are equal to within a hundredth.
 local function near(actual, expected, label)
   A.truthy(math.abs(actual - expected) < 0.01, (label or "") .. ": expected " .. expected .. ", got " .. actual)
 end
 
+-- Requirement: Insert before ends on a bar in the gap.
 function T.insert_before_ends_on_a_bar_in_the_gap()
   local plan = GuideLine.plan(slot(200, 100), { kind = "before", box = slot(40, 100) }, VIEW)
   A.eq(plan.marker.kind, "bar")
@@ -19,22 +29,26 @@ function T.insert_before_ends_on_a_bar_in_the_gap()
   near(plan.finish[1], 39, "line ends on the bar"); near(plan.finish[2], 116)
 end
 
+-- Requirement: Insert after puts the bar on the right.
 function T.insert_after_puts_the_bar_on_the_right()
   local plan = GuideLine.plan(slot(200, 100), { kind = "after", box = slot(40, 100) }, VIEW)
   near(plan.finish[1], 40 + 36 + 1, "right edge")
 end
 
+-- Requirement: Start leaves the item icon uncovered.
 function T.start_leaves_the_item_icon_uncovered()
   local plan = GuideLine.plan(slot(200, 100), { kind = "swap", box = slot(40, 100) }, VIEW)
   near(plan.start[1], 218 - 18, "starts at the item's edge"); near(plan.start[2], 116)
   A.eq(plan.marker.kind, "box")
 end
 
+-- Requirement: Short lines start at the centre.
 function T.short_lines_start_at_the_centre()
   local plan = GuideLine.plan(slot(60, 100), { kind = "swap", box = slot(40, 100) }, VIEW)
   near(plan.start[1], 78)
 end
 
+-- Requirement: Arrowhead points back along the line.
 function T.arrowhead_points_back_along_the_line()
   local plan = GuideLine.plan(slot(200, 100), { kind = "swap", box = slot(40, 100) }, VIEW)
   A.eq(#plan.arrow, 2)
@@ -45,6 +59,7 @@ function T.arrowhead_points_back_along_the_line()
   A.truthy(plan.arrow[1][4] ~= plan.arrow[2][4], "one leg above, one below")
 end
 
+-- Requirement: Tab targets end under the button.
 function T.tab_targets_end_under_the_button()
   local button = { x = 148, y = -40, width = 40, height = 40 }
   local plan = GuideLine.plan(slot(200, 100), { kind = "tab", box = button }, VIEW)
@@ -52,16 +67,19 @@ function T.tab_targets_end_under_the_button()
   A.eq(plan.marker.width, 44, "button outlined with a margin")
 end
 
+-- Requirement: Offscreen targets point at the edge.
 function T.offscreen_targets_point_at_the_edge()
   local plan = GuideLine.plan(slot(200, 100), { kind = "before", box = slot(40, 900) }, VIEW)
   A.eq(plan.marker, nil, "no marker for a slot you cannot see")
   near(plan.finish[2], 296, "line stops at the bottom edge")
 end
 
+-- Requirement: No line when already there.
 function T.no_line_when_already_there()
   A.eq(GuideLine.plan(slot(40, 100), { kind = "swap", box = slot(40, 100) }, VIEW), nil)
 end
 
+-- Requirement: Box covers both directions.
 function T.box_covers_both_directions()
   local x, y, w, h, invert = GuideLine.box(10, 10, 50, 90)
   A.eq(x, 10); A.eq(y, 10); A.eq(w, 40); A.eq(h, 80); A.eq(invert, false)
@@ -69,6 +87,7 @@ function T.box_covers_both_directions()
   A.eq(invert, true)
 end
 
+-- Requirement: Item above the view points up.
 function T.item_above_the_view_points_up()
   local plan = GuideLine.plan(slot(200, -80), { kind = "swap", box = slot(40, 100) }, VIEW)
   A.eq(plan.scroll, "up"); A.eq(plan.marker, nil)
@@ -76,6 +95,7 @@ function T.item_above_the_view_points_up()
   near(plan.finish[1], 218, "in the item's column")
 end
 
+-- Requirement: Item below the view points down.
 function T.item_below_the_view_points_down()
   local plan = GuideLine.plan(slot(390, 500), { kind = "tab", box = slot(40, -40) }, VIEW)
   A.eq(plan.scroll, "down")

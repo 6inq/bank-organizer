@@ -1,3 +1,11 @@
+-- Bank Organizer tests: kinds of item, layouts, the classifier, the
+-- blueprint and the Sorting Guide working together on small banks.
+--
+-- Requirements covered: every kind has a home tab; saved layouts (including
+-- custom orders and old saves) load; the classifier recognises real RS3
+-- items; and the guide sorts banks completely in insert and swap mode, in
+-- the fewest moves it promised.
+
 local A = require("assert")
 local Tags = require("src/core/tags")
 local Layout = require("src/core/layout")
@@ -8,17 +16,20 @@ local Order = require("src/core/order")
 
 local T = {}
 
+-- Turns a list of right-click option names into the set the classifier reads.
 local function ops(...)
   local set = {}
   for _, op in ipairs({ ... }) do set[op] = true end
   return set
 end
 
+-- Requirement: Ten categories and their tags.
 function T.ten_categories_and_their_tags()
   A.eq(#Tags.CATEGORIES, 10); A.eq(#Tags.LIST, 33)
   for _, tag in ipairs(Tags.LIST) do A.truthy(Tags.categoryByKey[tag.category], tag.key .. " has a category") end
 end
 
+-- Requirement: Default layout puts each category on its own destination.
 function T.default_layout_puts_each_category_on_its_own_destination()
   local layout = Layout.new("main")
   A.eq(layout:destinationOf("runes"), 0, "Main: currency, runes & teleports")
@@ -27,6 +38,7 @@ function T.default_layout_puts_each_category_on_its_own_destination()
   A.list(layout.destinations[0], { "frequently-used", "runes", "summoning", "teleports", "currency", "vanity" })
 end
 
+-- Requirement: Preset names.
 function T.preset_names()
   local main, iron = Layout.new("main"), Layout.new("ironman")
   A.eq(main:categoryName(Tags.CATEGORIES[1]), "Currency, Runes & Teleports")
@@ -34,6 +46,7 @@ function T.preset_names()
   A.eq(Layout.new("bogus").preset, "main")
 end
 
+-- Requirement: Move shift remove and reset tags.
 function T.move_shift_remove_and_reset_tags()
   local layout = Layout.new("main")
   A.eq(layout:moveTag("food", 0), true); A.eq(layout:destinationOf("food"), 0)
@@ -46,6 +59,7 @@ function T.move_shift_remove_and_reset_tags()
   layout:reset(); A.eq(layout:destinationOf("food"), 2)
 end
 
+-- Requirement: Saved layout round trips and repairs.
 function T.saved_layout_round_trips_and_repairs()
   local layout = Layout.new("ironman")
   layout:moveTag("runes", 5)
@@ -59,6 +73,7 @@ function T.saved_layout_round_trips_and_repairs()
   A.eq(count, #Tags.LIST, "every tag exactly once")
 end
 
+-- Requirement: Tabs can be added moved renamed and removed.
 function T.tabs_can_be_added_moved_renamed_and_removed()
   local layout = Layout.new("main")
   A.eq(layout:last(), 9)
@@ -77,6 +92,7 @@ function T.tabs_can_be_added_moved_renamed_and_removed()
   A.eq(count, #Tags.LIST, "never loses a tag")
 end
 
+-- Requirement: Custom layout round trips and old saves load.
 function T.custom_layout_round_trips_and_old_saves_load()
   local layout = Layout.new("main")
   layout:addTab("Extra"); layout:moveTag("runes", 10); layout:rename(1, "Combat")
@@ -90,6 +106,7 @@ function T.custom_layout_round_trips_and_old_saves_load()
   A.eq(short:last(), 1); A.eq(short:destinationOf("food"), 0)
 end
 
+-- Requirement: Copy tabs builds a layout from the bank.
 function T.copy_tabs_builds_a_layout_from_the_bank()
   local layout = Layout.new("main")
   layout:copyTabs(3, { ["xp-items"] = 1, gear = 3, runes = 9 }, { [1] = "MTX" })
@@ -126,6 +143,7 @@ local cases = {
   { { name = "Ghostspeak amulet", quests = 1, tradeable = false }, "quest-items" },
 }
 
+-- Builds item facts like a real bank export row: name, client category, options.
 local function real(name, category, opList)
   return { name = name, category = category, ops = ops(table.unpack(opList or {})) }
 end
@@ -168,28 +186,33 @@ local realCases = {
   { real("Ground miasma rune", ""), "secondaries" },
 }
 
+-- Requirement: Classifier real bank cases.
 function T.classifier_real_bank_cases()
   for _, case in ipairs(realCases) do
     A.eq(Classify.classify(case[1]), case[2], case[3] or case[1].name)
   end
 end
 
+-- Requirement: Classifier cases.
 function T.classifier_cases()
   for _, case in ipairs(cases) do
     A.eq(Classify.classify(case[1]), case[2], case[3] or case[1].name)
   end
 end
 
+-- Requirement: Classifier fails closed.
 function T.classifier_fails_closed()
   A.eq(Classify.classify({ name = "Strange rock thing of mystery" }), nil)
   A.eq(Classify.classify(nil), nil); A.eq(Classify.classify({}), nil)
   A.eq(Classify.classify({ name = 5, ops = "x" }), nil)
 end
 
+-- Requirement: Dose parsing.
 function T.dose_parsing()
   A.eq(Classify.dose("Prayer potion (3)"), 3); A.eq(Classify.dose("Overload flask (6)"), 6); A.eq(Classify.dose("Shark"), nil)
 end
 
+-- Builds a bank item; extra adds fields to its facts (ops, category, ...).
 local function item(slot, id, name, extra)
   local info = { name = name }
   for k, v in pairs(extra or {}) do info[k] = v end
@@ -209,12 +232,14 @@ local BANK = {
   item(10, 110, "Grimy ranarr"),
 }
 
+-- Returns the item keys of planned entries, in order.
 local function ids(list)
   local out = {}
   for index, entry in ipairs(list) do out[index] = entry.id end
   return out
 end
 
+-- Requirement: Blueprint places and orders items.
 function T.blueprint_places_and_orders_items()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   A.list(ids(destinations[0]), { 106, 105, 103 }, "Main: runes (air before fire), then currency")
@@ -224,11 +249,13 @@ function T.blueprint_places_and_orders_items()
   A.list(ids(destinations[9]), { 107 }, "unknown -> Storage & Cleanup")
 end
 
+-- Requirement: Corrections win.
 function T.corrections_win()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({ [107] = "boss-loot", [101] = "frequently-used" }))
   A.list(ids(destinations[7]), { 107 }); A.eq(destinations[0][1].id, 101, "frequently used comes first on Main")
 end
 
+-- Requirement: Empty destinations are skipped.
 function T.empty_destinations_are_skipped()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   A.list(Blueprint.usedDestinations(destinations), { 0, 1, 2, 3, 9 })
@@ -236,6 +263,7 @@ function T.empty_destinations_are_skipped()
   A.eq(physical, 4); A.eq(map[1], 1); A.eq(map[3], 3); A.eq(map[9], 4, "Storage tab becomes physical tab 4")
 end
 
+-- Applies a guide step to sections the way the game would (tab moves, inserts, swaps).
 local function apply(sections, step)
   if step.kind == "to-tab" or step.kind == "new-tab" then
     local from = sections[step.from]
@@ -260,6 +288,8 @@ local function apply(sections, step)
   end
 end
 
+-- Follows the guide until it is done. Returns the moves made, the moves it
+-- predicted at the start, and its final status. Fails if it never finishes.
 local function solve(sections, destinations, mode)
   local moves, first = 0, Guide.remaining(sections, destinations, mode)
   while true do
@@ -271,11 +301,13 @@ local function solve(sections, destinations, mode)
   end
 end
 
+-- Fails unless every tab holds exactly its planned items in planned order.
 local function matches(sections, destinations)
   local targets = Guide.targetSections(destinations)
   for s, target in pairs(targets) do A.list(sections[s] or {}, target, "section " .. s) end
 end
 
+-- Requirement: Guide sorts an all main bank in insert mode.
 function T.guide_sorts_an_all_main_bank_in_insert_mode()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   local sections = { [0] = { 101, 102, 103, 104, 105, 106, 107, 108, 109, 110 } }
@@ -283,6 +315,7 @@ function T.guide_sorts_an_all_main_bank_in_insert_mode()
   A.eq(status, "done"); matches(sections, destinations); A.eq(moves, estimate, "exact move count")
 end
 
+-- Requirement: Guide swap mode also finishes.
 function T.guide_swap_mode_also_finishes()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   local sections = { [0] = { 110, 109, 108, 107, 106, 105, 104, 103, 102, 101 } }
@@ -291,12 +324,14 @@ function T.guide_swap_mode_also_finishes()
   A.truthy(moves <= estimate, "swap estimate is an upper bound")
 end
 
+-- Requirement: First steps create tabs in order.
 function T.first_steps_create_tabs_in_order()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   local step = Guide.next({ [0] = { 108, 101, 103 } }, destinations, Guide.INSERT)
   A.eq(step.kind, "new-tab"); A.eq(step.id, 108); A.eq(step.to, 1)
 end
 
+-- Requirement: Random banks converge in both modes.
 function T.random_banks_converge_in_both_modes()
   local names = { "Shark", "Air rune", "Coins", "Grimy guam", "Abyssal whip", "Yew logs", "Potato seed",
     "Clue scroll (hard)", "Mystery", "Rune arrows", "Prayer potion (4)", "Gem bag", "Bane arrowheads" }
@@ -324,6 +359,7 @@ function T.random_banks_converge_in_both_modes()
   end
 end
 
+-- Requirement: Already sorted bank is done.
 function T.already_sorted_bank_is_done()
   local destinations = Blueprint.build(BANK, Layout.new("main"), Blueprint.resolver({}))
   local sections = Guide.targetSections(destinations)
@@ -331,6 +367,7 @@ function T.already_sorted_bank_is_done()
   A.eq(step, nil); A.eq(status, "done"); A.eq(Guide.remaining(sections, destinations, Guide.INSERT), 0)
 end
 
+-- Requirement: Blueprint follows a custom tab order.
 function T.blueprint_follows_a_custom_tab_order()
   local layout = Layout.new("main")
   layout:copyTabs(2, { gear = 1, food = 2 })
@@ -340,6 +377,7 @@ function T.blueprint_follows_a_custom_tab_order()
   A.list(ids(d[1]), { 2 }); A.list(ids(d[2]), { 1 }); A.list(ids(d[0]), { 3 })
 end
 
+-- Requirement: My tabs order moves whole tabs.
 function T.my_tabs_order_moves_whole_tabs()
   local items = { item(1, 1, "Shark", { ops = ops("eat") }), item(2, 2, "Lobster", { ops = ops("eat") }),
     item(3, 3, "Abyssal whip", { ops = ops("wield") }), item(4, 4, "Monkfish", { ops = ops("eat") }) }
@@ -353,6 +391,7 @@ function T.my_tabs_order_moves_whole_tabs()
   A.list(ids(d[1]), { 2, 4, 1 }, "an order for a different number of tabs is ignored")
 end
 
+-- Requirement: Ignored items in the way do not confuse the planner.
 function T.ignored_items_in_the_way_do_not_confuse_the_planner()
   local destinations = { identity = true, [0] = {}, [1] = { { id = 1 }, { id = 2 }, { id = 3 } } }
   for _, mode in ipairs({ Guide.INSERT, Guide.SWAP }) do
@@ -361,6 +400,7 @@ function T.ignored_items_in_the_way_do_not_confuse_the_planner()
       local step = Guide.next(sections, destinations, mode)
       if not step then break end
       local list = sections[1]
+      -- Returns where an item sits in the list.
       local function at(id) for index, value in ipairs(list) do if value == id then return index end end end
       if step.kind == "swap" then
         local a, b = at(step.move), at(step.swapWith)
