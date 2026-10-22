@@ -1,9 +1,10 @@
 -- Bank Organizer: the Bank Cleaner's suggestions.
 --
 -- The Bank Cleaner looks for items the player may be able to get rid of and
--- explains why. It never destroys, drops, sells or moves anything. The
--- player picks suggestions and can tag them Sell, Alch or Trash (which the
--- guide then lines up at the bottom of the infinity tab) or Keep them.
+-- explains why. It never destroys, drops, sells or moves anything. Each
+-- group has a tag: ticking an item gives it that tag at once (and unticking
+-- takes it away), so the Sorting Guide lines it up at the bottom of the
+-- infinity tab. Items can also be Kept, so they are never suggested again.
 --
 -- Items are never suggested when they are:
 --   * ignored, on the Keep list, or tagged Active, Vanity or Favourite
@@ -12,7 +13,8 @@
 --   * needed for a quest the player has not finished, or whose quest
 --     progress cannot be read (when unsure, keep it)
 --   * Treasure Trail items (see src/core/clues.lua)
---   * already tagged Sell, Alch, Disassemble or Trash (already decided)
+--   * already tagged Sell, Alch, Disassemble, Trash or Review, unless that
+--     tag is the one their group gives (then they are listed as ticked)
 --
 -- Everything else may land in one group, checked in this order:
 --   quest  untradeable quest items whose quests are all complete
@@ -25,20 +27,25 @@ local Classify = require("src/core/classify")
 
 local Cleaner = {}
 
--- The groups in the order the window shows them.
+-- The groups in the order the window shows them. tag is the tag a ticked
+-- item in the group gets.
 Cleaner.GROUPS = {
-  { key = "quest", title = "Quest leftovers", hint = "Quests done. Many quest items can be reclaimed from an NPC if you need them again." },
-  { key = "alch", title = "Worth more alched", hint = "High Alchemy pays more than the Grand Exchange." },
-  { key = "low", title = "Low value", hint = "The whole stack is worth less than your threshold." },
-  { key = "review", title = "Review", hint = "Items Bank Organizer could not place. Have a look." },
+  { key = "quest", title = "Quest leftovers", tag = "trash", hint = "Quests done. Many quest items can be reclaimed from an NPC if you need them again." },
+  { key = "alch", title = "Worth more alched", tag = "alch", hint = "High Alchemy pays more than the Grand Exchange." },
+  { key = "low", title = "Low value", tag = "trash", hint = "The whole stack is worth less than your threshold." },
+  { key = "review", title = "Review", tag = "review", hint = "Items Bank Organizer could not place. Have a look." },
 }
+
+-- Group key -> the tag its ticked items get.
+Cleaner.TAG_OF = {}
+for _, group in ipairs(Cleaner.GROUPS) do Cleaner.TAG_OF[group.key] = group.tag end
 
 -- High Alchemy pays 60% of an item's value (rounded down).
 Cleaner.HIGH_ALCH = 0.6
 
 -- Tags that mean "keep this" and tags that mean "already decided".
 local KEEP_TAGS = { active = true, vanity = true, favourite = true }
-local DECIDED_TAGS = { sell = true, alch = true, disassemble = true, trash = true }
+local DECIDED_TAGS = { sell = true, alch = true, disassemble = true, trash = true, review = true }
 
 -- Kinds of item that are never suggested.
 local KEEP_KINDS = { vanity = true, currency = true }
@@ -123,7 +130,7 @@ local function protected(row, ctx)
   local set = ctx.tagsOf and ctx.tagsOf(row.objectId) or {}
   if ctx.isIgnored and ctx.isIgnored(row.objectId) then return true end
   if ctx.isKept and ctx.isKept(row.objectId) then return true end
-  if carries(set, KEEP_TAGS) or carries(set, DECIDED_TAGS) then return true end
+  if carries(set, KEEP_TAGS) then return true end
   if KEEP_KINDS[ctx.tagOf(row.item)] or Classify.isRare(row.name) then return true end
   if ctx.isClue and ctx.isClue(row.name) then return true end
   -- Quest items: keep unless every related quest is known to be finished.
@@ -171,18 +178,31 @@ end
 --            questState(objectId) -> "none", "done", "open" or "unknown"
 --            price(objectId)      -> GE price in coins, or nil
 --            threshold            -> the low value limit in coins
+-- Returns true when the item carries a "decided" tag other than the one
+-- its group gives: the player already chose something else for it.
+local function decidedOtherwise(set, groupTag)
+  for key in pairs(set or {}) do
+    if DECIDED_TAGS[key] and key ~= groupTag then return true end
+  end
+  return false
+end
+
 -- Returns a table: group key -> list of rows, where each row is
--- { objectId, name, quantity, reason, group }. Every group key from
--- Cleaner.GROUPS is present, possibly with an empty list.
+-- { objectId, name, quantity, reason, group, tag, tagged }: tag is the tag
+-- ticking it gives, and tagged is true when the item already has it. Every
+-- group key from Cleaner.GROUPS is present, possibly with an empty list.
 function Cleaner.suggest(items, ctx)
   local groups = {}
   for _, group in ipairs(Cleaner.GROUPS) do groups[group.key] = {} end
   for _, row in ipairs(merge(items)) do
     if not protected(row, ctx) then
       local key, reason = judge(row, ctx)
-      if key then
+      local set = ctx.tagsOf and ctx.tagsOf(row.objectId) or {}
+      local tag = key and Cleaner.TAG_OF[key]
+      if key and not decidedOtherwise(set, tag) then
         local list = groups[key]
-        list[#list + 1] = { objectId = row.objectId, name = row.name, quantity = row.quantity, reason = reason, group = key }
+        list[#list + 1] = { objectId = row.objectId, name = row.name, quantity = row.quantity, reason = reason, group = key,
+          tag = tag, tagged = set[tag] == true }
       end
     end
   end

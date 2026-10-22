@@ -53,7 +53,7 @@ Right-click an item in your bank and choose **Tags (Bank Organizer)**. A small w
   - **Active**: top of the infinity tab
   - **Vanity**: top of the infinity tab, with rares like partyhats, which go there automatically
   - **Favourite**: first in its own tab
-  - **Sell**, **Alch**, **Disassemble**, **Trash**: bottom of the infinity tab
+  - **Sell**, **Alch**, **Disassemble**, **Trash**, **Review** (Rev): bottom of the infinity tab
   - any tags you made yourself
 - **Never label for decanting** (on potions only).
 
@@ -103,12 +103,12 @@ Part-dose potions you can combine into full ones get a **Decant** label. You cho
 
 Open it from **Tools**, or from the button that appears when your bank is sorted. It suggests items you might not need, grouped with a reason:
 
-- **Quest leftovers:** untradeable quest items whose quests are all complete. Many can be reclaimed from an NPC if you need them again.
-- **Worth more alched:** High Alchemy pays more than the Grand Exchange.
-- **Low value:** the whole stack is worth less than your limit. It starts at 1,000 gp; to change it, type an amount like `500k`, `1m`, `200m` or `3b` in Settings, Cleaner and press Enter.
-- **Review:** items Bank Organizer could not place.
+- **Quest leftovers** (tagged **Trash**): untradeable quest items whose quests are all complete. Many can be reclaimed from an NPC if you need them again.
+- **Worth more alched** (tagged **Alch**): High Alchemy pays more than the Grand Exchange.
+- **Low value** (tagged **Trash**): the whole stack is worth less than your limit. It starts at 1,000 gp; to change it, type an amount like `500k`, `1m`, `200m` or `3b` in Settings, Cleaner and press Enter.
+- **Review** (tagged **Review**, labelled Rev): items Bank Organizer could not place.
 
-Tick items, then press **Tag as Sell**, **Tag as Alch** or **Tag as Trash** to line them up at the bottom of your infinity tab. Or press **Keep** so they are never suggested again.
+Tick an item and it gets its group's tag straight away, so the Sorting Guide lines it up at the bottom of your infinity tab with the other tagged items. Untick it to take the tag off. Or press **Keep** under an item so it is never suggested again.
 
 The Bank Cleaner never suggests:
 

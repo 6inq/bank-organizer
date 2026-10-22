@@ -187,4 +187,24 @@ function T.amounts_are_shown_short()
   A.eq(Cleaner.shortCoins(2250000000), "2.25b")
 end
 
+-- Requirement: every group gives its own tag: quest leftovers and low
+-- value Trash, worth alching Alch, review Rev (the Review tag).
+function T.each_group_gives_its_tag()
+  A.eq(Cleaner.TAG_OF.quest, "trash"); A.eq(Cleaner.TAG_OF.low, "trash")
+  A.eq(Cleaner.TAG_OF.alch, "alch"); A.eq(Cleaner.TAG_OF.review, "review")
+  local Placement = require("src/core/placement")
+  A.eq(Placement.byKey.review.badge, "Rev"); A.eq(Placement.byKey.review.placement, "bottom")
+end
+
+-- Requirement: an item already carrying its group's tag stays listed as
+-- ticked; an item the player tagged something else is left alone.
+function T.tagged_items_stay_listed_as_ticked()
+  local bank = { item(1, "Bucket", 1, { cost = 2 }), item(2, "Pot", 1, { cost = 1 }), item(3, "Jug", 1, { cost = 1 }) }
+  local tags = { [1] = { trash = true }, [2] = { sell = true } }
+  local groups = Cleaner.suggest(bank, context({ tagsOf = function(id) return tags[id] or {} end }))
+  A.list(namesIn(groups, "low"), { "Bucket", "Jug" }, "the Sell-tagged pot was already decided")
+  A.eq(groups.low[1].tagged, true); A.eq(groups.low[1].tag, "trash")
+  A.eq(groups.low[2].tagged, false)
+end
+
 return T

@@ -1,8 +1,8 @@
 -- Bank Organizer: tags that place items and label their slots.
 --
 -- A tag is something the player puts on a single item from the right-click
--- Tags menu: Active, Vanity, Favourite, Sell, Alch, Disassemble, Trash, or a
--- custom tag they made. An item can carry any number of tags at once.
+-- Tags window: Active, Vanity, Favourite, Sell, Alch, Disassemble, Trash,
+-- Review, or a custom tag they made. An item can carry any number of tags at once.
 --
 -- Tags are ranked by one priority list the player can reorder. For an item:
 --   * the highest-ranked tag that moves items decides where the item goes
@@ -33,6 +33,9 @@ local BUILTIN = {
   { key = "alch", label = "Alch", badge = "Alch", placement = "bottom", colour = 0xFFB04DFF },
   { key = "disassemble", label = "Disassemble", badge = "Dis", placement = "bottom", colour = 0xD0D0D0FF },
   { key = "trash", label = "Trash", badge = "Trash", placement = "bottom", colour = 0xFF7070FF },
+  -- Review: items the Bank Cleaner could not place, lined up last so the
+  -- player can look at them together.
+  { key = "review", label = "Review", badge = "Rev", placement = "bottom", colour = 0x8FD6C9FF },
 }
 
 -- The sort group for items without a moving tag.

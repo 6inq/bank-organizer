@@ -289,7 +289,7 @@ function T.custom_tags_window_end_to_end()
   A.eq(store:customTag("tag-1").label, "Keep i", "cut to 6 characters")
   A.eq(store:customTag("tag-1").placement, "label")
   local boxes = H.tagBoxes(H.tagsWindow(env, 103))
-  A.eq(#boxes.args[1], 8, "the new tag is in the Tags window")
+  A.eq(#boxes.args[1], 9, "the new tag is in the Tags window")
   H.setPlacement(env, 103, "tag-1")
   H.tick(env)
   A.eq(H.count(H.liveTexts(env), "Keep i"), 1, "its label shows on the whip")
@@ -335,41 +335,55 @@ function T.ignore_wins_over_tags()
   PluginShutdown()
 end
 
--- Requirement: the Bank Cleaner groups suggestions with reasons, never
--- suggests protected items, tags or keeps what the player ticks, and asks
--- before clearing the Keep list.
+-- Returns the Bank Cleaner checkbox for an item, or nil when it is not
+-- listed.
+local function cleanerBox(env, itemID)
+  for _, c in ipairs(H.findAll(H.window(env), "AddCheckboxButton")) do
+    if c.args[1][1].value == tostring(itemID) then return c end
+  end
+end
+
+-- Requirement: the Bank Cleaner groups suggestions with reasons and never
+-- suggests protected items. Ticking an item gives it its group's tag at
+-- once (quest leftovers and low value Trash, worth alching Alch, review
+-- Rev) and unticking takes it off; tagged items stay listed, ticked, and
+-- get their label in the bank. Keep hides an item for good, and clearing
+-- the Keep list asks first.
 function T.bank_cleaner_window_end_to_end()
-  local env = boot({ bank = { 117, 118, 116, 115, 114, 102 } })
+  local env = boot({ bank = { 117, 118, 116, 119, 121, 115, 114, 102 }, prices = { [119] = 30000 } })
   press(env, "Bank Cleaner")
   A.truthy(texts(H.window(env)):find("Press Analyze Bank first", 1, true))
   press(env, "Analyze Bank")
   press(env, "Bank Cleaner")
   local w = H.window(env)
-  local text = texts(w)
-  A.truthy(find(w, "AddSimpleButton", "[-] Quest leftovers (1)"), buttons(w))
-  A.truthy(find(w, "AddSimpleButton", "[-] Low value (1)"), buttons(w))
-  local rows = {}
-  for _, c in ipairs(H.findAll(w, "AddCheckboxButton")) do
-    for _, box in ipairs(c.args[1]) do rows[#rows + 1] = box.text end
+  for _, header in ipairs({ "[-] Quest leftovers (1)", "[-] Worth more alched (1)", "[-] Low value (1)", "[-] Review (1)" }) do
+    A.truthy(find(w, "AddSimpleButton", header), header .. " in " .. buttons(w))
   end
-  local all = table.concat(rows, "\n")
-  A.truthy(all:find("Old quest note", 1, true), all); A.truthy(all:find("Bucket", 1, true), all)
-  for _, kept in ipairs({ "Unfinished quest key", "Bronze dagger", "Red partyhat", "Coins" }) do
-    A.eq(all:find(kept, 1, true), nil, kept .. " must never be suggested")
+  A.eq(cleanerBox(env, 117).args[1][1].text, "Old quest note x1 (Trash)")
+  A.eq(cleanerBox(env, 119).args[1][1].text, "Rune platelegs x1 (Alch)")
+  A.eq(cleanerBox(env, 116).args[1][1].text, "Bucket x1 (Trash)")
+  A.eq(cleanerBox(env, 121).args[1][1].text, "Strange relic x1 (Review)")
+  for _, kept in ipairs({ 118, 115, 114, 102 }) do A.eq(cleanerBox(env, kept), nil, "item " .. kept .. " must never be suggested") end
+  A.truthy(texts(w):find("Suggestions only", 1, true))
+  -- Ticking tags straight away; each item keeps its box, now ticked.
+  for _, case in ipairs({ { 117, "trash" }, { 119, "alch" }, { 116, "trash" }, { 121, "review" } }) do
+    cleanerBox(env, case[1]).args[2].onChange(nil, nil, tostring(case[1]), true)
+    A.eq(Store.new(PersistentDB):hasTag(case[1], case[2]), true, "item " .. case[1] .. " tagged " .. case[2])
+    A.eq(cleanerBox(env, case[1]).args[1][1].selected, true, "still listed, ticked")
   end
-  A.truthy(text:find("Suggestions only", 1, true))
-  H.pressIn(env, "Tag as Trash")
-  A.truthy(texts(H.window(env)):find("Tick some items first", 1, true))
-  local boxes = H.findAll(H.window(env), "AddCheckboxButton")
-  boxes[#boxes].args[2].onChange(nil, nil, "116", true)
-  H.pressIn(env, "Tag as Trash")
-  A.eq(Store.new(PersistentDB):hasTag(116, "trash"), true)
-  A.truthy(texts(H.window(env)):find("Tagged 1 as Trash.", 1, true))
-  boxes = H.findAll(H.window(env), "AddCheckboxButton")
-  boxes[1].args[2].onChange(nil, nil, "117", true)
+  H.tick(env)
+  A.eq(H.count(H.liveTexts(env), "Rev"), 1, "the review item shows Rev in its slot")
+  A.eq(H.count(H.liveTexts(env), "Alch"), 1)
+  -- Unticking takes the tag off again.
+  cleanerBox(env, 116).args[2].onChange(nil, nil, "116", false)
+  A.eq(Store.new(PersistentDB):hasTag(116, "trash"), false)
+  A.eq(cleanerBox(env, 116).args[1][1].selected, false)
+  -- Keep: the first row (the quest leftover) is kept and its tag removed.
   H.pressIn(env, "Keep")
-  A.eq(Store.new(PersistentDB):isKept(117), true)
-  A.eq(find(H.window(env), "AddSimpleButton", "[-] Quest leftovers (1)"), nil, "kept items leave the list")
+  local store = Store.new(PersistentDB)
+  A.eq(store:isKept(117), true); A.eq(store:hasTag(117, "trash"), false, "a kept item loses the cleaner's tag")
+  A.eq(cleanerBox(env, 117), nil, "kept items leave the list")
+  A.truthy(texts(H.window(env)):find("Old quest note is kept", 1, true))
   H.pressIn(env, "Clear Keep list")
   A.eq(env.confirm.title, "CLEAR KEEP LIST")
   env.confirm.onConfirm()

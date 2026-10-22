@@ -8,7 +8,7 @@
 --                      opens next to the mouse from the right-click entry
 --   Custom categories  make categories, name rules and the review list
 --   Custom tags        make tags and order the tag priority list
---   Bank Cleaner       suggestions with reasons, and tag or keep buttons
+--   Bank Cleaner       suggestions with reasons; ticking tags an item
 --
 -- Windows are PrettyUI Windows on the plugin's top layer. Each one is drawn
 -- by a build function; after any change the window is simply rebuilt by
@@ -40,10 +40,9 @@ local open = {}
 --   tagKey        custom tag being edited
 --   newPlacement  placement chosen for the next new tag
 --   tagNote       one-off message in Custom tags
---   picked        Bank Cleaner rows ticked: item id -> true
 --   cleanerNote   one-off message in the Bank Cleaner
 --   sections      collapsed sections: key -> true
-local state = { ruleKind = "contains", newPlacement = "bottom", picked = {}, sections = {} }
+local state = { ruleKind = "contains", newPlacement = "bottom", sections = {} }
 
 
 -- Columns in the item icon grids.
@@ -671,34 +670,16 @@ function Windows.customTags(app)
   end)
 end
 
--- The Bank Cleaner buttons: what each one does to the ticked items.
-local CLEANER_ACTIONS = {
-  { label = "Tag as Sell", action = "sell", done = "Tagged %d as Sell." },
-  { label = "Tag as Alch", action = "alch", done = "Tagged %d as Alch." },
-  { label = "Tag as Trash", action = "trash", done = "Tagged %d as Trash." },
-  { label = "Keep", action = "keep", done = "Kept %d; they will not be suggested again." },
-}
-
--- Returns the ticked Bank Cleaner rows as a sorted list of item ids.
-local function pickedIds()
-  local list = {}
-  for objectId in pairs(state.picked) do list[#list + 1] = objectId end
-  table.sort(list)
-  return list
-end
-
--- Records a ticked or unticked Bank Cleaner row.
-local function onPicked(_, _, changed, selected)
-  local objectId = tonumber(changed)
-  if objectId then state.picked[objectId] = selected and true or nil end
-end
-
 -- Adds one group of Bank Cleaner suggestions: icons, then each item as a
--- checkbox with its reason below it. Checkbox labels stay on one line, so
--- the label is only the name and amount and the reason is wrapping text.
-local function cleanerGroup(window, group, rows, reopen)
+-- checkbox. Ticking it gives the item its group's tag straight away (and
+-- unticking takes the tag off), so the Sorting Guide lines it up with the
+-- other tagged items. Under each item: why it is suggested, and Keep.
+-- Checkbox labels stay on one line, so the label is only the name, amount
+-- and tag; the reason is wrapping text.
+local function cleanerGroup(app, window, group, rows, reopen)
+  local tagLabel = Placement.byKey[group.tag] and Placement.byKey[group.tag].label or group.tag
   Widgets.section(window, state.sections, "cleaner-" .. group.key, group.title .. " (" .. #rows .. ")", reopen, function()
-    Widgets.muted(window, group.hint)
+    Widgets.muted(window, group.hint .. " Ticked items are tagged " .. tagLabel .. ".")
     local icons = {}
     for index, row in ipairs(rows) do
       icons[index] = { objectId = row.objectId, name = row.name, quantity = row.quantity }
@@ -706,9 +687,24 @@ local function cleanerGroup(window, group, rows, reopen)
     itemGrid(window, icons)
     for _, row in ipairs(rows) do
       window:AddCheckboxButton({
-        { text = row.name .. " x" .. Cleaner.coins(row.quantity), value = tostring(row.objectId), selected = state.picked[row.objectId] == true },
-      }, { onChange = onPicked })
-      Widgets.muted(window, row.reason)
+        { text = row.name .. " x" .. Cleaner.coins(row.quantity) .. " (" .. tagLabel .. ")", value = tostring(row.objectId), selected = row.tagged },
+      }, {
+        -- Ticking tags the item, unticking removes the tag.
+        onChange = function(_, _, _, selected)
+          app:setTag(row.objectId, row.tag, selected)
+          reopen()
+        end,
+      })
+      Widgets.textWithButtons(window, row.reason, {
+        -- Keep: never suggest this item again, and take off the tag the
+        -- cleaner gave it.
+        { "Keep", function()
+          if row.tagged then app:setTag(row.objectId, row.tag, false) end
+          app.store:setKept(row.objectId, true)
+          state.cleanerNote = row.name .. " is kept and will not be suggested again."
+          reopen()
+        end },
+      }, WIDTH)
     end
   end)
 end
@@ -718,7 +714,7 @@ function Windows.cleaner(app)
   -- Redraws this window after a change.
   local function reopen() Windows.cleaner(app) end
   return Windows.open("cleaner", { title = "Bank Cleaner", width = WIDTH, height = 660, x = 180, y = 40 }, function(window)
-    Widgets.muted(window, "Suggestions only: nothing is ever destroyed, dropped or sold for you. Tick items, then tag them so the guide lines them up at the bottom of your infinity tab, or Keep them so they are never suggested again. Clue items, rares, Vanity, Active and Favourite items, and items for quests you have not finished are never suggested.")
+    Widgets.muted(window, "Suggestions only: nothing is ever destroyed, dropped or sold for you. Tick an item to tag it (quest leftovers and low value items Trash, items worth alching Alch, items to review Rev); the Sorting Guide then lines it up at the bottom of your infinity tab. Untick to remove the tag, or press Keep so it is never suggested again. Clue items, rares, Vanity, Active and Favourite items, and items for quests you have not finished are never suggested.")
     local groups = app:cleanerSuggestions()
     if not groups then
       window:AddText("Press Analyze Bank first.")
@@ -731,21 +727,10 @@ function Windows.cleaner(app)
     Widgets.muted(window, "Low value means under " .. Cleaner.coins(app.store:get("cleanerThreshold")) .. " gp per stack (Settings, Cleaner). Kept items: " .. app.store:keptCount() .. ".")
     for _, group in ipairs(Cleaner.GROUPS) do
       local rows = groups[group.key]
-      if #rows > 0 then cleanerGroup(window, group, rows, reopen) end
+      if #rows > 0 then cleanerGroup(app, window, group, rows, reopen) end
     end
     if Cleaner.total(groups) == 0 then window:AddText("Nothing to suggest. Your bank looks tidy.") end
     Widgets.divider(window)
-    local buttons = {}
-    for index, button in ipairs(CLEANER_ACTIONS) do
-      buttons[index] = { button.label, function()
-        local ids = pickedIds()
-        local changed = app:applyCleaner(ids, button.action)
-        state.picked = {}
-        state.cleanerNote = #ids == 0 and "Tick some items first." or string.format(button.done, changed)
-        reopen()
-      end }
-    end
-    Widgets.buttonRow(window, buttons, WIDTH)
     window:AddSimpleButton("Clear Keep list", function()
       Windows.confirm("CLEAR KEEP LIST", "Let the Bank Cleaner suggest every kept item again?", "CLEAR", function()
         app.store:clearKept()

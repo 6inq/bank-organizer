@@ -1045,29 +1045,6 @@ function App:cleanerSuggestions()
   })
 end
 
--- Applies a Bank Cleaner button to the chosen items.
---   objectIds  list of real item ids
---   action     "sell", "alch" or "trash" (adds that tag) or "keep" (adds
---              the item to the Keep list)
--- Rebuilds once at the end. Returns how many items were changed.
-function App:applyCleaner(objectIds, action)
-  local changed = 0
-  for _, objectId in ipairs(objectIds or {}) do
-    local ok
-    if action == "keep" then
-      ok = self.store:setKept(objectId, true)
-    else
-      ok = self.store:setTag(objectId, action, true)
-    end
-    if ok then changed = changed + 1 end
-  end
-  if changed > 0 then
-    self.pending, self.correction = nil, nil
-    self:rebuild()
-  end
-  return changed
-end
-
 -- Runs once per game tick: watches GE prices, learns the tab order, runs the
 -- guide and redraws the overlay. Each part is wrapped in pcall so a problem
 -- in one never stops the others; problems are logged.

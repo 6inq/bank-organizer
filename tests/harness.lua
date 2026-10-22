@@ -33,6 +33,7 @@ H.ITEMS = {
   { 118, "Unfinished quest key", {}, { tradeable = false, quests = { { hasFinishedQuest = false } } } },
   { 119, "Rune platelegs", { "Wear" }, { cost = 64000 } },
   { 120, "Dragon bones", {}, { cost = 2000 } },
+  { 121, "Strange relic", {}, { tradeable = false } },
 }
 
 -- Returns an in-memory PersistentDB stand-in.
