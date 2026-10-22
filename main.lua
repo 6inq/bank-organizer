@@ -32,13 +32,9 @@ function PluginShutdown()
 end
 
 app:start()
--- The right-click menu opens these windows for the clicked item.
-Tagging.start(app, {
-  -- More... and the single menu entry open the full Tags window.
-  tags = function(itemID) Windows.tags(app, itemID) end,
-  -- Category... opens the small kind-of-item picker.
-  category = function(itemID) Windows.categoryPicker(app, itemID) end,
-})
+-- The right-click entry opens the Tags window for the clicked item, next to
+-- the mouse.
+Tagging.start(function(itemID) Windows.tags(app, itemID, Windows.nearMouse()) end)
 Panel.start(app)
 Settings.start(store, app)
 

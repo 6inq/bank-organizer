@@ -2,7 +2,7 @@
 
 ## 1.4.2 (2026-10-22)
 ### New
-- **Right-click Tags menu**: with PrettyUI 1.2.0 or newer, **Tags (Bank Organizer)** opens a submenu titled with the item's name: **Category...**, **Ignore**, every tag, **Never label for decanting** (potions only) and **More...**. Each choice switches on or off at once and shows [x] when it is on. With an older PrettyUI the entry opens the Tags window as before.
+- **Tags window by your mouse**: right-click a bank item and choose **Tags (Bank Organizer)**. The Tags window opens right next to your mouse, showing the item, with its category, **Ignore**, every tag and **Never label for decanting** (potions only). Every change applies at once, and the window stays open until you close it.
 - **Custom categories** (Tools): make your own kinds of item with a name and colour. Add name rules ("Name contains", "Name starts with") and matching items join automatically. A review list shows every match in your bank, with **Remove** and **Restore**. Custom categories work everywhere built-in ones do: Tab Layout, My tabs pins, tab colours and Smart sort. Your own pick from the Tags window still wins over rules.
 - **Custom tags** (Tools): make tags with a label of up to 6 characters, a colour, and a placement: top of infinity, bottom of infinity, first in its tab, or label only.
 - **Any combination of tags**: an item can carry several tags. A priority list (Custom tags window) decides which tag places the item and which label shows. Saves from 1.4.1 load unchanged.
@@ -18,7 +18,7 @@
 
 ### For developers
 - Every file and function is commented in detail, as the Plugin Hub asks. `tools/check_comments.py` checks it, and the test runner fails when a comment is missing.
-- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the submenu and the new interface. 232 tests pass.
+- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface. 234 tests pass.
 
 ## 1.4.1 (2026-10-21)
 ### New

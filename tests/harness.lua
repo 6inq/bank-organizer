@@ -52,6 +52,8 @@ end
 --   opts.frame      true to give the slots a scrolling parent viewport
 --   opts.tabIcons   static id -> fake tab button component
 --   opts.submenu    true to give PrettyUI a MiniMenu.AddSubmenu helper
+--   opts.mouse      { x, y } mouse position in the game window, or nil for
+--                   no readable mouse
 --   opts.prices     item id -> GE price, to fake the GE Price Library
 -- Returns env: the recorded calls and fake state.
 function H.boot(opts)
@@ -105,7 +107,14 @@ function H.boot(opts)
         if key == "scrollX" then return 0 end
       end })
   end
-  env.layer = { kind = "layer", xyGlobal = { x = 0, y = 0 } }
+  -- The plugin layer windows open on: the whole 1280 by 720 game window.
+  env.layer = { kind = "layer", xyGlobal = { x = 0, y = 0 }, width = 1280, height = 720 }
+  -- A stand-in for the client's Mouse table.
+  _G.Mouse = {
+    -- Readable only when the test gives a position.
+    IsAvailable = function() return opts.mouse ~= nil end,
+    GetPosition = function() return opts.mouse end,
+  }
   -- Static components of the bank interface: 0 = slots, 399 = viewport,
   -- anything else = a tab button from opts.tabIcons.
   local function bankStatic(staticID)

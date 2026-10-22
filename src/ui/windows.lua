@@ -4,8 +4,8 @@
 --   Tab Layout         a rail of tab buttons; the chosen tab's kinds, items
 --                      and buttons below (Whole bank and My tabs versions)
 --   Share or Load      share codes (src/core/preset.lua)
---   Tags               an item's kind, its tags, Ignore and Decant opt-out
---   Category picker    just the kind dropdown (from the right-click submenu)
+--   Tags               an item's kind, its tags, Ignore and Decant opt-out;
+--                      opens next to the mouse from the right-click entry
 --   Custom categories  make categories, name rules and the review list
 --   Custom tags        make tags and order the tag priority list
 --   Bank Cleaner       suggestions with reasons, and tag or keep buttons
@@ -391,20 +391,59 @@ local function categoryCombo(app, window, itemID, reopen)
   end))
 end
 
--- The Tags window for one item (right-click, Tags, More...).
---   itemID  the item's real id
-function Windows.tags(app, itemID)
+-- The Tags window's size, in pixels.
+local TAGS_WIDTH, TAGS_HEIGHT = 340, 520
+
+-- How far from the mouse the Tags window opens, in pixels, so the cursor
+-- does not sit on its title bar.
+local MOUSE_GAP = 16
+
+-- Where the Tags window opens when the mouse cannot be read.
+local TAGS_DEFAULT = { x = 200, y = 120 }
+
+-- Returns a position for the Tags window just right of and below the mouse,
+-- relative to the plugin layer, kept fully on screen. Returns nil when the
+-- mouse cannot be read (for example on mobile), so the default is used.
+function Windows.nearMouse()
+  local ok, mouse = pcall(function()
+    if not Mouse.IsAvailable() then return nil end
+    return Mouse.GetPosition()
+  end)
+  if not ok or not mouse then return nil end
+  local layer = host()
+  local ox, oy, width, height = 0, 0, nil, nil
+  -- The mouse is measured from the game window; the layer may start elsewhere.
+  pcall(function()
+    ox, oy = layer.xyGlobal.x, layer.xyGlobal.y
+    width, height = layer.width, layer.height
+  end)
+  local x, y = mouse.x - ox + MOUSE_GAP, mouse.y - oy + MOUSE_GAP
+  -- Near the right or bottom edge, open on the other side of the mouse.
+  if type(width) == "number" and width > 0 and x + TAGS_WIDTH > width then x = math.max(0, mouse.x - ox - MOUSE_GAP - TAGS_WIDTH) end
+  if type(height) == "number" and height > 0 and y + TAGS_HEIGHT > height then y = math.max(0, height - TAGS_HEIGHT) end
+  return { x = math.floor(x), y = math.floor(y) }
+end
+
+-- The Tags window for one item: category, Ignore, Decant opt-out and every
+-- tag, all set with a click. It stays open until the player closes it.
+--   itemID    the item's real id
+--   position  optional { x, y } (see Windows.nearMouse); redraws after a
+--             change keep the window where it is
+function Windows.tags(app, itemID, position)
   local name = nameOf(itemID)
-  -- Redraws this window after a change.
-  local function reopen() Windows.tags(app, itemID) end
-  return Windows.open("tags", { title = "Tags: " .. name, width = 420, height = 520, x = 200, y = 120 }, function(window)
+  local at = position or TAGS_DEFAULT
+  -- Redraws this window in the same place after a change.
+  local function reopen() Windows.tags(app, itemID, at) end
+  return Windows.open("tags", { title = "Tags: " .. name, width = TAGS_WIDTH, height = TAGS_HEIGHT, x = at.x, y = at.y }, function(window)
+    -- The item itself, so it is clear what is being tagged.
+    window:AddItemGrid({ { object = objectOf(itemID), tooltip = name } }, { columns = 1, rows = 1 })
     window:AddText("Category")
     categoryCombo(app, window, itemID, reopen)
-    Widgets.muted(window, "Pick the kind of item this is. Your choice always wins over automatic sorting.", 420)
+    Widgets.muted(window, "Your choice always wins over automatic sorting.", TAGS_WIDTH)
     -- Ignore, and for potions with a dose the Decant opt-out.
     local boxes = { { text = "Ignore (never move this item)", value = "ignore", selected = app:isIgnored(itemID) } }
     if Classify.dose(name) then
-      boxes[#boxes + 1] = { text = "Never label for decanting (needed for other potions)", value = "nodecant", selected = app.store:isNoDecant(itemID) }
+      boxes[#boxes + 1] = { text = "Never label for decanting", value = "nodecant", selected = app.store:isNoDecant(itemID) }
     end
     window:AddCheckboxButton(boxes, { onChange = function(_, _, changed, selected)
       if changed == "nodecant" then
@@ -427,18 +466,7 @@ function Windows.tags(app, itemID)
       app:setTag(itemID, changed, selected)
       reopen()
     end })
-    Widgets.muted(window, "An item can have several tags. The one highest in the priority list (Tools, Custom tags) decides where it goes and which label it shows.", 420)
-  end)
-end
-
--- The small Category window opened from the right-click submenu.
-function Windows.categoryPicker(app, itemID)
-  local name = nameOf(itemID)
-  -- Redraws this window after a change.
-  local function reopen() Windows.categoryPicker(app, itemID) end
-  return Windows.open("category", { title = "Category: " .. name, width = 380, height = 180, x = 220, y = 160 }, function(window)
-    categoryCombo(app, window, itemID, reopen)
-    Widgets.muted(window, "Pick the kind of item this is, or automatic.", 380)
+    Widgets.muted(window, "An item can have several tags. The highest one in Tools, Custom tags decides where it goes.", TAGS_WIDTH)
   end)
 end
 

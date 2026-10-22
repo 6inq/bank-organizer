@@ -45,18 +45,19 @@ Every section has a **[-]** button to fold it away, and **[+]** to open it again
 
 ## Right-click any bank item: Tags
 
-Right-click an item in your bank and choose **Tags (Bank Organizer)**. You get a menu with:
+Right-click an item in your bank and choose **Tags (Bank Organizer)**. A small window opens right next to your mouse, showing the item, with:
 
-- **Category...** to say what kind of item it is. Your choice always wins over automatic sorting.
+- **Category** to say what kind of item it is. Your choice always wins over automatic sorting.
 - **Ignore** to leave the item exactly where it is. Everything else sorts around it.
-- **Tags** to tick (each one shows [x] when it is on):
+- **Tags** to tick:
   - **Active**: top of the infinity tab
   - **Vanity**: top of the infinity tab, with rares like partyhats, which go there automatically
   - **Favourite**: first in its own tab
   - **Sell**, **Alch**, **Disassemble**, **Trash**: bottom of the infinity tab
   - any tags you made yourself
 - **Never label for decanting** (on potions only).
-- **More...** opens the full Tags window.
+
+Every change takes effect straight away. The window stays open until you close it.
 
 An item can have several tags at once. The tag highest in the priority list (Tools, Custom tags) decides where the item goes and which label shows in its slot.
 
@@ -167,7 +168,7 @@ Bank Organizer never moves, withdraws or clicks anything for you. It only reads 
 
 ## Requires
 
-[PrettyUI](https://mod.io/g/runescape) and the GE Price Library (gepl). Both install automatically as dependencies. The right-click Tags menu uses PrettyUI 1.2.0 or newer; with an older PrettyUI it opens the Tags window instead.
+[PrettyUI](https://mod.io/g/runescape) and the GE Price Library (gepl). Both install automatically as dependencies.
 
 ## For developers
 

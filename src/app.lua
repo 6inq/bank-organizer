@@ -513,11 +513,6 @@ function App:setTag(objectId, key, on)
   return true
 end
 
--- Flips one tag on an item (the right-click Tags submenu).
-function App:toggleTag(objectId, key)
-  return self:setTag(objectId, key, not self.store:hasTag(objectId, key))
-end
-
 -- Returns the label to draw in a slot and its colour setting key, or nil.
 --   key  the slot's item key
 -- A tag label wins; otherwise a Decant label is shown on part doses that can

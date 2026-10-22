@@ -8,8 +8,8 @@
 --   * settings: five pages in the game's settings gear and in a Settings
 --     window; every setting is reachable and saves; every page has hints
 --     and a version footer
---   * right-click: a Tags submenu with every choice when PrettyUI has
---     MiniMenu.AddSubmenu, falling back to one entry otherwise
+--   * right-click: one Tags entry that opens the Tags window next to the
+--     mouse, kept on screen
 --   * Custom categories, Custom tags and Bank Cleaner windows work end to
 --     end, and custom categories show up in Tab Layout, pins and the legend
 --   * Ignore wins over tags
@@ -168,71 +168,57 @@ function T.settings_window_from_tools()
   PluginShutdown()
 end
 
--- Opens the right-click menu with the fake submenu helper and returns the
--- recorded submenu.
-local function submenu(env, itemID)
-  H.rightClick(env, itemID)
-  return env.submenus[#env.submenus]
-end
-
--- Returns the submenu child whose label ends with text.
-local function child(menu, text)
-  for _, entry in ipairs(menu.children) do
-    if entry.label:sub(-#text) == text then return entry end
-  end
-end
-
--- Requirement: with MiniMenu.AddSubmenu, right-click shows a Tags submenu
--- with Category, Ignore, every tag and More, each toggling at once.
-function T.right_click_tags_submenu()
+-- Requirement: right-click adds exactly one Tags entry, even when PrettyUI
+-- offers a submenu helper (hover submenus closed too easily in game).
+function T.right_click_adds_one_entry_and_no_submenu()
   local env = boot({ submenu = true })
-  press(env, "Analyze Bank")
-  local added = H.rightClick(env, 103)
-  A.eq(#added, 0, "no plain entry when the submenu is used")
-  local menu = env.submenus[#env.submenus]
-  A.eq(menu.label, "Tags (Bank Organizer)"); A.eq(menu.options.title, "Abyssal whip")
-  local labels = {}
-  for index, entry in ipairs(menu.children) do labels[index] = entry.label end
-  A.list(labels, { "Category...", "[ ] Ignore", "[ ] Active", "[ ] Vanity", "[ ] Favourite", "[ ] Sell", "[ ] Alch",
-    "[ ] Disassemble", "[ ] Trash", "More..." }, "no decant choice on a whip")
-  child(menu, "Sell").action()
-  A.eq(Store.new(PersistentDB):hasTag(103, "sell"), true)
-  menu = submenu(env, 103)
-  A.eq(child(menu, "Sell").label, "[x] Sell", "ticked next time")
-  child(menu, "Sell").action()
-  A.eq(Store.new(PersistentDB):hasTag(103, "sell"), false, "and toggled off again")
-  child(submenu(env, 103), "Ignore").action()
-  A.eq(Store.new(PersistentDB):isIgnored(103), true)
-  child(submenu(env, 103), "Category...").action()
-  A.eq(H.window(env).options.title, "Category: Abyssal whip")
-  pick(find(H.window(env), "AddComboBox"), "boss-loot")
-  A.eq(Store.new(PersistentDB).corrections[103], "boss-loot")
-  child(submenu(env, 103), "More...").action()
-  A.eq(H.window(env).options.title, "Tags: Abyssal whip")
-  PluginShutdown()
-end
-
--- Requirement: potions with a dose get the decant choice in the submenu.
-function T.submenu_offers_decanting_only_for_potions()
-  local env = boot({ submenu = true, bank = { 111, 112, 102 } })
-  local entry = child(submenu(env, 111), "Never label for decanting")
-  A.truthy(entry, "on a 3-dose prayer potion")
-  entry.action()
-  A.eq(Store.new(PersistentDB):isNoDecant(111), true)
-  A.eq(child(submenu(env, 111), "Never label for decanting").label, "[x] Never label for decanting")
-  PluginShutdown()
-end
-
--- Requirement: when the submenu helper fails, the single entry still
--- appears, so the Tags window is always reachable.
-function T.a_failing_submenu_falls_back_to_one_entry()
-  local env = boot({ submenu = true })
-  -- A helper that fails, like one from an incompatible PrettyUI.
-  prettyui.MiniMenu.AddSubmenu = function() error("older PrettyUI") end
   local added = H.rightClick(env, 103)
   A.eq(#added, 1); A.eq(added[1].label, "Tags (Bank Organizer)")
-  added[1].fn()
-  A.eq(H.window(env).options.title, "Tags: Abyssal whip")
+  A.eq(#env.submenus, 0, "no hover submenu is used")
+  PluginShutdown()
+end
+
+-- Requirement: the Tags window opens just right of and below the mouse,
+-- shows the item, and stays in place when a choice redraws it.
+function T.tags_window_opens_next_to_the_mouse()
+  local env = boot({ mouse = { x = 300, y = 100 } })
+  press(env, "Analyze Bank")
+  local w = H.tagsWindow(env, 103)
+  A.eq(w.options.x, 316); A.eq(w.options.y, 116)
+  A.eq(find(w, "AddItemGrid").args[1][1].tooltip, "Abyssal whip", "the item is shown at the top")
+  H.tagBoxes(w).args[2].onChange(nil, nil, "sell", true)
+  A.eq(H.window(env).options.x, 316, "redrawing keeps it next to where it opened")
+  A.eq(H.window(env).options.y, 116)
+  PluginShutdown()
+end
+
+-- Requirement: near the right or bottom edge of the screen the window opens
+-- on the other side of the mouse, so it is never cut off.
+function T.tags_window_stays_on_screen()
+  local env = boot({ mouse = { x = 1250, y = 700 } })
+  local w = H.tagsWindow(env, 103)
+  A.eq(w.options.x, 1250 - 16 - 340, "left of the mouse")
+  A.eq(w.options.y, 720 - 520, "pulled up to fit")
+  PluginShutdown()
+end
+
+-- Requirement: without a readable mouse the window opens in its usual place.
+function T.tags_window_without_a_mouse()
+  local env = boot()
+  local w = H.tagsWindow(env, 103)
+  A.eq(w.options.x, 200); A.eq(w.options.y, 120)
+  PluginShutdown()
+end
+
+-- Requirement: potions with a dose get the Decant opt-out in the Tags
+-- window, other items do not.
+function T.tags_window_offers_decanting_only_for_potions()
+  local env = boot({ bank = { 111, 103, 102 } })
+  A.eq(#find(H.tagsWindow(env, 103), "AddCheckboxButton").args[1], 1, "a whip has only Ignore")
+  local boxes = find(H.tagsWindow(env, 111), "AddCheckboxButton")
+  A.eq(boxes.args[1][2].value, "nodecant")
+  boxes.args[2].onChange(nil, nil, "nodecant", true)
+  A.eq(Store.new(PersistentDB):isNoDecant(111), true)
   PluginShutdown()
 end
 

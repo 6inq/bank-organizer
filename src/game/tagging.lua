@@ -1,21 +1,12 @@
--- Bank Organizer: the right-click "Tags (Bank Organizer)" menu on bank items.
+-- Bank Organizer: the right-click "Tags (Bank Organizer)" entry on bank items.
 --
--- With PrettyUI 1.2.0 or newer, the entry opens a submenu titled with the
--- item's name. Each choice toggles at once:
---   Category...                 opens a small window to pick its kind
---   Ignore                      never move this item
---   every tag (built-in first, then custom, in priority order)
---   Never label for decanting   only on potions with a dose
---   More...                     opens the full Tags window
--- Choices that are on start with "[x]", choices that are off with "[ ]"
--- (plain text, because menus have no checkboxes).
---
--- With an older PrettyUI (no MiniMenu.AddSubmenu) the entry opens the Tags
--- window directly, as in earlier versions.
+-- Right-clicking a bank item adds one entry to the game's menu. Choosing it
+-- opens the Tags window right next to the mouse, where the item's category,
+-- tags, Ignore and Decant opt-out are set with a click. A window is used
+-- instead of a hover submenu because it stays open until the player closes
+-- it, so it never disappears while the mouse moves over it.
 
 local Tags = require("src/core/tags")
-local Placement = require("src/core/placement")
-local Classify = require("src/core/classify")
 
 local Tagging = {}
 
@@ -58,86 +49,20 @@ function Tagging.choices()
   return list
 end
 
--- Returns an item's display name, or nil when it cannot be read.
-local function nameOf(itemID)
-  local ok, name = pcall(function()
-    local obj = config.Obj.FromID(itemID)
-    return obj and obj.name
-  end)
-  if ok and type(name) == "string" then return name end
-  return nil
-end
-
--- Returns "[x] label" when on, "[ ] label" when off.
-local function marked(on, label)
-  return (on and "[x] " or "[ ] ") .. label
-end
-
--- Builds the submenu's choices for one item.
---   app      the App
---   itemID   the item's real id
---   name     its display name (or nil)
---   openers  { tags = function(itemID), category = function(itemID) }
--- Returns a list of { label, action } in menu order.
-function Tagging.children(app, itemID, name, openers)
-  local store = app.store
-  local list = {
-    { label = "Category...", action = function() openers.category(itemID) end },
-    { label = marked(store:isIgnored(itemID), "Ignore"), action = function() app:toggleIgnore(itemID) end },
-  }
-  for _, key in ipairs(store.tagOrder) do
-    local def = Placement.byKey[key]
-    if def then
-      list[#list + 1] = { label = marked(store:hasTag(itemID, key), def.label), action = function() app:toggleTag(itemID, key) end }
-    end
-  end
-  if name and Classify.dose(name) then
-    list[#list + 1] = {
-      label = marked(store:isNoDecant(itemID), "Never label for decanting"),
-      -- Flips the Decant opt-out for this potion.
-      action = function() app:setNoDecant(itemID, not store:isNoDecant(itemID)) end,
-    }
-  end
-  list[#list + 1] = { label = "More...", action = function() openers.tags(itemID) end }
-  return list
-end
-
--- Returns PrettyUI's submenu helper when this PrettyUI version has one.
-local function submenuHelper()
-  local ok, helper = pcall(function()
-    local menu = prettyui and prettyui.MiniMenu
-    return menu and menu.AddSubmenu
-  end)
-  if ok and type(helper) == "function" then return helper end
-  return nil
-end
-
--- Adds the Tags entry to a bank item's right-click menu: a submenu when
--- PrettyUI supports it, otherwise one entry that opens the Tags window. If
--- adding the submenu fails for any reason, the single entry is added
--- instead so the player always has a way in.
-function Tagging.addEntry(menu, app, itemID, openers)
-  local helper = submenuHelper()
-  if helper then
-    local name = nameOf(itemID)
-    local added = pcall(function()
-      helper(menu, Tagging.LABEL, Tagging.children(app, itemID, name, openers), { title = name or Tagging.LABEL })
-    end)
-    if added then return "submenu" end
-  end
-  pcall(function() return menu:Add(Tagging.LABEL, function() openers.tags(itemID) end) end)
-  return "entry"
+-- Adds the Tags entry to a bank item's right-click menu.
+--   openTags  function(itemID) that opens the Tags window
+function Tagging.addEntry(menu, itemID, openTags)
+  pcall(function() return menu:Add(Tagging.LABEL, function() openTags(itemID) end) end)
 end
 
 -- Subscribes to right-click menus.
---   app      the App
---   openers  { tags = function(itemID), category = function(itemID) }
-function Tagging.start(app, openers)
+--   openTags  function(itemID) that opens the Tags window
+function Tagging.start(openTags)
   Event.MiniMenuReady.Subscribe(EVENT_ID, function(event)
     local menu = event and event.miniMenu
     local item = menu and Tagging.bankItem(menu)
     if not item then return end
-    Tagging.addEntry(menu, app, item.id, openers)
+    Tagging.addEntry(menu, item.id, openTags)
   end)
 end
 
