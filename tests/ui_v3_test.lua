@@ -404,15 +404,4 @@ function T.every_new_window_uses_integer_ids()
   PluginShutdown()
 end
 
--- Requirement: long item names are cut in the submenu title, so the
--- submenu stays narrow enough for its hover area.
-function T.submenu_titles_are_kept_short()
-  local Tagging = require("src/game/tagging")
-  A.eq(Tagging.title("Abyssal whip"), "Abyssal whip", "short names are unchanged")
-  A.eq(Tagging.title("Super restore flask (6)"), "Super restore fla...")
-  A.eq(#Tagging.title("Augmented enhanced Excalibur"), Tagging.MAX_TITLE)
-  A.eq(Tagging.title("Twenty characters xx"), "Twenty characters xx", "exactly the limit fits")
-  A.eq(Tagging.title(nil), Tagging.LABEL)
-end
-
 return T

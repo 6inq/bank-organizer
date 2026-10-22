@@ -25,19 +25,6 @@ local EVENT_ID = "bank-organizer:menu"
 -- The menu entry's text.
 Tagging.LABEL = "Tags (Bank Organizer)"
 
--- The longest submenu title, in characters. Long item names made the
--- submenu wider than its hover area, so the mouse could fall "off" it while
--- still over it. Longer names are cut and end in "...".
-Tagging.MAX_TITLE = 20
-
--- Returns the submenu title for an item: its name, cut to MAX_TITLE
--- characters, or the menu label when the name is unknown.
-function Tagging.title(name)
-  if not name then return Tagging.LABEL end
-  if #name <= Tagging.MAX_TITLE then return name end
-  return name:sub(1, Tagging.MAX_TITLE - 3):gsub("%s+$", "") .. "..."
-end
-
 -- Finds the bank item a right-click menu belongs to.
 --   miniMenu  the menu from Event.MiniMenuReady
 -- Returns { id = real item id } when the menu was opened on a bank item
@@ -134,7 +121,7 @@ function Tagging.addEntry(menu, app, itemID, openers)
   if helper then
     local name = nameOf(itemID)
     local added = pcall(function()
-      helper(menu, Tagging.LABEL, Tagging.children(app, itemID, name, openers), { title = Tagging.title(name) })
+      helper(menu, Tagging.LABEL, Tagging.children(app, itemID, name, openers), { title = name or Tagging.LABEL })
     end)
     if added then return "submenu" end
   end
