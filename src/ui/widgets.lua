@@ -45,6 +45,24 @@ function Widgets.muted(view, text, width)
   return Widgets.coloured(view, text, Widgets.MUTED, width)
 end
 
+-- Returns how far a view or window is scrolled down, in pixels (0 when it
+-- cannot be read). Views are rebuilt from scratch after every change, so
+-- this is read first and put back with Widgets.restoreScroll; otherwise the
+-- view would jump back to the top on every click.
+function Widgets.scrollOf(view)
+  local ok, y = pcall(function() return view.scrollY end)
+  if ok and type(y) == "number" then return y end
+  return 0
+end
+
+-- Scrolls a freshly built view or window back to a saved position. Called
+-- after all content is added, so the position is kept within the new
+-- content. Does nothing for 0 or when the view cannot scroll.
+function Widgets.restoreScroll(view, y)
+  if not view or not y or y <= 0 then return end
+  pcall(function() view:SetScrollPosition(y) end)
+end
+
 -- Adds a divider line. Wrapped in pcall because older PrettyUI versions
 -- may not offer AddDivider; a missing divider is only cosmetic.
 function Widgets.divider(view)

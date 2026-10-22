@@ -194,8 +194,19 @@ function H.boot(opts)
     end })
   end
   _G.prettyui = {
-    SimpleView = { new = function(parent) local l = {}; local t = parent.kind == "settings" and env.settings or env.panels; t[#t + 1] = l; return recorder(l) end },
-    Window = { new = function(_, options) local l = { options = options }; env.windows[#env.windows + 1] = l; local w = recorder(l); return w end },
+    -- Each recording keeps its view or window object as .view, so a test can
+    -- scroll it.
+    SimpleView = { new = function(parent)
+      local l = {}; local t = parent.kind == "settings" and env.settings or env.panels; t[#t + 1] = l
+      l.view = recorder(l)
+      return l.view
+    end },
+    -- Windows are recorded the same way, with their options.
+    Window = { new = function(_, options)
+      local l = { options = options }; env.windows[#env.windows + 1] = l
+      l.view = recorder(l)
+      return l.view
+    end },
     Confirm = { new = function(_, o) env.confirm = o end },
   }
   if opts.submenu then

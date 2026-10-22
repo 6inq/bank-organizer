@@ -409,4 +409,45 @@ function T.settings_tabs_wrap_to_fit()
   PluginShutdown()
 end
 
+-- Returns the scroll position a recording was restored to, or nil.
+local function restoredTo(calls)
+  local call = find(calls, "SetScrollPosition")
+  return call and call.args[1]
+end
+
+-- Requirement: folding or opening a sidebar section keeps the sidebar
+-- scrolled where it was instead of jumping back to the top.
+function T.sidebar_keeps_its_scroll_position()
+  local env = boot()
+  panel(env).view.scrollY = 240
+  press(env, "[-] Tools")
+  A.eq(restoredTo(panel(env)), 240, "scrolled back to where it was")
+  panel(env).view.scrollY = 0
+  press(env, "[+] Tools")
+  A.eq(restoredTo(panel(env)), nil, "at the top, nothing to restore")
+  PluginShutdown()
+end
+
+-- Requirement: windows redrawn after a click keep their scroll position.
+function T.windows_keep_their_scroll_position()
+  local env = boot()
+  press(env, "Custom tags")
+  H.window(env).view.scrollY = 300
+  local downs = H.findAll(H.window(env), "AddSimpleButton")
+  for _, c in ipairs(downs) do if c.args[1] == "Down" then c.args[2](); break end end
+  A.eq(restoredTo(H.window(env)), 300)
+  PluginShutdown()
+end
+
+-- Requirement: the settings in the game's settings gear keep their scroll
+-- position when a section is folded or a setting changes.
+function T.settings_keep_their_scroll_position()
+  local env = boot()
+  local view = H.settingsPage(env, "General")
+  env.settings[#env.settings].view.scrollY = 150
+  find(view, "AddSimpleButton", "[-] Look").args[2]()
+  A.eq(restoredTo(env.settings[#env.settings]), 150)
+  PluginShutdown()
+end
+
 return T

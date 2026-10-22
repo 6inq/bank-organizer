@@ -191,6 +191,8 @@ end
 
 -- Draws the settings into the game's settings layer.
 local function mount(parent, store, app)
+  -- A redraw after a change keeps the scroll position.
+  local scrolled = view and Widgets.scrollOf(view) or 0
   Settings.destroy()
   view = prettyui.SimpleView.new(parent, { width = parent.width, height = parent.height })
   Settings.build(view, store, app, {
@@ -202,6 +204,7 @@ local function mount(parent, store, app)
       prettyui.Confirm.new(parent, { title = title, body = body, confirmLabel = label, onConfirm = onConfirm })
     end,
   })
+  Widgets.restoreScroll(view, scrolled)
 end
 
 -- Opens the settings in their own window (Tools, Settings).

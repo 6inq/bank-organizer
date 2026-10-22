@@ -145,10 +145,14 @@ end
 -- logged and leaves whatever was drawn so far.
 function Panel.render(app)
   if not parent then return end
+  -- Keep the player's place: the new view is scrolled back to where the old
+  -- one was.
+  local scrolled = view and Widgets.scrollOf(view) or 0
   if view then pcall(function() return view:Destroy() end) end
   view = prettyui.SimpleView.new(parent, { width = parent.width, height = parent.height })
   local ok, err = pcall(build, app)
   if not ok and log then log("[bank-organizer] panel failed: " .. tostring(err)) end
+  Widgets.restoreScroll(view, scrolled)
 end
 
 -- Subscribes to the sidebar content layer and redraws on every App change.

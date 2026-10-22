@@ -87,6 +87,8 @@ end
 -- A failing build is logged and leaves a partly drawn window rather than
 -- breaking the plugin. Returns the window, or nil when there is no layer.
 function Windows.open(name, options, build)
+  -- A window redrawn after a change keeps its scroll position.
+  local scrolled = open[name] and Widgets.scrollOf(open[name]) or 0
   Windows.close(name)
   local layer = host()
   if not layer then return nil end
@@ -97,6 +99,7 @@ function Windows.open(name, options, build)
   open[name] = window
   local ok, err = pcall(build, window)
   if not ok and log then log("[bank-organizer] " .. name .. " window failed: " .. tostring(err)) end
+  Widgets.restoreScroll(window, scrolled)
   return window
 end
 
