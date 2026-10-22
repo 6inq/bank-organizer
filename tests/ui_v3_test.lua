@@ -390,4 +390,23 @@ function T.every_new_window_uses_integer_ids()
   PluginShutdown()
 end
 
+-- Requirement: the settings tab bar wraps onto a new row instead of running
+-- past the edge of the window (the last tab used to be cut off).
+function T.settings_tabs_wrap_to_fit()
+  local env = boot()
+  press(env, "Settings")
+  local w = H.window(env)
+  local inline = {}
+  for _, c in ipairs(H.findAll(w, "AddSimpleButton")) do inline[c.args[1]] = c.args[3] and c.args[3].inline end
+  A.eq(inline["[General]"], false, "the first tab starts a row")
+  A.eq(inline["Sorting"], true); A.eq(inline["Tags & Labels"], true)
+  A.eq(inline["Colours"], false, "Colours would not fit, so it starts the second row")
+  A.eq(inline["Cleaner"], true)
+  local Widgets = require("src/ui/widgets")
+  local used = 0
+  for _, page in ipairs({ "[General]", "Sorting", "Tags & Labels" }) do used = used + Widgets.buttonWidth(page) + 8 end
+  A.truthy(used <= 470 - 64 + 8, "the first row fits the window")
+  PluginShutdown()
+end
+
 return T

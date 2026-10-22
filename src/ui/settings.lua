@@ -180,7 +180,7 @@ local PAGE_BUILDERS = {
 --             width = number }
 function Settings.build(target, store, app, ctx)
   target:AddTitle("Bank Organizer settings")
-  Widgets.tabBar(target, Settings.PAGES, state.page, function(page) state.page = page; ctx.refresh() end)
+  Widgets.tabBar(target, Settings.PAGES, state.page, function(page) state.page = page; ctx.refresh() end, ctx.width)
   Widgets.divider(target)
   local builder = PAGE_BUILDERS[state.page] or generalPage
   builder(target, store, app, ctx)

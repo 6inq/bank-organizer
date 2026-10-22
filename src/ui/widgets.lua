@@ -51,17 +51,37 @@ function Widgets.divider(view)
   pcall(function() view:AddDivider() end)
 end
 
--- Adds a row of buttons that act as page tabs.
+-- Rough size of a simple button: pixels per character of its label, plus
+-- its padding and the gap to the next button. Measured from the game.
+local BUTTON_CHAR, BUTTON_PADDING, BUTTON_GAP = 8, 32, 8
+
+-- Space lost to the window's margins and scroll bar, in pixels.
+local VIEW_MARGIN = 64
+
+-- Returns about how wide a simple button with this label is, in pixels.
+function Widgets.buttonWidth(label)
+  return #label * BUTTON_CHAR + BUTTON_PADDING
+end
+
+-- Adds buttons that act as page tabs, wrapping onto a new row whenever the
+-- next button would not fit, so none is ever cut off.
 --   view      the SimpleView or Window
 --   pages     list of page names
 --   selected  the page currently shown
 --   onPick    function(page) called when another page's button is pressed
+--   width     the view's width in pixels (default 300)
 -- The selected page's button is shown in square brackets, for example
 -- "[General]", so players can see where they are.
-function Widgets.tabBar(view, pages, selected, onPick)
-  for index, page in ipairs(pages) do
-    local label = page == selected and ("[" .. page .. "]") or page
-    view:AddSimpleButton(label, function() if page ~= selected then onPick(page) end end, { inline = index > 1 })
+function Widgets.tabBar(view, pages, selected, onPick, width)
+  local room = (width or 300) - VIEW_MARGIN
+  local used = 0
+  for _, page in ipairs(pages) do
+    local label = Widgets.tabLabel(page, selected)
+    local size = Widgets.buttonWidth(label)
+    -- Start a new row when this button would run past the edge.
+    local inline = used > 0 and used + size <= room
+    used = (inline and used or 0) + size + BUTTON_GAP
+    view:AddSimpleButton(label, function() if page ~= selected then onPick(page) end end, { inline = inline })
   end
 end
 
