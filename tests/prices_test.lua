@@ -198,7 +198,7 @@ end
 -- Requirement: Sort label says which value is used.
 function T.sort_label_says_which_value_is_used()
   A.truthy(valueLabel("live"):find("GE price", 1, true))
-  A.truthy(valueLabel("loading"):find("until GE prices load", 1, true))
+  A.truthy(valueLabel("loading"):find("item value for now", 1, true))
   A.truthy(valueLabel("none"):find("item value", 1, true))
   A.eq(valueLabel("none"), "Value: item value (highest first)")
   A.eq(#Sorting.modes("live"), #Sorting.MODES)

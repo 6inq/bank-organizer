@@ -12,6 +12,7 @@
 - **Share codes** now carry custom categories (with rules), custom tags, the tag priority order and the Secondaries setting. Tags on single items, ignores and the Keep list stay yours. Older codes still load.
 
 ### Changed
+- **Low value limit is typed**: in Settings, Cleaner, type an amount like 500k, 1m, 200m or 3b and press Enter.
 - **New look**: the sidebar has a status card (moves left, sorted tabs), folding sections (Organize, Your tabs, Tools) and an item icon on every tab row. Settings are split into pages (General, Sorting, Tags & Labels, Colours, Cleaner) with a short explanation under every setting, in the settings gear and in a Settings window. The Tab Layout picks one tab at a time from a row of numbered buttons, shows that tab's planned items, and keeps the tab buttons at the bottom.
 - Potions now sort from the fewest doses to the most.
 - With decant labels off, part doses stay with their potion instead of sinking to the bottom.
@@ -21,6 +22,7 @@
 - New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface. 234 tests pass.
 
 ### Fixed
+- Text in the sidebar, the settings and every window wraps onto more lines instead of being cut off, and rows of buttons wrap instead of running past the edge.
 - The sidebar, settings and every window stay scrolled where they were after a click, instead of jumping back to the top.
 
 ## 1.4.1 (2026-10-21)

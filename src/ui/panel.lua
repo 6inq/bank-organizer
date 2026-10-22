@@ -41,7 +41,7 @@ local function choose(app, label, hint, choices, current, onPick)
     view:AddComboBox(Combo.options(choices, current, function(key)
       if key ~= current and onPick(key) then app:rebuild() end
     end))
-  end, parent and parent.width)
+  end)
 end
 
 -- The Organize section: organize mode, sort mode, direction and (Whole bank
@@ -70,20 +70,22 @@ local function addActions(app)
   view:AddFancyButton(app.guiding and "Stop Sorting" or "Start Sorting", function()
     if app.guiding then app:stopGuide() else app:startGuide() end
   end, { variant = app.guiding and "negative" or "positive" })
-  view:AddSimpleButton("Open Blueprint", function() Windows.blueprint(app) end)
-  view:AddSimpleButton("Tab Layout", function() Windows.layout(app) end, { inline = true })
+  Widgets.buttonRow(view, {
+    { "Open Blueprint", function() Windows.blueprint(app) end },
+    { "Tab Layout", function() Windows.layout(app) end },
+  }, parent and parent.width)
 end
 
 -- The status card: what to do next and how far along the player is.
 local function addStatus(app)
-  view:AddText({ text = app.status, height = Widgets.heightFor(app.status, parent and parent.width) })
+  view:AddText({ text = app.status })
   if app.guiding and app.remaining then Widgets.muted(view, "Moves left: " .. app.remaining) end
   local done, total = app:sortedCount()
   if done then Widgets.muted(view, "Sorted tabs " .. done .. " / " .. total) end
   local summary = app:tagSummary()
-  if summary ~= "" then view:AddText({ text = "Tags: " .. summary, height = Widgets.heightFor("Tags: " .. summary) }) end
+  if summary ~= "" then view:AddText({ text = "Tags: " .. summary }) end
   if app.store:get("direction") == "vertical" and not app.columns then
-    view:AddText({ text = "Vertical sort: open your bank so its columns can be measured. Sorting by rows until then.", height = 40 })
+    view:AddText({ text = "Vertical sort: open your bank so its columns can be measured. Sorting by rows until then." })
   end
   if app.correction then
     view:AddSimpleButton("Continue from here", function() app:continueFromHere() end)
@@ -111,17 +113,20 @@ local function addLegend(app)
         { columns = 1, rows = 1 })
     end
     local text = app:destinationLabel(d) .. (entries and ("  (" .. #entries .. ")") or "")
-    Widgets.coloured(view, text, app:destinationColour(d), parent and parent.width)
+    Widgets.coloured(view, text, app:destinationColour(d))
   end
 end
 
 -- The Tools section: every window that is not part of the main flow.
 local function addTools(app)
-  view:AddSimpleButton("Share or Load a Setup", function() Windows.presets(app) end)
-  view:AddSimpleButton("Bank Cleaner", function() Windows.cleaner(app) end)
-  view:AddSimpleButton("Custom tags", function() Windows.customTags(app) end, { inline = true })
-  view:AddSimpleButton("Custom categories", function() Windows.categories(app) end)
-  view:AddSimpleButton("Settings", function() Settings.openWindow(app) end, { inline = true })
+  -- Side by side where they fit, wrapping onto new rows otherwise.
+  Widgets.buttonRow(view, {
+    { "Share or Load a Setup", function() Windows.presets(app) end },
+    { "Bank Cleaner", function() Windows.cleaner(app) end },
+    { "Custom tags", function() Windows.customTags(app) end },
+    { "Custom categories", function() Windows.categories(app) end },
+    { "Settings", function() Settings.openWindow(app) end },
+  }, parent and parent.width)
 end
 
 -- Draws the whole panel.

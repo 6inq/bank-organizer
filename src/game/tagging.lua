@@ -39,12 +39,11 @@ function Tagging.bankItem(miniMenu)
 end
 
 -- Returns the choices for the kind-of-item dropdown: automatic first, then
--- every kind with its category in brackets.
+-- every kind by name (short enough to fit the dropdown).
 function Tagging.choices()
-  local list = { { label = "Use automatic classification", key = "auto" } }
+  local list = { { label = "Automatic", key = "auto" } }
   for _, tag in ipairs(Tags.LIST) do
-    local category = Tags.categoryByKey[tag.category]
-    list[#list + 1] = { label = tag.label .. "  (" .. category.main .. ")", key = tag.key }
+    list[#list + 1] = { label = tag.label, key = tag.key }
   end
   return list
 end

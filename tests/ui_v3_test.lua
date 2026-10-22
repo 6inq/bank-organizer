@@ -140,7 +140,7 @@ function T.every_setting_is_reachable_and_saves()
   pick(H.comboWith(H.settingsPage(env, "Sorting"), "vertical"), "vertical")
   pick(H.comboWith(H.settingsPage(env, "Sorting"), "bottom"), "bottom")
   find(H.settingsPage(env, "Sorting"), "AddCheckboxButton").args[2].onChange(nil, nil, "decant2", false)
-  pick(H.comboWith(H.settingsPage(env, "Cleaner"), 5000), 5000)
+  H.findAll(H.settingsPage(env, "Cleaner"), "AddTextField")[1].args[1].onSubmit(nil, "5k")
   local store = Store.new(PersistentDB)
   A.eq(store:get("tint"), false); A.eq(store:get("opacity"), 0.8); A.eq(store:get("sortedLook"), "clear")
   A.eq(store:get("mode"), "swap"); A.eq(store:get("sort"), "name"); A.eq(store:get("direction"), "vertical")
@@ -391,21 +391,27 @@ function T.every_new_window_uses_integer_ids()
 end
 
 -- Requirement: the settings tab bar wraps onto a new row instead of running
--- past the edge of the window (the last tab used to be cut off).
+-- past the edge of the window (the last tab used to be cut off): no row of
+-- tabs is wider than the room inside the window.
 function T.settings_tabs_wrap_to_fit()
   local env = boot()
   press(env, "Settings")
-  local w = H.window(env)
-  local inline = {}
-  for _, c in ipairs(H.findAll(w, "AddSimpleButton")) do inline[c.args[1]] = c.args[3] and c.args[3].inline end
-  A.eq(inline["[General]"], false, "the first tab starts a row")
-  A.eq(inline["Sorting"], true); A.eq(inline["Tags & Labels"], true)
-  A.eq(inline["Colours"], false, "Colours would not fit, so it starts the second row")
-  A.eq(inline["Cleaner"], true)
   local Widgets = require("src/ui/widgets")
+  local room = Widgets.room(H.window(env).view, 470)
+  local rows, widest = 0, 0
   local used = 0
-  for _, page in ipairs({ "[General]", "Sorting", "Tags & Labels" }) do used = used + Widgets.buttonWidth(page) + 8 end
-  A.truthy(used <= 470 - 64 + 8, "the first row fits the window")
+  for _, c in ipairs(H.findAll(H.window(env), "AddSimpleButton")) do
+    local page = c.args[1]:gsub("^%[", ""):gsub("%]$", "")
+    for _, name in ipairs({ "General", "Sorting", "Tags & Labels", "Colours", "Cleaner" }) do
+      if page == name then
+        local size = Widgets.buttonWidth(c.args[1])
+        if c.args[3] and c.args[3].inline then used = used + 8 + size else rows, used = rows + 1, size end
+        if used > widest then widest = used end
+      end
+    end
+  end
+  A.truthy(rows >= 2, "five tabs do not fit one row, so they wrap")
+  A.truthy(widest <= room, "no row runs past the edge: " .. widest .. " > " .. room)
   PluginShutdown()
 end
 
@@ -447,6 +453,87 @@ function T.settings_keep_their_scroll_position()
   env.settings[#env.settings].view.scrollY = 150
   find(view, "AddSimpleButton", "[-] Look").args[2]()
   A.eq(restoredTo(env.settings[#env.settings]), 150)
+  PluginShutdown()
+end
+
+-- Requirement: the low value limit is a text box: typing 3b saves three
+-- billion and shows "3b"; anything else explains what to type.
+function T.low_value_is_typed()
+  local env = boot()
+  local page = H.settingsPage(env, "Cleaner")
+  local field = H.findAll(page, "AddTextField")[1]
+  A.eq(field.args[1].text, "1k", "the current limit, written short")
+  field.args[1].onSubmit(nil, "3b")
+  A.eq(Store.new(PersistentDB):get("cleanerThreshold"), 3000000000)
+  local latest = env.settings[#env.settings]
+  A.eq(H.findAll(latest, "AddTextField")[1].args[1].text, "3b")
+  A.truthy(texts(latest):find("3,000,000,000 gp", 1, true), texts(latest))
+  H.findAll(latest, "AddTextField")[1].args[1].onSubmit(nil, "lots")
+  A.truthy(texts(env.settings[#env.settings]):find("Type an amount like", 1, true))
+  A.eq(Store.new(PersistentDB):get("cleanerThreshold"), 3000000000, "a bad amount changes nothing")
+  PluginShutdown()
+end
+
+-- Fails when anything in a recording could be cut off:
+--   * text with a fixed height (PrettyUI only wraps text it can size itself)
+--   * a dropdown entry longer than Widgets.MAX_CHOICE
+--   * a checkbox label, or a row of text and buttons, wider than the room
+local function assertNothingCutOff(calls, room, where)
+  local Widgets = require("src/ui/widgets")
+  local used = 0
+  for _, c in ipairs(calls) do
+    local options = type(c.args[1]) == "table" and c.args[1] or {}
+    if c.method == "AddText" then
+      A.eq(options.height, nil, where .. ": text with a fixed height: " .. tostring(options.text))
+      used = Widgets.measure(c.content or "") + 4
+    elseif c.method == "AddSimpleButton" then
+      local size = Widgets.buttonWidth(c.args[1])
+      used = (c.args[3] and c.args[3].inline) and (used + 8 + size) or size
+      A.truthy(used <= room, where .. ": a row ending in " .. c.args[1] .. " is " .. used .. " wide, room " .. room)
+    elseif c.method == "AddComboBox" then
+      for _, entry in ipairs(options.entries) do
+        A.truthy(#entry.label <= Widgets.MAX_CHOICE, where .. ": dropdown entry too long: " .. entry.label)
+      end
+      used = 0
+    elseif c.method == "AddCheckboxButton" then
+      for _, box in ipairs(c.args[1]) do
+        A.truthy(Widgets.measure(box.text) + 22 <= room, where .. ": checkbox label too wide: " .. box.text)
+      end
+      used = 0
+    else
+      used = 0
+    end
+  end
+end
+
+-- Requirement: nowhere in the sidebar, the settings or any window is text
+-- cut off: text wraps, and rows, labels and dropdown entries fit.
+function T.nothing_is_cut_off_anywhere()
+  local Widgets = require("src/ui/widgets")
+  local env = boot({ bank = { 117, 116, 115, 114, 111, 103, 109, 120, 102 }, tabSizes = {} })
+  press(env, "Analyze Bank")
+  assertNothingCutOff(panel(env), Widgets.room(panel(env).view, 300), "sidebar")
+  for _, page in ipairs({ "General", "Sorting", "Tags & Labels", "Colours", "Cleaner" }) do
+    local view = H.settingsPage(env, page)
+    assertNothingCutOff(view, Widgets.room(view.view, 300), "settings " .. page)
+  end
+  press(env, "Custom categories")
+  H.submit(env, "A category with a long name here")
+  H.submit(env, "dragon", 3)
+  press(env, "Custom tags")
+  pick(H.comboWith(H.window(env), "label"), "label")
+  H.submit(env, "Note")
+  for _, label in ipairs({ "Open Blueprint", "Tab Layout", "Share or Load a Setup", "Bank Cleaner", "Custom tags",
+    "Custom categories", "Settings" }) do
+    press(env, label)
+    local w = H.window(env)
+    assertNothingCutOff(w, Widgets.room(w.view, w.options.width), label)
+  end
+  local tags = H.tagsWindow(env, 111)
+  assertNothingCutOff(tags, Widgets.room(tags.view, tags.options.width), "Tags window")
+  pick(H.comboWith(panel(env), "tabs"), "tabs")
+  press(env, "Tab Layout")
+  assertNothingCutOff(H.window(env), Widgets.room(H.window(env).view, 470), "Tab Layout (My tabs)")
   PluginShutdown()
 end
 

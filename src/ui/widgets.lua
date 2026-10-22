@@ -2,47 +2,86 @@
 --
 -- Every view in this plugin is a PrettyUI SimpleView or Window, which lays
 -- its children out top to bottom. These helpers add common patterns on top:
---   * tab bars: a row of buttons that switch between pages
---   * collapsible sections: a header button that hides or shows its content
+--   * text that wraps to fit, so nothing is cut off
+--   * rows of buttons that wrap onto a new line instead of running past the
+--     edge (PrettyUI places side-by-side buttons in one row however wide)
+--   * tab bars and collapsible sections
 --   * muted hint text under a control, explaining it in plain words
+--   * keeping the scroll position when a view is rebuilt
 --
--- Only PrettyUI calls this plugin already uses are made here (AddText,
--- AddTitle, AddSimpleButton, AddDivider). Colours on returned components
--- are set inside pcall(function() ... end) because not every component
--- accepts every property.
+-- Sizes follow how PrettyUI draws: text in the 15pt body font, buttons as
+-- wide as their text plus 16 pixels (rounded up to 8), 8 pixels between
+-- buttons, 14 pixels of padding each side, and a 18 pixel scroll bar.
+-- Colours on returned components are set inside pcall(function() ... end)
+-- because not every component accepts every property.
 
 local Widgets = {}
 
 -- The grey used for hint text and footers (0xRRGGBBAA).
 Widgets.MUTED = 0xA0A0A0FF
 
--- Rough text width: about how many characters fit on one line of a view.
-local CHARS_PER_LINE = 42
+-- Layout sizes in pixels (see the top of this file).
+local PADDING, SCROLLBAR, BUTTON_GAP, BUTTON_TILE = 14, 18, 8, 8
 
--- One line of text is about this many pixels tall.
-local LINE_HEIGHT = 18
+-- Extra room taken by a window's own frame, used only when the view's width
+-- cannot be read.
+local WINDOW_EDGE = 16
 
--- Returns a height that fits text in a view of the given width, so long
--- hints wrap instead of being cut off.
---   text   the text to fit
---   width  optional view width in pixels (default fits the sidebar)
-function Widgets.heightFor(text, width)
-  local perLine = width and math.max(20, math.floor(width / 7)) or CHARS_PER_LINE
-  local lines = math.max(1, math.ceil(#(text or "") / perLine))
-  return lines * LINE_HEIGHT + 4
+-- Pixels per character, used only when the font cannot measure text.
+local CHAR_WIDTH = 7
+
+-- The longest label a dropdown entry may have, in characters. Longer labels
+-- are shortened with "..." so they fit even the narrow sidebar.
+Widgets.MAX_CHOICE = 34
+
+-- Returns how wide text is in the body font, in pixels.
+function Widgets.measure(text)
+  local ok, width = pcall(function() return config.Font.MUSEO_SANS_15PT_REGULAR:GetStringWidth(text, false) end)
+  if ok and type(width) == "number" then return width end
+  return #tostring(text or "") * CHAR_WIDTH
 end
 
--- Adds text in the given colour and returns the component. The colour is
--- applied in pcall: if the client refuses it, the text still shows.
-function Widgets.coloured(view, text, colour, width)
-  local label = view:AddText({ text = text, height = Widgets.heightFor(text, width) })
+-- Returns how wide a simple button with this label is, in pixels: the text
+-- plus 8 pixels each side, rounded up to a multiple of 8.
+function Widgets.buttonWidth(label)
+  return math.max(BUTTON_TILE * 3, math.ceil((Widgets.measure(label) + BUTTON_TILE * 2) / BUTTON_TILE) * BUTTON_TILE)
+end
+
+-- Returns the width, in pixels, that a row of content can use in a view.
+--   view   the SimpleView or Window
+--   width  the view's width, used when the view cannot report it
+-- Room for a scroll bar is always kept, because one may appear as more
+-- content is added.
+function Widgets.room(view, width)
+  local ok, contentWidth = pcall(function() return view.contentWidth end)
+  if ok and type(contentWidth) == "number" and contentWidth > 0 then
+    local scrollbarShown = false
+    pcall(function() scrollbarShown = view.scrollbarVisible == true end)
+    return contentWidth - PADDING * 2 - (scrollbarShown and 0 or SCROLLBAR)
+  end
+  return (width or 300) - PADDING * 2 - SCROLLBAR - WINDOW_EDGE
+end
+
+-- Shortens text to at most max characters, ending with "..." when cut.
+function Widgets.fit(text, max)
+  text = tostring(text or "")
+  if #text <= max then return text end
+  return text:sub(1, max - 3):gsub("%s+$", "") .. "..."
+end
+
+-- Adds text in the given colour and returns the component. No height is
+-- given, so PrettyUI measures the text and wraps it onto as many lines as
+-- it needs. The colour is applied in pcall: if the client refuses it, the
+-- text still shows.
+function Widgets.coloured(view, text, colour)
+  local label = view:AddText({ text = text })
   if label and colour then pcall(function() label.rgba = colour end) end
   return label
 end
 
--- Adds a muted (grey) hint line, used under controls and in footers.
-function Widgets.muted(view, text, width)
-  return Widgets.coloured(view, text, Widgets.MUTED, width)
+-- Adds a muted (grey) hint, used under controls and in footers. It wraps.
+function Widgets.muted(view, text)
+  return Widgets.coloured(view, text, Widgets.MUTED)
 end
 
 -- Returns how far a view or window is scrolled down, in pixels (0 when it
@@ -69,38 +108,53 @@ function Widgets.divider(view)
   pcall(function() view:AddDivider() end)
 end
 
--- Rough size of a simple button: pixels per character of its label, plus
--- its padding and the gap to the next button. Measured from the game.
-local BUTTON_CHAR, BUTTON_PADDING, BUTTON_GAP = 8, 32, 8
+-- Adds buttons side by side on a new row, wrapping onto another row
+-- whenever the next button would not fit.
+--   view     the SimpleView or Window
+--   buttons  list of { label, function }
+--   width    the view's width (used when the view cannot report it)
+--   used     optional: how much of the current row is already taken; when
+--            given, the first button continues that row if it fits
+function Widgets.buttonRow(view, buttons, width, used)
+  local room = Widgets.room(view, width)
+  for index, button in ipairs(buttons) do
+    local size = Widgets.buttonWidth(button[1])
+    local continuing = (index > 1 or used ~= nil) and (used or 0) > 0
+    local inline = continuing and used + BUTTON_GAP + size <= room
+    used = inline and (used + BUTTON_GAP + size) or size
+    view:AddSimpleButton(button[1], button[2], { inline = inline })
+  end
+end
 
--- Space lost to the window's margins and scroll bar, in pixels.
-local VIEW_MARGIN = 64
-
--- Returns about how wide a simple button with this label is, in pixels.
-function Widgets.buttonWidth(label)
-  return #label * BUTTON_CHAR + BUTTON_PADDING
+-- Adds a line of text followed by its buttons. The buttons sit on the same
+-- line when everything fits; otherwise they go on the line below, so
+-- neither the text nor a button is ever cut off.
+--   buttons  list of { label, function }
+--   width    the view's width (used when the view cannot report it)
+function Widgets.textWithButtons(view, text, buttons, width)
+  view:AddText(text)
+  local room = Widgets.room(view, width)
+  local textWidth = Widgets.measure(text) + 4
+  local total = textWidth
+  for _, button in ipairs(buttons) do total = total + BUTTON_GAP + Widgets.buttonWidth(button[1]) end
+  Widgets.buttonRow(view, buttons, width, total <= room and textWidth or nil)
 end
 
 -- Adds buttons that act as page tabs, wrapping onto a new row whenever the
--- next button would not fit, so none is ever cut off.
+-- next button would not fit.
 --   view      the SimpleView or Window
 --   pages     list of page names
 --   selected  the page currently shown
 --   onPick    function(page) called when another page's button is pressed
---   width     the view's width in pixels (default 300)
+--   width     the view's width (used when the view cannot report it)
 -- The selected page's button is shown in square brackets, for example
 -- "[General]", so players can see where they are.
 function Widgets.tabBar(view, pages, selected, onPick, width)
-  local room = (width or 300) - VIEW_MARGIN
-  local used = 0
-  for _, page in ipairs(pages) do
-    local label = Widgets.tabLabel(page, selected)
-    local size = Widgets.buttonWidth(label)
-    -- Start a new row when this button would run past the edge.
-    local inline = used > 0 and used + size <= room
-    used = (inline and used or 0) + size + BUTTON_GAP
-    view:AddSimpleButton(label, function() if page ~= selected then onPick(page) end end, { inline = inline })
+  local buttons = {}
+  for index, page in ipairs(pages) do
+    buttons[index] = { Widgets.tabLabel(page, selected), function() if page ~= selected then onPick(page) end end }
   end
+  Widgets.buttonRow(view, buttons, width)
 end
 
 -- Returns the label a tab bar uses for a page, for tests and lookups.
@@ -131,11 +185,10 @@ end
 --   label    the setting's name
 --   hint     a plain-words explanation (may be nil)
 --   control  function() that adds the control itself
---   width    optional view width, for wrapping the hint
-function Widgets.setting(view, label, hint, control, width)
+function Widgets.setting(view, label, hint, control)
   view:AddText(label)
   control()
-  if hint then Widgets.muted(view, hint, width) end
+  if hint then Widgets.muted(view, hint) end
 end
 
 return Widgets

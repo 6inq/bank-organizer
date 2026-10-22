@@ -114,7 +114,7 @@ local function signatureOf(items)
 end
 
 -- The two organize modes as the sidebar describes them.
-App.SCOPES = { bank = "Whole bank (follow my Tab Layout)", tabs = "My tabs (keep my tabs, infinity is misc)" }
+App.SCOPES = { bank = "Whole bank (Tab Layout)", tabs = "My tabs (keep my tabs)" }
 
 -- Builds the blueprint from a list of bank items.
 --   allItems  every item from Bank.readItems

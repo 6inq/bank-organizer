@@ -45,8 +45,6 @@ local open = {}
 --   sections      collapsed sections: key -> true
 local state = { ruleKind = "contains", newPlacement = "bottom", picked = {}, sections = {} }
 
--- How many tab buttons fit on one row of the Tab Layout rail.
-local RAIL_COLUMNS = 8
 
 -- Columns in the item icon grids.
 local GRID_COLUMNS = 8
@@ -169,23 +167,26 @@ function Windows.blueprint(app)
     state.blueprintTab = tabs[index]
     local choices = {}
     for i, d in ipairs(tabs) do
-      choices[i] = { label = app:destinationLabel(d) .. "  [" .. #app.destinations[d] .. "]", key = d }
+      choices[i] = { label = app:destinationTitle(d) .. "  (" .. #app.destinations[d] .. ")", key = d }
     end
     window:AddComboBox(Combo.options(choices, state.blueprintTab, function(d)
       state.blueprintTab = d
       Windows.blueprint(app)
     end))
     -- Previous and Next wrap around at either end.
-    window:AddSimpleButton("Previous", function()
-      state.blueprintTab = tabs[index > 1 and index - 1 or #tabs]
-      Windows.blueprint(app)
-    end)
-    window:AddSimpleButton("Next", function()
-      state.blueprintTab = tabs[index < #tabs and index + 1 or 1]
-      Windows.blueprint(app)
-    end, { inline = true })
+    Widgets.buttonRow(window, {
+      { "Previous", function()
+        state.blueprintTab = tabs[index > 1 and index - 1 or #tabs]
+        Windows.blueprint(app)
+      end },
+      { "Next", function()
+        state.blueprintTab = tabs[index < #tabs and index + 1 or 1]
+        Windows.blueprint(app)
+      end },
+    }, WIDTH)
     local entries = app.destinations[state.blueprintTab]
     window:AddText(string.format("Tab %d of %d: %d items", index, #tabs, #entries))
+    Widgets.muted(window, app:kindsSummary(state.blueprintTab))
     itemGrid(window, entries)
   end)
 end
@@ -195,13 +196,15 @@ end
 --   selected  the chosen position
 --   onPick    function(position)
 -- Buttons read 1, 2, 3 ... like the game's own tab numbers; the chosen one
--- is in square brackets.
+-- is in square brackets. They wrap onto more rows when they do not fit.
 local function rail(window, list, selected, onPick)
+  local buttons = {}
   for index, d in ipairs(list) do
     local label = tostring(d + 1)
     if d == selected then label = "[" .. label .. "]" end
-    window:AddSimpleButton(label, function() onPick(d) end, { inline = (index - 1) % RAIL_COLUMNS ~= 0 })
+    buttons[index] = { label, function() onPick(d) end }
   end
+  Widgets.buttonRow(window, buttons, WIDTH)
 end
 
 -- Returns the dropdown choices for adding a kind to tab d (Whole bank).
@@ -240,7 +243,7 @@ end
 -- Draws the My tabs version of the Tab Layout: pins and tab moves.
 --   changed  function() to call after any change (saves and redraws)
 local function tabLayout(app, window, changed)
-  Widgets.muted(window, "Pick a tab. Pin a kind of item to it and everything of that kind goes there. Remove sends a kind back to Tab 1 (infinity). Move left and Move right swap whole tabs; the guide then shows you the one drag to make.", WIDTH)
+  Widgets.muted(window, "Pick a tab. Pin a kind of item to it and everything of that kind goes there. Remove sends a kind back to Tab 1 (infinity). Move left and Move right swap whole tabs; the guide then shows you the one drag to make.")
   if not app:myTabs() then
     window:AddText("Press Analyze Bank first.")
     return
@@ -249,37 +252,42 @@ local function tabLayout(app, window, changed)
   local d = indexOf(list, state.layoutTab) and state.layoutTab or list[1]
   state.layoutTab = d
   rail(window, list, d, function(picked) state.layoutTab = picked; changed() end)
-  window:AddTitle(app:destinationLabel(d))
+  window:AddTitle(app:destinationTitle(d))
+  Widgets.muted(window, app:kindsSummary(d))
   for _, tag in ipairs(Tags.LIST) do
     local home, pinned = app:tabHomeOf(tag.key)
     if home == d then
-      window:AddText(tag.label .. (pinned and "  (pinned)" or "  (auto)"))
+      local buttons = {}
       if pinned then
-        window:AddSimpleButton("Unpin", function() app.store:clearTabHome(tag.key); changed() end, { inline = true })
+        buttons[#buttons + 1] = { "Unpin", function() app.store:clearTabHome(tag.key); changed() end }
       end
       if d > 0 then
-        window:AddSimpleButton("Remove", function() if app.store:setTabHome(tag.key, 0) then changed() end end, { inline = true })
+        buttons[#buttons + 1] = { "Remove", function() if app.store:setTabHome(tag.key, 0) then changed() end end }
       end
+      Widgets.textWithButtons(window, tag.label .. (pinned and "  (pinned)" or "  (auto)"), buttons, WIDTH)
     end
   end
-  if d == 0 then Widgets.muted(window, "Plus anything no other tab collects.", WIDTH) end
+  if d == 0 then Widgets.muted(window, "Plus anything no other tab collects.") end
   window:AddComboBox(Combo.options(pinChoicesFor(app, d), "none", function(key)
     if key ~= "none" and app.store:setTabHome(key, d) then changed() end
   end))
   plannedItems(app, window, d)
   Widgets.divider(window)
   -- Bottom bar. A tab move keeps the moved tab chosen.
+  local buttons = {}
   if d > 0 then
-    window:AddSimpleButton("Move left", function() if app:moveMyTab(d, -1) then changed() end end)
-    window:AddSimpleButton("Move right", function() if app:moveMyTab(d, 1) then changed() end end, { inline = true })
+    buttons[#buttons + 1] = { "Move left", function() if app:moveMyTab(d, -1) then changed() end end }
+    buttons[#buttons + 1] = { "Move right", function() if app:moveMyTab(d, 1) then changed() end end }
   end
-  window:AddSimpleButton("Unpin all", function() app.store:resetTabHomes(); changed() end)
-  window:AddSimpleButton("Keep my tab order", function() app:resetMyTabOrder(); changed() end, { inline = true })
+  buttons[#buttons + 1] = { "Unpin all", function() app.store:resetTabHomes(); changed() end }
+  buttons[#buttons + 1] = { "Keep my tab order", function() app:resetMyTabOrder(); changed() end }
+  Widgets.buttonRow(window, buttons, WIDTH)
 end
 
 -- Draws the chosen tab's details in the Whole bank Tab Layout.
 local function layoutTab(app, window, layout, d, changed)
-  window:AddTitle(Tags.destinationName(d) .. (layout.names[d] and (" " .. layout.names[d]) or ""))
+  -- The tab's own name is shown in the field below, where it can be long.
+  window:AddTitle(Tags.destinationName(d))
   window:AddTextField({
     text = layout.names[d] or "", placeholder = "Name this tab, then press Enter",
     -- Enter saves the new name (an empty name clears it).
@@ -287,10 +295,11 @@ local function layoutTab(app, window, layout, d, changed)
   })
   -- Each kind with buttons to reorder it or send it back to Storage & Cleanup.
   for _, key in ipairs(layout.destinations[d]) do
-    window:AddText(Tags.label(key))
-    window:AddSimpleButton("Up", function() if layout:shiftTag(key, -1) then changed() end end, { inline = true })
-    window:AddSimpleButton("Down", function() if layout:shiftTag(key, 1) then changed() end end, { inline = true })
-    window:AddSimpleButton("Remove", function() if layout:removeTag(key) then changed() end end, { inline = true })
+    Widgets.textWithButtons(window, Tags.label(key), {
+      { "Up", function() if layout:shiftTag(key, -1) then changed() end end },
+      { "Down", function() if layout:shiftTag(key, 1) then changed() end end },
+      { "Remove", function() if layout:removeTag(key) then changed() end end },
+    }, WIDTH)
   end
   window:AddComboBox(Combo.options(tagChoicesFor(layout, d), "none", function(key)
     if key ~= "none" and layout:moveTag(key, d) then changed() end
@@ -301,9 +310,9 @@ end
 -- Draws the Whole bank version of the Tab Layout.
 local function bankLayout(app, window, changed)
   local layout = app.store.layout
-  Widgets.muted(window, "Your tabs in bank order, left to right. Pick a tab to name it, move it and choose which kinds of item it holds. Remove sends a kind to wherever Storage & Cleanup lives.", WIDTH)
+  Widgets.muted(window, "Your tabs in bank order, left to right. Pick a tab to name it, move it and choose which kinds of item it holds. Remove sends a kind to wherever Storage & Cleanup lives.")
   if state.layoutNote then
-    window:AddText({ text = state.layoutNote, height = 40 })
+    window:AddText({ text = state.layoutNote })
     state.layoutNote = nil
   end
   local list = {}
@@ -315,23 +324,28 @@ local function bankLayout(app, window, changed)
   Widgets.divider(window)
   -- Bottom bar. Moving a tab keeps it chosen; deleting chooses its left
   -- neighbour.
-  window:AddSimpleButton("Add tab", function()
-    if layout:addTab() then state.layoutTab = layout:last() else state.layoutNote = "RS3 banks have at most 14 custom tabs." end
-    changed()
-  end)
+  local buttons = {
+    { "Add tab", function()
+      if layout:addTab() then state.layoutTab = layout:last() else state.layoutNote = "RS3 banks have at most 14 custom tabs." end
+      changed()
+    end },
+  }
   if d > 0 then
-    window:AddSimpleButton("Delete tab", function()
+    buttons[#buttons + 1] = { "Delete tab", function()
       if layout:removeTab(d) then state.layoutTab = d - 1 end
       changed()
-    end, { inline = true })
-    window:AddSimpleButton("Move left", function() if layout:moveTab(d, -1) then state.layoutTab = d - 1 end; changed() end, { inline = true })
-    window:AddSimpleButton("Move right", function() if layout:moveTab(d, 1) then state.layoutTab = d + 1 end; changed() end, { inline = true })
+    end }
+    buttons[#buttons + 1] = { "Move left", function() if layout:moveTab(d, -1) then state.layoutTab = d - 1 end; changed() end }
+    buttons[#buttons + 1] = { "Move right", function() if layout:moveTab(d, 1) then state.layoutTab = d + 1 end; changed() end }
   end
-  window:AddSimpleButton("Copy my current tabs", function()
-    if not app:copyCurrentTabs() then state.layoutNote = "Open your bank and press Analyze Bank first, so your tabs can be read." end
-    changed()
-  end)
-  window:AddSimpleButton("Reset to default", function() layout:reset(); changed() end, { inline = true })
+  Widgets.buttonRow(window, buttons, WIDTH)
+  Widgets.buttonRow(window, {
+    { "Copy my current tabs", function()
+      if not app:copyCurrentTabs() then state.layoutNote = "Open your bank and press Analyze Bank first, so your tabs can be read." end
+      changed()
+    end },
+    { "Reset to default", function() layout:reset(); changed() end },
+  }, WIDTH)
 end
 
 -- Opens the Tab Layout window for the current organize mode.
@@ -356,12 +370,12 @@ end
 function Windows.presets(app)
   return Windows.open("presets", { title = "Share or Load a Setup", width = WIDTH, height = 440, x = 140, y = 80 }, function(window)
     window:AddTitle("Share my setup")
-    Widgets.muted(window, "Copy this code and post it anywhere. It holds your tabs, their names, the kinds of item in each, your pins, your custom categories and tags, how you organize and how you sort. Tags on single items stay yours.", WIDTH)
+    Widgets.muted(window, "Copy this code and post it anywhere. It holds your tabs, their names, the kinds of item in each, your pins, your custom categories and tags, how you organize and how you sort. Tags on single items stay yours.")
     window:AddTextField({ text = Preset.encode(app.store) })
     window:AddTitle("Load a setup")
-    Widgets.muted(window, "Paste a code someone shared, then press Enter. Your current setup is replaced.", WIDTH)
+    Widgets.muted(window, "Paste a code someone shared, then press Enter. Your current setup is replaced.")
     if state.presetNote then
-      window:AddText({ text = state.presetNote, height = 40 })
+      window:AddText({ text = state.presetNote })
       state.presetNote = nil
     end
     window:AddTextField({
@@ -437,12 +451,15 @@ function Windows.tags(app, itemID, position)
   local at = position or TAGS_DEFAULT
   -- Redraws this window in the same place after a change.
   local function reopen() Windows.tags(app, itemID, at) end
-  return Windows.open("tags", { title = "Tags: " .. name, width = TAGS_WIDTH, height = TAGS_HEIGHT, x = at.x, y = at.y }, function(window)
+  -- The item's name goes in the window, where it can wrap, not in the title
+  -- bar, where a long name would be cut off.
+  return Windows.open("tags", { title = "Tags", width = TAGS_WIDTH, height = TAGS_HEIGHT, x = at.x, y = at.y }, function(window)
     -- The item itself, so it is clear what is being tagged.
     window:AddItemGrid({ { object = objectOf(itemID), tooltip = name } }, { columns = 1, rows = 1 })
+    window:AddText(name)
     window:AddText("Category")
     categoryCombo(app, window, itemID, reopen)
-    Widgets.muted(window, "Your choice always wins over automatic sorting.", TAGS_WIDTH)
+    Widgets.muted(window, "Your choice always wins over automatic sorting.")
     -- Ignore, and for potions with a dose the Decant opt-out.
     local boxes = { { text = "Ignore (never move this item)", value = "ignore", selected = app:isIgnored(itemID) } }
     if Classify.dose(name) then
@@ -469,7 +486,7 @@ function Windows.tags(app, itemID, position)
       app:setTag(itemID, changed, selected)
       reopen()
     end })
-    Widgets.muted(window, "An item can have several tags. The highest one in Tools, Custom tags decides where it goes.", TAGS_WIDTH)
+    Widgets.muted(window, "An item can have several tags. The highest one in Tools, Custom tags decides where it goes.")
   end)
 end
 
@@ -479,10 +496,8 @@ end
 --   button  optional { label, fn(objectId) } added beside each row
 local function reviewRows(window, rows, suffix, button)
   for _, row in ipairs(rows) do
-    window:AddText(row.name .. suffix)
-    if button then
-      window:AddSimpleButton(button.label, function() button.fn(row.objectId) end, { inline = true })
-    end
+    local buttons = button and { { button.label, function() button.fn(row.objectId) end } } or {}
+    Widgets.textWithButtons(window, row.name .. suffix, buttons, WIDTH)
   end
 end
 
@@ -492,7 +507,8 @@ local function categoryEditor(app, window, def, reopen)
   local store = app.store
   -- After a change that affects classification: rebuild, then redraw.
   local function changed() app:rebuild(); reopen() end
-  window:AddTitle(def.name)
+  -- The name itself is in the field below, where it can be long.
+  window:AddTitle("Edit category")
   window:AddTextField({ text = def.name, placeholder = "Rename, then press Enter", onSubmit = function(_, text)
     if not store:editCategory(def.key, { name = text }) then state.categoryNote = "A category needs a name." end
     changed()
@@ -500,11 +516,12 @@ local function categoryEditor(app, window, def, reopen)
   window:AddText("Colour")
   window:AddColourPicker({ value = def.colour, onChange = function(_, colour) store:editCategory(def.key, { colour = colour }); app:rebuild() end })
   Widgets.section(window, state.sections, "rules", "Name rules (" .. #def.rules .. ")", reopen, function()
-    Widgets.muted(window, "Items whose names match a rule join this category automatically. Upper and lower case are ignored.", WIDTH)
+    Widgets.muted(window, "Items whose names match a rule join this category automatically. Upper and lower case are ignored.")
     for index, rule in ipairs(def.rules) do
       local kind = rule.kind == "starts" and "Name starts with" or "Name contains"
-      window:AddText(kind .. ": " .. rule.text)
-      window:AddSimpleButton("Remove", function() store:removeRule(def.key, index); changed() end, { inline = true })
+      Widgets.textWithButtons(window, kind .. ": " .. rule.text, {
+        { "Remove", function() store:removeRule(def.key, index); changed() end },
+      }, WIDTH)
     end
     window:AddComboBox(Combo.options(Custom.RULE_KINDS, state.ruleKind, function(kind) state.ruleKind = kind; reopen() end))
     window:AddTextField({ placeholder = "Words to look for, then press Enter", onSubmit = function(_, text)
@@ -516,14 +533,14 @@ local function categoryEditor(app, window, def, reopen)
   local total = #review.matched + #review.removed + #review.byHand
   Widgets.section(window, state.sections, "review", "Review list (" .. total .. ")", reopen, function()
     if not app.items then
-      Widgets.muted(window, "Press Analyze Bank to see which items in your bank the rules match.", WIDTH)
+      Widgets.muted(window, "Press Analyze Bank to see which items in your bank the rules match.")
       return
     end
-    Widgets.muted(window, "Items your rules added. Remove keeps an item out even though a rule matches it.", WIDTH)
+    Widgets.muted(window, "Items your rules added. Remove keeps an item out even though a rule matches it.")
     reviewRows(window, review.matched, "", { label = "Remove", fn = function(objectId) store:exclude(def.key, objectId); changed() end })
     reviewRows(window, review.removed, "  (removed)", { label = "Restore", fn = function(objectId) store:restore(def.key, objectId); changed() end })
     reviewRows(window, review.byHand, "  (picked by hand)")
-    if total == 0 then Widgets.muted(window, "No items in your bank match yet.", WIDTH) end
+    if total == 0 then Widgets.muted(window, "No items in your bank match yet.") end
   end)
   Widgets.divider(window)
   window:AddSimpleButton("Delete category", function()
@@ -542,9 +559,9 @@ function Windows.categories(app)
   local function reopen() Windows.categories(app) end
   return Windows.open("categories", { title = "Custom categories", width = WIDTH, height = 640, x = 160, y = 60 }, function(window)
     local store = app.store
-    Widgets.muted(window, "Make your own kinds of item. New categories start in Tab 1 (infinity); move them in Tab Layout.", WIDTH)
+    Widgets.muted(window, "Make your own kinds of item. New categories start in Tab 1 (infinity); move them in Tab Layout.")
     if state.categoryNote then
-      window:AddText({ text = state.categoryNote, height = 40 })
+      window:AddText({ text = state.categoryNote })
       state.categoryNote = nil
     end
     window:AddTextField({ placeholder = "New category name, then press Enter", onSubmit = function(_, text)
@@ -558,16 +575,19 @@ function Windows.categories(app)
       reopen()
     end })
     if #store.customCategories == 0 then
-      Widgets.muted(window, "No custom categories yet.", WIDTH)
+      Widgets.muted(window, "No custom categories yet.")
       return
     end
     local def = store:category(state.categoryKey) or store.customCategories[1]
     state.categoryKey = def.key
-    -- One button per category; the chosen one is in square brackets.
+    -- One button per category; the chosen one is in square brackets. They
+    -- wrap onto more rows when they do not fit.
+    local buttons = {}
     for index, other in ipairs(store.customCategories) do
       local label = other.key == def.key and ("[" .. other.name .. "]") or other.name
-      window:AddSimpleButton(label, function() state.categoryKey = other.key; reopen() end, { inline = index > 1 })
+      buttons[index] = { label, function() state.categoryKey = other.key; reopen() end }
     end
+    Widgets.buttonRow(window, buttons, WIDTH)
     Widgets.divider(window)
     categoryEditor(app, window, def, reopen)
   end)
@@ -615,20 +635,22 @@ function Windows.customTags(app)
     -- Rebuilds the plan after a change, then redraws this window.
     local function changed() app:rebuild(); reopen() end
     if state.tagNote then
-      window:AddText({ text = state.tagNote, height = 40 })
+      window:AddText({ text = state.tagNote })
       state.tagNote = nil
     end
     window:AddTitle("Priority")
-    Widgets.muted(window, "When an item has several tags, the highest one here decides where it goes and which label shows in its slot.", WIDTH)
+    Widgets.muted(window, "When an item has several tags, the highest one here decides where it goes and which label shows in its slot.")
     for index, key in ipairs(store.tagOrder) do
       local def = Placement.byKey[key]
       if def then
-        window:AddText(index .. ". " .. def.label .. "  (" .. Placement.describe(key) .. ")")
-        window:AddSimpleButton("Up", function() if store:moveTagPriority(key, -1) then changed() end end, { inline = true })
-        window:AddSimpleButton("Down", function() if store:moveTagPriority(key, 1) then changed() end end, { inline = true })
+        local buttons = {
+          { "Up", function() if store:moveTagPriority(key, -1) then changed() end end },
+          { "Down", function() if store:moveTagPriority(key, 1) then changed() end end },
+        }
         if def.custom then
-          window:AddSimpleButton("Edit", function() state.tagKey = key; reopen() end, { inline = true })
+          buttons[#buttons + 1] = { "Edit", function() state.tagKey = key; reopen() end }
         end
+        Widgets.textWithButtons(window, index .. ". " .. def.label .. "  (" .. Placement.describe(key) .. ")", buttons, WIDTH)
       end
     end
     window:AddSimpleButton("Reset priority", function() store:resetTagOrder(); changed() end)
@@ -640,7 +662,7 @@ function Windows.customTags(app)
       if key then state.tagKey = key else state.tagNote = "Type a label first (you can have up to " .. Custom.MAX_TAGS .. " custom tags)." end
       changed()
     end })
-    Widgets.muted(window, "Choose where the tag puts items first, then type its label. Label only never moves anything.", WIDTH)
+    Widgets.muted(window, "Choose where the tag puts items first, then type its label. Label only never moves anything.")
     local def = state.tagKey and store:customTag(state.tagKey)
     if def then
       Widgets.divider(window)
@@ -665,21 +687,29 @@ local function pickedIds()
   return list
 end
 
--- Adds one group of Bank Cleaner suggestions: icons, then a ticked list.
+-- Records a ticked or unticked Bank Cleaner row.
+local function onPicked(_, _, changed, selected)
+  local objectId = tonumber(changed)
+  if objectId then state.picked[objectId] = selected and true or nil end
+end
+
+-- Adds one group of Bank Cleaner suggestions: icons, then each item as a
+-- checkbox with its reason below it. Checkbox labels stay on one line, so
+-- the label is only the name and amount and the reason is wrapping text.
 local function cleanerGroup(window, group, rows, reopen)
   Widgets.section(window, state.sections, "cleaner-" .. group.key, group.title .. " (" .. #rows .. ")", reopen, function()
-    Widgets.muted(window, group.hint, WIDTH)
-    local icons, boxes = {}, {}
+    Widgets.muted(window, group.hint)
+    local icons = {}
     for index, row in ipairs(rows) do
       icons[index] = { objectId = row.objectId, name = row.name, quantity = row.quantity }
-      boxes[index] = { text = row.name .. " x" .. Cleaner.coins(row.quantity) .. ": " .. row.reason,
-        value = tostring(row.objectId), selected = state.picked[row.objectId] == true }
     end
     itemGrid(window, icons)
-    window:AddCheckboxButton(boxes, { onChange = function(_, _, changed, selected)
-      local objectId = tonumber(changed)
-      if objectId then state.picked[objectId] = selected and true or nil end
-    end })
+    for _, row in ipairs(rows) do
+      window:AddCheckboxButton({
+        { text = row.name .. " x" .. Cleaner.coins(row.quantity), value = tostring(row.objectId), selected = state.picked[row.objectId] == true },
+      }, { onChange = onPicked })
+      Widgets.muted(window, row.reason)
+    end
   end)
 end
 
@@ -688,32 +718,34 @@ function Windows.cleaner(app)
   -- Redraws this window after a change.
   local function reopen() Windows.cleaner(app) end
   return Windows.open("cleaner", { title = "Bank Cleaner", width = WIDTH, height = 660, x = 180, y = 40 }, function(window)
-    Widgets.muted(window, "Suggestions only: nothing is ever destroyed, dropped or sold for you. Tick items, then tag them so the guide lines them up at the bottom of your infinity tab, or Keep them so they are never suggested again. Clue items, rares, Vanity, Active and Favourite items, and items for quests you have not finished are never suggested.", WIDTH)
+    Widgets.muted(window, "Suggestions only: nothing is ever destroyed, dropped or sold for you. Tick items, then tag them so the guide lines them up at the bottom of your infinity tab, or Keep them so they are never suggested again. Clue items, rares, Vanity, Active and Favourite items, and items for quests you have not finished are never suggested.")
     local groups = app:cleanerSuggestions()
     if not groups then
       window:AddText("Press Analyze Bank first.")
       return
     end
     if state.cleanerNote then
-      window:AddText({ text = state.cleanerNote, height = 40 })
+      window:AddText({ text = state.cleanerNote })
       state.cleanerNote = nil
     end
-    Widgets.muted(window, "Low value means under " .. Cleaner.coins(app.store:get("cleanerThreshold")) .. " gp per stack (Settings, Cleaner). Kept items: " .. app.store:keptCount() .. ".", WIDTH)
+    Widgets.muted(window, "Low value means under " .. Cleaner.coins(app.store:get("cleanerThreshold")) .. " gp per stack (Settings, Cleaner). Kept items: " .. app.store:keptCount() .. ".")
     for _, group in ipairs(Cleaner.GROUPS) do
       local rows = groups[group.key]
       if #rows > 0 then cleanerGroup(window, group, rows, reopen) end
     end
     if Cleaner.total(groups) == 0 then window:AddText("Nothing to suggest. Your bank looks tidy.") end
     Widgets.divider(window)
+    local buttons = {}
     for index, button in ipairs(CLEANER_ACTIONS) do
-      window:AddSimpleButton(button.label, function()
+      buttons[index] = { button.label, function()
         local ids = pickedIds()
         local changed = app:applyCleaner(ids, button.action)
         state.picked = {}
         state.cleanerNote = #ids == 0 and "Tick some items first." or string.format(button.done, changed)
         reopen()
-      end, { inline = index > 1 })
+      end }
     end
+    Widgets.buttonRow(window, buttons, WIDTH)
     window:AddSimpleButton("Clear Keep list", function()
       Windows.confirm("CLEAR KEEP LIST", "Let the Bank Cleaner suggest every kept item again?", "CLEAR", function()
         app.store:clearKept()

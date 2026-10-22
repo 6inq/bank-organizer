@@ -53,6 +53,41 @@ function Cleaner.coins(n)
   return sign .. digits
 end
 
+-- The largest amount the low value limit accepts: 1,000b.
+Cleaner.MAX_THRESHOLD = 1000000000000
+
+-- What each amount suffix multiplies by.
+local SUFFIX = { [""] = 1, k = 1000, m = 1000000, b = 1000000000 }
+
+-- Reads an amount of coins typed by the player.
+--   text  for example "500", "1,000", "250k", "1m", "1.5m", "200M", "3b"
+-- Spaces, commas and a trailing "gp" are allowed; the suffix is k, m or b
+-- in either case. Returns a whole number of coins (0 to MAX_THRESHOLD), or
+-- nil when the text is not an amount.
+function Cleaner.parseCoins(text)
+  if type(text) ~= "string" then return nil end
+  local cleaned = text:lower():gsub("[%s,]", ""):gsub("gp$", "")
+  local number, suffix = cleaned:match("^(%d+%.?%d*)([kmb]?)$")
+  if not number then number, suffix = cleaned:match("^(%.%d+)([kmb]?)$") end
+  if not number then return nil end
+  local coins = math.floor(tonumber(number) * SUFFIX[suffix] + 0.5)
+  if coins < 0 or coins > Cleaner.MAX_THRESHOLD then return nil end
+  return coins
+end
+
+-- Writes an amount the short way players type it: "750", "250k", "1m",
+-- "1.5m", "3b". Up to two decimals are kept and trailing zeros dropped.
+function Cleaner.shortCoins(coins)
+  coins = math.floor(coins or 0)
+  for _, unit in ipairs({ { 1000000000, "b" }, { 1000000, "m" }, { 1000, "k" } }) do
+    if coins >= unit[1] then
+      local text = string.format("%.2f", coins / unit[1]):gsub("0+$", ""):gsub("%.$", "")
+      return text .. unit[2]
+    end
+  end
+  return tostring(coins)
+end
+
 -- Returns true when any key in the item's tag set is in the lookup table.
 local function carries(set, lookup)
   for key in pairs(set or {}) do

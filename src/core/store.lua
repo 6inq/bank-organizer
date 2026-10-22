@@ -89,9 +89,10 @@ local SETTINGS = {
   decant5 = { default = true, valid = isBool },
   -- Herblore: keep secondaries "with" their potion or at the "bottom".
   secondaries = { default = "with", valid = function(v) return v == "with" or v == "bottom" end },
-  -- Bank Cleaner: tradeable items worth less than this many coins are
-  -- suggested as low value.
-  cleanerThreshold = { default = 1000, valid = function(v) return math.type(v) == "integer" and v >= 0 and v <= 2147483647 end },
+  -- Bank Cleaner: tradeable stacks worth less than this many coins are
+  -- suggested as low value. Up to 1,000b; the database may hand whole
+  -- numbers back as decimals, so any whole number is accepted.
+  cleanerThreshold = { default = 1000, valid = function(v) return type(v) == "number" and v == math.floor(v) and v >= 0 and v <= 1000000000000 end },
 }
 
 -- Reads the saved table from the database. Returns {} when there is no

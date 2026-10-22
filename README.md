@@ -105,7 +105,7 @@ Open it from **Tools**, or from the button that appears when your bank is sorted
 
 - **Quest leftovers:** untradeable quest items whose quests are all complete. Many can be reclaimed from an NPC if you need them again.
 - **Worth more alched:** High Alchemy pays more than the Grand Exchange.
-- **Low value:** the whole stack is worth less than your limit (1,000 gp to start; change it in Settings, Cleaner).
+- **Low value:** the whole stack is worth less than your limit. It starts at 1,000 gp; to change it, type an amount like `500k`, `1m`, `200m` or `3b` in Settings, Cleaner and press Enter.
 - **Review:** items Bank Organizer could not place.
 
 Tick items, then press **Tag as Sell**, **Tag as Alch** or **Tag as Trash** to line them up at the bottom of your infinity tab. Or press **Keep** so they are never suggested again.
@@ -140,7 +140,7 @@ Open **Tools, Settings**, or the plugin's settings gear. The settings are split 
 - **Sorting:** sort order, direction (rows or columns), Secondaries and decant labels.
 - **Tags & Labels:** clear all tags, and the colour of every label.
 - **Colours:** the colour of every kind of item and of the guide.
-- **Cleaner:** the low value limit and the Keep list.
+- **Cleaner:** the low value limit (typed, like `1m` or `2b`) and the Keep list.
 
 Sort orders you can pick:
 

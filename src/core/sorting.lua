@@ -26,13 +26,13 @@ local Sorting = {}
 
 -- The sort modes offered in the sidebar, in menu order.
 Sorting.MODES = {
-  { key = "smart", label = "Smart (style, slot, tier)" },
+  { key = "smart", label = "Smart" },
   { key = "name", label = "Name" },
   { key = "id", label = "Item ID" },
   { key = "value", label = "Value: item value (highest first)" },
   { key = "qty-desc", label = "Quantity (highest first)" },
   { key = "qty-asc", label = "Quantity (lowest first)" },
-  { key = "keep", label = "Keep my order (only move between tabs)" },
+  { key = "keep", label = "Keep my order" },
 }
 
 -- The mode new players start with.
@@ -44,7 +44,7 @@ Sorting.DEFAULT = "smart"
 --   none     no price library, so the game's own item value is used
 Sorting.VALUE_LABELS = {
   live = "Value: GE price (highest first)",
-  loading = "Value: item value until GE prices load",
+  loading = "Value: item value for now",
   none = "Value: item value (highest first)",
 }
 

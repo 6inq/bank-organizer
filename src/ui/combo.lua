@@ -5,6 +5,8 @@
 -- numbers the entries 1, 2, 3 ... and maps the picked number back to its
 -- key, so every dropdown in the plugin is built the same safe way.
 
+local Widgets = require("src/ui/widgets")
+
 local Combo = {}
 
 -- Builds the options table for view:AddComboBox.
@@ -16,7 +18,8 @@ local Combo = {}
 function Combo.options(choices, selectedKey, onPick, extra)
   local entries, selectedID = {}, 1
   for index, choice in ipairs(choices) do
-    entries[index] = { label = choice.label, id = index, key = choice.key }
+    -- Long labels are shortened so they are never cut off in the box.
+    entries[index] = { label = Widgets.fit(choice.label, Widgets.MAX_CHOICE), id = index, key = choice.key }
     if choice.key == selectedKey then selectedID = index end
   end
   local options = {

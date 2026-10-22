@@ -165,4 +165,26 @@ function T.quest_state_is_read_safely()
   A.eq(Quests.state(99), "unknown", "no config: unsure, so the item is kept")
 end
 
+-- Requirement: the low value limit can be typed the way players write
+-- amounts: plain, with commas, or with k, m and b in either case.
+function T.typed_amounts_are_understood()
+  local cases = {
+    { "500", 500 }, { "1,000", 1000 }, { "250k", 250000 }, { "1m", 1000000 }, { "1.5m", 1500000 },
+    { "200M", 200000000 }, { "1b", 1000000000 }, { "3b", 3000000000 }, { " 2.25 B ", 2250000000 },
+    { "750gp", 750 }, { ".5m", 500000 }, { "0", 0 },
+  }
+  for _, case in ipairs(cases) do A.eq(Cleaner.parseCoins(case[1]), case[2], case[1]) end
+  for _, bad in ipairs({ "", "abc", "1x", "-5", "1mm", "2t", "1.2.3", "9999b" }) do
+    A.eq(Cleaner.parseCoins(bad), nil, "refused: " .. bad)
+  end
+  A.eq(Cleaner.parseCoins(nil), nil)
+end
+
+-- Requirement: the limit is shown back in the same short form.
+function T.amounts_are_shown_short()
+  A.eq(Cleaner.shortCoins(750), "750"); A.eq(Cleaner.shortCoins(1000), "1k"); A.eq(Cleaner.shortCoins(250000), "250k")
+  A.eq(Cleaner.shortCoins(1500000), "1.5m"); A.eq(Cleaner.shortCoins(200000000), "200m"); A.eq(Cleaner.shortCoins(3000000000), "3b")
+  A.eq(Cleaner.shortCoins(2250000000), "2.25b")
+end
+
 return T

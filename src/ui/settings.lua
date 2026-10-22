@@ -32,15 +32,14 @@ Settings.PAGES = { "General", "Sorting", "Tags & Labels", "Colours", "Cleaner" }
 -- The view inside the game's settings layer.
 local view
 
--- Which page is showing and which sections are collapsed. Shared by the
+-- Which page is showing, which sections are collapsed, and a one-off
+-- message (note) shown after the low value amount is typed. Shared by the
 -- settings layer and the window so both open where the player left off.
 local state = { page = "General", sections = {} }
 
 -- The guide's own colours with their names in the Colours page.
 local HIGHLIGHTS = { { "move", "Item to move (MOVE)" }, { "target", "Drop target" }, { "line", "Guide line" }, { "done", "Sorted tabs" } }
 
--- The Bank Cleaner low value thresholds players can pick, in coins.
-Settings.THRESHOLDS = { 0, 100, 500, 1000, 5000, 10000, 50000, 100000, 1000000 }
 
 -- Adds a labelled colour picker that saves and redraws on change.
 local function addColour(target, store, app, key, label)
@@ -55,34 +54,34 @@ end
 -- Adds a labelled dropdown for one setting.
 --   choices  list of { label, key }
 --   onPick   function(key) called with the new value
-local function addChoice(target, label, hint, choices, current, onPick, width)
+local function addChoice(target, label, hint, choices, current, onPick)
   Widgets.setting(target, label, hint, function()
     target:AddComboBox(Combo.options(choices, current, onPick))
-  end, width)
+  end)
 end
 
 -- The General page.
 local function generalPage(target, store, app, ctx)
   Widgets.section(target, state.sections, "look", "Look", ctx.refresh, function()
     target:AddCheckboxButton({
-      { text = "Tint bank items with their planned tab colour", value = "tint", selected = store:get("tint") },
+      { text = "Tint items by their tab", value = "tint", selected = store:get("tint") },
     }, { onChange = function(_, _, changed, selected) store:set(changed, selected); app:rebuild() end })
-    Widgets.muted(target, "Each item is coloured like the tab it belongs in, so you can see the plan at a glance.", ctx.width)
+    Widgets.muted(target, "Each item is coloured like the tab it belongs in, so you can see the plan at a glance.")
     Widgets.setting(target, "Tint opacity", "How strong the colour is, from 0 (invisible) to 100 (solid).", function()
       target:AddSlider({
         min = 0, max = 100, step = 5, value = math.floor(store:get("opacity") * 100 + 0.5),
         -- The slider gives 0 to 100; the setting is stored as 0 to 1.
         onChange = function(_, value) store:set("opacity", value / 100); app:rebuild() end,
       })
-    end, ctx.width)
+    end)
     addChoice(target, "Tabs that are sorted", "How a tab looks once every item in it is in place.",
       { { label = "Green", key = "green" }, { label = "No overlay", key = "clear" }, { label = "Keep tab colour", key = "tint" } },
-      store:get("sortedLook"), function(key) store:set("sortedLook", key); app:rebuild() end, ctx.width)
+      store:get("sortedLook"), function(key) store:set("sortedLook", key); app:rebuild() end)
   end)
   Widgets.section(target, state.sections, "guide", "Sorting Guide", ctx.refresh, function()
     addChoice(target, "Rearrange mode", "Only used when the game does not report its own Insert or Swap setting.",
       { { label = "Insert (fewer moves)", key = "insert" }, { label = "Swap", key = "swap" } },
-      store:get("mode"), function(key) store:set("mode", key) end, ctx.width)
+      store:get("mode"), function(key) store:set("mode", key) end)
   end)
   Widgets.section(target, state.sections, "resets", "Resets", ctx.refresh, function()
     target:AddSimpleButton("Stop ignoring all items", function()
@@ -98,33 +97,35 @@ end
 local function sortingPage(target, store, app, ctx)
   Widgets.section(target, state.sections, "order", "Order", ctx.refresh, function()
     addChoice(target, "Sort inside tabs", "Smart gives every kind of item its own sensible order.",
-      Sorting.modes(app:valueSource()), store:get("sort"), function(mode) store:set("sort", mode); app:rebuild() end, ctx.width)
+      Sorting.modes(app:valueSource()), store:get("sort"), function(mode) store:set("sort", mode); app:rebuild() end)
     addChoice(target, "Sort direction", "Rows fill left to right; columns fill top to bottom.",
       { { label = "Horizontal (rows)", key = "horizontal" }, { label = "Vertical (columns)", key = "vertical" } },
-      store:get("direction"), function(direction) store:set("direction", direction); app:rebuild() end, ctx.width)
+      store:get("direction"), function(direction) store:set("direction", direction); app:rebuild() end)
   end)
   Widgets.section(target, state.sections, "herblore", "Herblore", ctx.refresh, function()
     addChoice(target, "Secondaries", "With their potion: herb, unfinished potion, secondary, then the potion. At the bottom: all secondaries after the rest of your herblore.",
       { { label = "With their potion", key = "with" }, { label = "At the bottom of the tab", key = "bottom" } },
-      store:get("secondaries"), function(key) store:set("secondaries", key); app:rebuild() end, ctx.width)
+      store:get("secondaries"), function(key) store:set("secondaries", key); app:rebuild() end)
     target:AddCheckboxButton({
-      { text = "Label part-dose potions you can decant", value = "decant", selected = store:get("decant") },
+      { text = "Decant labels", value = "decant", selected = store:get("decant") },
       { text = "1 dose", value = "decant1", selected = store:get("decant1") },
       { text = "2 dose", value = "decant2", selected = store:get("decant2") },
       { text = "3 dose", value = "decant3", selected = store:get("decant3") },
       { text = "4 dose (flasks)", value = "decant4", selected = store:get("decant4") },
       { text = "5 dose (flasks)", value = "decant5", selected = store:get("decant5") },
     }, { onChange = function(_, _, changed, selected) store:set(changed, selected); app:rebuild() end })
-    Widgets.muted(target, "With labels on, part doses that cannot make a full potion wait at the bottom of the herb tab. With labels off, part doses stay with their potion.", ctx.width)
+    Widgets.muted(target, "Decant labels mark part-dose potions you can combine into full ones, for the doses ticked. With labels on, part doses that cannot make a full potion wait at the bottom of the herb tab. With labels off, part doses stay with their potion.")
   end)
 end
 
 -- The Tags & Labels page.
 local function tagsPage(target, store, app, ctx)
   Widgets.section(target, state.sections, "tags", "Tags", ctx.refresh, function()
-    Widgets.muted(target, "Make your own tags and change which tag wins in Custom tags.", ctx.width)
-    target:AddSimpleButton("Custom tags", function() Windows.customTags(app) end)
-    target:AddSimpleButton("Custom categories", function() Windows.categories(app) end, { inline = true })
+    Widgets.muted(target, "Make your own tags and change which tag wins in Custom tags.")
+    Widgets.buttonRow(target, {
+      { "Custom tags", function() Windows.customTags(app) end },
+      { "Custom categories", function() Windows.categories(app) end },
+    }, ctx.width)
     target:AddSimpleButton("Clear all tags", function()
       ctx.confirm("CLEAR TAGS", "Remove every tag (Active, Vanity, Favourite, Sell, Alch, Disassemble, Trash and your own) from every item?",
         "CLEAR", function() store:clearMarks(); app:rebuild() end)
@@ -140,7 +141,7 @@ end
 -- The Colours page.
 local function coloursPage(target, store, app, ctx)
   Widgets.section(target, state.sections, "kinds", "Colours by kind", ctx.refresh, function()
-    Widgets.muted(target, "A tab takes the colour of the first kind of item it holds. Custom categories are coloured in Custom categories.", ctx.width)
+    Widgets.muted(target, "A tab takes the colour of the first kind of item it holds. Custom categories are coloured in Custom categories.")
     for _, category in ipairs(Tags.CATEGORIES) do
       if not category.custom then addColour(target, store, app, category.key, category.main) end
     end
@@ -156,15 +157,33 @@ end
 -- The Cleaner page.
 local function cleanerPage(target, store, app, ctx)
   Widgets.section(target, state.sections, "cleaner", "Bank Cleaner", ctx.refresh, function()
-    local choices = {}
-    for index, coins in ipairs(Settings.THRESHOLDS) do choices[index] = { label = Cleaner.coins(coins) .. " gp", key = coins } end
-    addChoice(target, "Low value below", "Tradeable stacks worth less than this are suggested as low value.",
-      choices, store:get("cleanerThreshold"), function(coins) store:set("cleanerThreshold", coins); ctx.refresh() end, ctx.width)
+    target:AddText("Low value below")
+    target:AddTextField({
+      text = Cleaner.shortCoins(store:get("cleanerThreshold")), placeholder = "For example 500k, 1m or 2b",
+      -- Enter saves the typed amount, or explains what to type.
+      onSubmit = function(_, content)
+        local coins = Cleaner.parseCoins(content)
+        if coins then
+          store:set("cleanerThreshold", coins)
+          state.note = "Low value is now anything under " .. Cleaner.coins(coins) .. " gp."
+        else
+          state.note = "Type an amount like 500k, 1m, 200m or 2b, then press Enter."
+        end
+        ctx.refresh()
+      end,
+    })
+    if state.note then
+      target:AddText(state.note)
+      state.note = nil
+    end
+    Widgets.muted(target, "Tradeable stacks worth less than this are suggested as low value. Type an amount and press Enter: 750, 500k, 1m, 1.5m, 200m or 3b.")
     target:AddText("Kept items: " .. store:keptCount())
-    target:AddSimpleButton("Clear Keep list", function()
-      ctx.confirm("CLEAR KEEP LIST", "Let the Bank Cleaner suggest every kept item again?", "CLEAR", function() store:clearKept(); ctx.refresh() end)
-    end)
-    target:AddSimpleButton("Open the Bank Cleaner", function() Windows.cleaner(app) end, { inline = true })
+    Widgets.buttonRow(target, {
+      { "Clear Keep list", function()
+        ctx.confirm("CLEAR KEEP LIST", "Let the Bank Cleaner suggest every kept item again?", "CLEAR", function() store:clearKept(); ctx.refresh() end)
+      end },
+      { "Open the Bank Cleaner", function() Windows.cleaner(app) end },
+    }, ctx.width)
   end)
 end
 
@@ -185,8 +204,8 @@ function Settings.build(target, store, app, ctx)
   local builder = PAGE_BUILDERS[state.page] or generalPage
   builder(target, store, app, ctx)
   Widgets.divider(target)
-  Widgets.muted(target, "Bank Organizer | Created by 6ing", ctx.width)
-  Widgets.muted(target, "Version " .. Version.NUMBER, ctx.width)
+  Widgets.muted(target, "Bank Organizer | Created by 6ing")
+  Widgets.muted(target, "Version " .. Version.NUMBER)
 end
 
 -- Draws the settings into the game's settings layer.
