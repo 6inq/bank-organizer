@@ -5,7 +5,7 @@
 --   * a bundled list of hidey-hole (STASH) and emote clue items, generated
 --     from the RuneScape Wiki by tools/gen_clue_items.py into
 --     src/data/clue_items.lua
---   * a short hand-written list of clue tools and name patterns for clue
+--   * a short curated list of clue tools and name patterns for clue
 --     scrolls, caskets and puzzle boxes, which are easy to spot by name
 
 local ClueItems = require("src/data/clue_items")

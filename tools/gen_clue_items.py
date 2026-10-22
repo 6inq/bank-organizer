@@ -5,7 +5,7 @@
 #   * stash: every item the RuneScape Wiki's "Hidey-holes" page lists as
 #     required for an emote clue's hidey-hole (STASH). The page is fetched
 #     from the wiki's public API.
-#   * tools: a short hand-written list of clue tools.
+#   * tools: a short curated list of clue tools.
 #
 # The downloaded page is treated as untrusted text: it is never executed or
 # saved, and only names made of letters, digits, spaces and simple
@@ -13,7 +13,7 @@
 # inside sentences (for example "steel nails" in building instructions), not
 # required items, so they are skipped.
 #
-# If the wiki cannot be reached, the hand-written FALLBACK_STASH list is used
+# If the wiki cannot be reached, the curated FALLBACK_STASH list is used
 # instead so the plugin always has something sensible.
 #
 # Usage (from the plugin folder):
@@ -151,7 +151,7 @@ def main():
     stash = stash_names(wikitext) if wikitext else []
     source = "the RuneScape Wiki page \"" + PAGE + "\""
     if not stash:
-        stash, source = sorted(FALLBACK_STASH), "the hand-written fallback list"
+        stash, source = sorted(FALLBACK_STASH), "the curated fallback list"
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(render(stash, source), encoding="utf-8", newline="\n")
     print("Wrote " + str(len(stash)) + " hidey-hole items and " + str(len(TOOLS)) + " tools to " + str(OUTPUT))
