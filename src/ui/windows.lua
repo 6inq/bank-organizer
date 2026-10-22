@@ -72,6 +72,41 @@ function Windows.closeAll()
   for name in pairs(open) do Windows.close(name) end
 end
 
+-- How much room (pixels) a window leaves below it when it has to be made
+-- shorter to fit the game, so it can always be dragged a little.
+local FIT_MARGIN = 40
+
+-- The shortest (pixels) a window is ever made. Its content scrolls, so
+-- nothing is lost when it is shorter than it asked for.
+local MIN_HEIGHT = 240
+
+-- Returns where an open window is now as { x, y } (pixels, relative to the
+-- plugin layer), or nil when it cannot be read. PrettyUI moves the window's
+-- root component while the player drags it, so root.x and root.y are the
+-- dragged position. Read through pcall: a destroyed component throws.
+local function positionOf(window)
+  local ok, x, y = pcall(function() return window.root.x, window.root.y end)
+  if ok and type(x) == "number" and type(y) == "number" then return { x = x, y = y } end
+  return nil
+end
+
+-- Makes a window fit inside the plugin layer so it can be dragged.
+--   layer    the plugin layer (its width and height are the game's size)
+--   options  the PrettyUI Window options; height, x and y are changed in place
+-- PrettyUI keeps a dragged window inside the layer by limiting its top to
+-- between 0 and (layer height - window height). When the window is taller
+-- than the layer that limit is below 0, so the window is pinned and cannot
+-- move. So a window that is too tall is made shorter (its content scrolls),
+-- and a position off the edge is pulled back on. When the layer's size
+-- cannot be read the options are left as they are.
+local function fitOnLayer(layer, options)
+  local ok, width, height = pcall(function() return layer.width, layer.height end)
+  if not ok or type(width) ~= "number" or type(height) ~= "number" or width <= 0 or height <= 0 then return end
+  options.height = math.max(MIN_HEIGHT, math.min(options.height, height - FIT_MARGIN))
+  options.x = math.max(0, math.min(options.x or 0, width - options.width))
+  options.y = math.max(0, math.min(options.y or 0, height - options.height))
+end
+
 -- Returns true when the named window is open.
 function Windows.isOpen(name)
   return open[name] ~= nil
@@ -82,13 +117,21 @@ end
 --   options  PrettyUI Window options (title, width, height, x, y)
 --   build    function(window) that adds the window's content
 -- A failing build is logged and leaves a partly drawn window rather than
--- breaking the plugin. Returns the window, or nil when there is no layer.
+-- breaking the plugin. A window that is rebuilt keeps its place and scroll,
+-- and every window is fitted inside the game (see fitOnLayer). Returns the
+-- window, or nil when there is no layer.
 function Windows.open(name, options, build)
+  local previous = open[name]
   -- A window redrawn after a change keeps its scroll position.
-  local scrolled = open[name] and Widgets.scrollOf(open[name]) or 0
+  local scrolled = previous and Widgets.scrollOf(previous) or 0
+  -- It also stays where the player dragged it, instead of jumping back to
+  -- the spot it first opened at.
+  local at = previous and positionOf(previous)
+  if at then options.x, options.y = at.x, at.y end
   Windows.close(name)
   local layer = host()
   if not layer then return nil end
+  fitOnLayer(layer, options)
   -- Forget the window when the player closes it with its own X button.
   options.onClose = function() open[name] = nil end
   options.destroyOnClose = true

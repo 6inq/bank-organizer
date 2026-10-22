@@ -19,11 +19,12 @@
 
 ### For developers
 - Added Comments to entire document
-- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface. 244 tests pass.
+- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface, and for dragging windows. 250 tests pass.
 
 ### Fixed
 - Text in the sidebar, the settings and every window wraps onto more lines instead of being cut off, and rows of buttons wrap instead of running past the edge.
 - The sidebar, settings and every window stay scrolled where they were after a click, instead of jumping back to the top.
+- Windows can be dragged again. A window stays where you dragged it after you tick a box or press a button, and a window taller than your game is made shorter (it scrolls) so it is never stuck in place.
 
 ## 1.4.1 (2026-10-21)
 ### New

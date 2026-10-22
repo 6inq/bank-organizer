@@ -202,10 +202,13 @@ function H.boot(opts)
       l.view = recorder(l)
       return l.view
     end },
-    -- Windows are recorded the same way, with their options.
+    -- Windows are recorded the same way, with their options. Like a real
+    -- PrettyUI window, each has a root component at its x and y, which a
+    -- test can change to act out the player dragging it.
     Window = { new = function(_, options)
       local l = { options = options }; env.windows[#env.windows + 1] = l
       l.view = recorder(l)
+      rawset(l.view, "root", { x = options.x, y = options.y, width = options.width, height = options.height })
       return l.view
     end },
     Confirm = { new = function(_, o) env.confirm = o end },

@@ -15,6 +15,8 @@
 --   * Ignore wins over tags
 --   * every dropdown uses whole-number ids
 --   * the version in the plugin matches plugin.json
+--   * windows can be dragged: a redrawn window stays where it was dragged,
+--     and a window is fitted inside the game so it is never pinned
 
 local A = require("assert")
 local H = require("harness")
@@ -548,6 +550,85 @@ function T.nothing_is_cut_off_anywhere()
   pick(H.comboWith(panel(env), "tabs"), "tabs")
   press(env, "Tab Layout")
   assertNothingCutOff(H.window(env), Widgets.room(H.window(env).view, 470), "Tab Layout (My tabs)")
+  PluginShutdown()
+end
+
+-- Acts out the player dragging a window: moves its root to x, y.
+local function drag(recording, x, y)
+  recording.view.root.x, recording.view.root.y = x, y
+end
+
+-- Requirement: a window the player dragged stays there when it is redrawn
+-- after a change (ticking a box in the Bank Cleaner), instead of jumping
+-- back to where it first opened.
+function T.dragged_cleaner_stays_put_when_redrawn()
+  local env = boot({ bank = { 117, 116 } })
+  press(env, "Analyze Bank")
+  press(env, "Bank Cleaner")
+  drag(H.window(env), 300, 25)
+  cleanerBox(env, 117).args[2].onChange(nil, nil, "117", true)
+  A.eq(H.window(env).options.x, 300); A.eq(H.window(env).options.y, 25)
+  PluginShutdown()
+end
+
+-- Requirement: the Tags window also stays where it was dragged when a
+-- change redraws it.
+function T.dragged_tags_window_stays_put_when_redrawn()
+  local env = boot({ bank = { 111 } })
+  local tags = H.tagsWindow(env, 111)
+  drag(tags, 640, 90)
+  find(tags, "AddCheckboxButton").args[2].onChange(nil, nil, "ignore", true)
+  A.eq(H.window(env).options.title, "Tags")
+  A.eq(H.window(env).options.x, 640); A.eq(H.window(env).options.y, 90)
+  PluginShutdown()
+end
+
+-- Requirement: a window taller than the game is made shorter, so PrettyUI
+-- does not pin it in place and it can be dragged. Its top starts inside
+-- the game.
+function T.tall_window_on_short_game_can_still_move()
+  local env = boot({ bank = { 117 } })
+  env.layer.height = 500
+  press(env, "Bank Cleaner")
+  local options = H.window(env).options
+  A.eq(options.height, 460, "game height less the margin")
+  A.truthy(options.y >= 0 and options.y <= 500 - options.height, "top inside the game, y = " .. tostring(options.y))
+  PluginShutdown()
+end
+
+-- Requirement: on a very small game a window is never made shorter than
+-- its minimum, and it never starts above or left of the game.
+function T.tiny_game_keeps_minimum_height()
+  local env = boot({ bank = { 117 } })
+  env.layer.width, env.layer.height = 300, 200
+  press(env, "Bank Cleaner")
+  local options = H.window(env).options
+  A.eq(options.height, 240); A.eq(options.x, 0); A.eq(options.y, 0)
+  PluginShutdown()
+end
+
+-- Requirement: a window dragged past the edge (for example before the game
+-- window was made smaller) is pulled back inside the game when redrawn.
+function T.window_past_the_edge_is_pulled_back()
+  local env = boot({ bank = { 117, 116 } })
+  press(env, "Analyze Bank")
+  press(env, "Bank Cleaner")
+  drag(H.window(env), 5000, 5000)
+  env.layer.width, env.layer.height = 1000, 700
+  cleanerBox(env, 117).args[2].onChange(nil, nil, "117", true)
+  local options = H.window(env).options
+  A.eq(options.x, 1000 - options.width); A.eq(options.y, 700 - options.height)
+  PluginShutdown()
+end
+
+-- Requirement: when the game's size cannot be read, a window opens exactly
+-- as asked rather than failing.
+function T.unknown_game_size_leaves_window_as_asked()
+  local env = boot({ bank = { 117 } })
+  env.layer.width, env.layer.height = nil, nil
+  press(env, "Bank Cleaner")
+  local options = H.window(env).options
+  A.eq(options.height, 660); A.eq(options.x, 180); A.eq(options.y, 40)
   PluginShutdown()
 end
 
