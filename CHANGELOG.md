@@ -18,8 +18,8 @@
 - With decant labels off, part doses stay with their potion instead of sinking to the bottom.
 
 ### For developers
-- Every file and function is commented in detail, as the Plugin Hub asks. `tools/check_comments.py` checks it, and the test runner fails when a comment is missing.
-- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface. 234 tests pass.
+- Added Comments to entire document
+- New tests for custom categories and tags, herblore order, the Bank Cleaner, share codes, the Tags window and the new interface. 244 tests pass.
 
 ### Fixed
 - Text in the sidebar, the settings and every window wraps onto more lines instead of being cut off, and rows of buttons wrap instead of running past the edge.
